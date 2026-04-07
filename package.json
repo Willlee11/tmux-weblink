@@ -1,0 +1,40 @@
+{
+  "name": "tmux-web",
+  "version": "0.1.0",
+  "description": "Access tmux sessions from your browser via a web-based terminal",
+  "type": "module",
+  "bin": {
+    "tmux-web": "dist/index.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "postinstall": "find node_modules -path '*/node-pty/prebuilds/*/spawn-helper' -exec chmod +x {} + 2>/dev/null; true",
+    "prepublishOnly": "tsc",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "npx tsx src/index.ts"
+  },
+  "keywords": ["tmux", "terminal", "web", "pty", "websocket"],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ashutoshpw/tmux-web"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "@hono/node-server": "^1.19.12",
+    "hono": "^4.7.0",
+    "node-pty": "^1.0.0",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/ws": "^8.5.0",
+    "tsx": "^4.21.0",
+    "typescript": "^5.7.0"
+  }
+}

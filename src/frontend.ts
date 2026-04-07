@@ -1,0 +1,372 @@
+export function renderTerminal(sessionName: string): string {
+	return /* html */ `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>tmux: ${sessionName}</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap');
+  :root {
+    --page-bg: #111111;
+    --page-fg: #d0d0d0;
+    --panel-bg: #11161d;
+    --panel-border: #243241;
+    --panel-muted: #8a97a6;
+    --panel-accent: #f3f7fb;
+    --panel-success: #73c991;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { background: var(--page-bg); color: var(--page-fg); height: 100%; width: 100%; overflow: hidden; }
+  body { display: flex; flex-direction: column; }
+  header {
+    padding: 7px 16px;
+    background: linear-gradient(180deg, rgba(19, 28, 36, 0.98), rgba(13, 18, 24, 0.98));
+    border-bottom: 1px solid var(--panel-border);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-shrink: 0;
+    min-height: 38px;
+  }
+  header h1 {
+    font-size: 13px;
+    line-height: 1;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--panel-accent);
+    font-family: 'JetBrains Mono', 'SF Mono', 'Menlo', monospace;
+    white-space: nowrap;
+  }
+  header .session {
+    font-size: 11px;
+    color: var(--panel-muted);
+    font-family: 'JetBrains Mono', monospace;
+    background: rgba(0, 0, 0, 0.28);
+    border: 1px solid rgba(125, 211, 252, 0.12);
+    padding: 4px 8px;
+    border-radius: 6px;
+  }
+  header .status {
+    margin-left: auto;
+    font-size: 11px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-family: 'JetBrains Mono', 'SF Mono', 'Menlo', monospace;
+    color: var(--panel-muted);
+  }
+  header .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--panel-muted); transition: background 0.2s; }
+  header .dot.connected { background: var(--panel-success); }
+  #terminal-container { flex: 1; width: 100%; overflow: hidden; }
+</style>
+</head>
+<body>
+<header>
+  <h1>tmux</h1>
+  <span class="session">${sessionName}</span>
+  <div class="status">
+    <div class="dot" id="status-dot"></div>
+    <span id="status-text">connecting</span>
+  </div>
+</header>
+<div id="terminal-container"></div>
+
+<script type="module">
+import { init, Terminal } from 'https://esm.sh/ghostty-web@latest';
+
+await init();
+
+const term = new Terminal({
+  fontSize: 14,
+  fontFamily: "'JetBrains Mono', 'SF Mono', 'Menlo', monospace",
+  cursorBlink: true,
+  cursorStyle: 'bar',
+  scrollback: 50000,
+  convertEol: false,
+  theme: {
+    foreground: '#ffffff',
+    background: '#282c34',
+    cursor: '#ffffff',
+    cursorAccent: '#282c34',
+    selectionBackground: '#ffffff',
+    selectionForeground: '#282c34',
+    black: '#1d1f21',
+    red: '#cc6666',
+    green: '#b5bd68',
+    yellow: '#f0c674',
+    blue: '#81a2be',
+    magenta: '#b294bb',
+    cyan: '#8abeb7',
+    white: '#c5c8c6',
+    brightBlack: '#666666',
+    brightRed: '#d54e53',
+    brightGreen: '#b9ca4a',
+    brightYellow: '#e7c547',
+    brightBlue: '#7aa6da',
+    brightMagenta: '#c397d8',
+    brightCyan: '#70c0b1',
+    brightWhite: '#eaeaea',
+  },
+});
+
+const container = document.getElementById('terminal-container');
+term.open(container);
+
+let cols = 80, rows = 24, ws, charW = 0, charH = 0;
+let fitRaf = 0;
+let fitTimer = 0;
+let touchGesture = null;
+let suppressTouchClickUntil = 0;
+
+function updateCellMetrics(force = false) {
+  const canvas = container.querySelector('canvas');
+  if (canvas && canvas.offsetWidth > 0 && canvas.offsetHeight > 0 && cols > 0 && rows > 0) {
+    const nextW = canvas.offsetWidth / cols;
+    const nextH = canvas.offsetHeight / rows;
+    if (force || !charW || !charH) {
+      charW = nextW;
+      charH = nextH;
+    }
+  }
+  if (!charW || !charH) {
+    charW = 9.0;
+    charH = 18;
+  }
+}
+
+function getTerminalViewportRect() {
+  const rect = container.getBoundingClientRect();
+  const vv = window.visualViewport;
+  if (!vv) return rect;
+  return {
+    width: Math.min(rect.width, vv.width),
+    height: Math.max(0, Math.min(rect.height, vv.height - Math.max(0, rect.top))),
+  };
+}
+
+function fitTerminal(force = false) {
+  const rect = getTerminalViewportRect();
+  if (rect.width <= 0 || rect.height <= 0) return;
+  updateCellMetrics(force && (!charW || !charH));
+  const nc = Math.floor(rect.width / charW);
+  const nr = Math.floor(rect.height / charH);
+  if (nc < 10 || nr < 5) return;
+  if (force || nc !== cols || nr !== rows) {
+    cols = nc;
+    rows = nr;
+    term.resize(cols, rows);
+    sendJSON({ type: 'resize', cols, rows });
+  }
+}
+
+function scheduleFit(force = false) {
+  if (fitRaf) cancelAnimationFrame(fitRaf);
+  clearTimeout(fitTimer);
+  fitTerminal(force);
+  fitRaf = requestAnimationFrame(() => { fitRaf = 0; fitTerminal(force); });
+  fitTimer = setTimeout(() => fitTerminal(force), 120);
+}
+
+scheduleFit(true);
+window.addEventListener('resize', () => scheduleFit(true));
+window.visualViewport?.addEventListener('resize', () => scheduleFit(true));
+window.visualViewport?.addEventListener('scroll', () => scheduleFit(true));
+new ResizeObserver(() => scheduleFit(true)).observe(container);
+
+if (document.fonts?.ready) {
+  document.fonts.ready.then(() => {
+    scheduleFit(true);
+    setTimeout(() => scheduleFit(true), 50);
+    setTimeout(() => scheduleFit(true), 200);
+  });
+}
+
+function scheduleKeyboardFit() {
+  scheduleFit(true);
+  setTimeout(() => scheduleFit(true), 50);
+  setTimeout(() => scheduleFit(true), 150);
+  setTimeout(() => scheduleFit(true), 300);
+}
+
+container.addEventListener('focusin', () => scheduleKeyboardFit(), true);
+
+const dot = document.getElementById('status-dot');
+const statusText = document.getElementById('status-text');
+function setConnected(ok) {
+  dot.className = 'dot' + (ok ? ' connected' : '');
+  statusText.textContent = ok ? 'connected' : 'reconnecting';
+}
+
+const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+const wsUrl = proto + '//' + location.host + '/ws/${sessionName}';
+let reconnectDelay = 1000;
+const isSafari = /^((?!chrome|android|crios|fxios|edgios).)*safari/i.test(navigator.userAgent);
+
+function sendJSON(obj) {
+  if (ws?.readyState === WebSocket.OPEN) ws.send(JSON.stringify(obj));
+}
+
+function connect() {
+  ws = new WebSocket(wsUrl);
+  ws.onopen = () => {
+    try { term.reset(); } catch {}
+    setConnected(true);
+    reconnectDelay = 1000;
+    sendJSON({ type: 'resize', cols, rows });
+  };
+  ws.onmessage = (event) => {
+    if (typeof event.data === 'string') term.write(event.data);
+  };
+  ws.onclose = () => {
+    setConnected(false);
+    setTimeout(() => {
+      reconnectDelay = Math.min(reconnectDelay * 2, 10000);
+      connect();
+    }, reconnectDelay);
+  };
+  ws.onerror = () => ws.close();
+}
+
+term.onData((data) => sendJSON({ type: 'input', data }));
+
+document.addEventListener('keydown', (event) => {
+  if (!isSafari || event.key !== 'Escape') return;
+  if (event.defaultPrevented || event.repeat || event.metaKey || event.ctrlKey || event.altKey) return;
+  const active = document.activeElement;
+  const terminalFocused = active === container || active === term.textarea || container.contains(active);
+  if (!terminalFocused) return;
+  event.preventDefault();
+  event.stopPropagation();
+  sendJSON({ type: 'input', data: '\\x1b' });
+}, true);
+
+function dispatchTerminalWheel(deltaY, clientX, clientY) {
+  const target = container.querySelector('canvas') || container;
+  target.dispatchEvent(new WheelEvent('wheel', {
+    deltaY, deltaMode: WheelEvent.DOM_DELTA_PIXEL,
+    clientX, clientY, bubbles: true, cancelable: true,
+  }));
+}
+
+function focusTerminal() {
+  const active = term.textarea || container.querySelector('textarea') || container;
+  active?.focus?.();
+  scheduleKeyboardFit();
+}
+
+container.addEventListener('touchstart', (event) => {
+  if (event.touches.length !== 1) { touchGesture = null; return; }
+  const touch = event.touches[0];
+  touchGesture = { startX: touch.clientX, startY: touch.clientY, lastX: touch.clientX, lastY: touch.clientY, scrolling: false };
+  event.stopPropagation();
+}, { passive: true, capture: true });
+
+container.addEventListener('touchmove', (event) => {
+  if (!touchGesture || event.touches.length !== 1) return;
+  const touch = event.touches[0];
+  const totalDy = touch.clientY - touchGesture.startY;
+  const totalDx = touch.clientX - touchGesture.startX;
+  if (!touchGesture.scrolling) {
+    if (Math.abs(totalDy) < 8 || Math.abs(totalDy) < Math.abs(totalDx)) return;
+    touchGesture.scrolling = true;
+    suppressTouchClickUntil = Date.now() + 500;
+  }
+  event.preventDefault();
+  event.stopPropagation();
+  dispatchTerminalWheel(-(touch.clientY - touchGesture.lastY), touch.clientX, touch.clientY);
+  touchGesture.lastX = touch.clientX;
+  touchGesture.lastY = touch.clientY;
+}, { passive: false, capture: true });
+
+container.addEventListener('touchend', (event) => {
+  if (!touchGesture) return;
+  const wasScrolling = touchGesture.scrolling;
+  touchGesture = null;
+  event.stopPropagation();
+  if (!wasScrolling) focusTerminal();
+  else { suppressTouchClickUntil = Date.now() + 500; event.preventDefault(); }
+}, { passive: false, capture: true });
+
+container.addEventListener('touchcancel', (event) => {
+  touchGesture = null;
+  event.stopPropagation();
+}, { passive: true, capture: true });
+
+container.addEventListener('pointerup', (event) => {
+  if (event.pointerType === 'touch' && Date.now() < suppressTouchClickUntil) {
+    event.preventDefault();
+    event.stopPropagation();
+  }
+}, true);
+
+connect();
+</script>
+</body>
+</html>`;
+}
+
+export function renderLanding(
+	sessions: Array<{ name: string; windows: number; attached: boolean }>,
+): string {
+	const rows = sessions
+		.map(
+			(s) =>
+				`<a href="/s/${encodeURIComponent(s.name)}" class="session-row">
+      <span class="name">${s.name}</span>
+      <span class="meta">${s.windows} window${s.windows !== 1 ? "s" : ""}${s.attached ? " &middot; attached" : ""}</span>
+    </a>`,
+		)
+		.join("\n");
+
+	const empty = sessions.length === 0
+		? `<p class="empty">No tmux sessions found.<br>Create one with <code>tmux new -s mysession</code></p>`
+		: "";
+
+	return /* html */ `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>tmux-web</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap');
+  :root {
+    --page-bg: #111111;
+    --page-fg: #d0d0d0;
+    --panel-bg: #11161d;
+    --panel-border: #243241;
+    --panel-muted: #8a97a6;
+    --panel-accent: #f3f7fb;
+    --panel-success: #73c991;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { background: var(--page-bg); color: var(--page-fg); min-height: 100%; font-family: 'JetBrains Mono', 'SF Mono', 'Menlo', monospace; }
+  .container { max-width: 520px; margin: 80px auto; padding: 0 20px; }
+  h1 { font-size: 18px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--panel-accent); margin-bottom: 32px; }
+  .session-row {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 12px 16px; border: 1px solid var(--panel-border); border-radius: 8px;
+    margin-bottom: 8px; text-decoration: none; color: var(--page-fg);
+    background: var(--panel-bg); transition: border-color 0.15s;
+  }
+  .session-row:hover { border-color: var(--panel-success); }
+  .session-row .name { font-size: 14px; font-weight: 500; color: var(--panel-accent); }
+  .session-row .meta { font-size: 11px; color: var(--panel-muted); }
+  .empty { font-size: 13px; color: var(--panel-muted); line-height: 1.6; }
+  .empty code { background: rgba(255,255,255,0.06); padding: 2px 6px; border-radius: 4px; font-size: 12px; }
+  .refresh { display: inline-block; margin-top: 24px; font-size: 12px; color: var(--panel-muted); text-decoration: none; border: 1px solid var(--panel-border); padding: 6px 14px; border-radius: 6px; }
+  .refresh:hover { border-color: var(--panel-accent); color: var(--panel-accent); }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>tmux sessions</h1>
+  ${rows}
+  ${empty}
+  <a href="/" class="refresh">refresh</a>
+</div>
+</body>
+</html>`;
+}
