@@ -1,7 +1,35 @@
 import { cssVarsStyle } from '../theme.js';
-import { notesDbScript } from '../notes-db.js';
+import type { NoteRecord } from '../db.js';
 
-export function renderNotesIndex(): string {
+function escapeHtml(s: string): string {
+	return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function formatDate(ts: number): string {
+	const d = new Date(ts);
+	return d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+
+export function renderNotesIndex(notes: NoteRecord[]): string {
+	const sorted = [...notes].sort((a, b) => (b.updatedAt ?? 0) - (a.updatedAt ?? 0));
+
+	const cards = sorted.map((n) => {
+		const isGlobal = n.scope === '__global__';
+		const label = isGlobal ? 'Global' : n.scope.replace(/^session:/, '');
+		const href = isGlobal ? '/notes/__global__' : '/notes/' + encodeURIComponent(n.scope.replace(/^session:/, ''));
+		const preview = escapeHtml((n.content || '').slice(0, 200).trim() || '—');
+		const date = escapeHtml(formatDate(n.updatedAt));
+		return `<a class="note-card" href="${href}">
+  <div class="label ${isGlobal ? 'global' : ''}">${escapeHtml(label)}</div>
+  <div class="preview">${preview}</div>
+  <div class="meta"><span>${date}</span></div>
+</a>`;
+	}).join('\n');
+
+	const body = sorted.length
+		? cards
+		: '<p class="empty">No notes yet.</p>';
+
 	return /* html */ `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -41,7 +69,6 @@ export function renderNotesIndex(): string {
     display: flex; justify-content: space-between;
   }
   .empty { font-size: 13px; color: var(--panel-muted); line-height: 1.6; margin-top: 20px; }
-  #loading { font-size: 13px; color: var(--panel-muted); }
 </style>
 </head>
 <body>
@@ -50,57 +77,8 @@ export function renderNotesIndex(): string {
     <h1>All notes</h1>
     <a href="/" class="back-link">Back</a>
   </div>
-  <div id="notes-list"><p id="loading">Loading...</p></div>
+  <div id="notes-list">${body}</div>
 </div>
-
-<script type="module">
-${notesDbScript()}
-
-async function listAllNotes() {
-  const db = await openNotesDB();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction([DB_STORE], 'readonly');
-    const store = tx.objectStore(DB_STORE);
-    const req = store.getAll();
-    req.onsuccess = () => resolve(req.result || []);
-    req.onerror = () => reject(req.error);
-  });
-}
-
-function formatDate(ts) {
-  if (!ts) return '';
-  const d = new Date(ts);
-  return d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-}
-
-async function render() {
-  const list = document.getElementById('notes-list');
-  try {
-    const notes = await listAllNotes();
-    if (!notes.length) {
-      list.innerHTML = '<p class="empty">No notes yet.</p>';
-      return;
-    }
-    notes.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
-    list.innerHTML = notes.map((n) => {
-      const isGlobal = n.id === '__global__';
-      const label = isGlobal ? 'Global' : n.id.replace(/^session:/, '');
-      const href = isGlobal ? '/notes/__global__' : '/notes/' + encodeURIComponent(n.id.replace(/^session:/, ''));
-      const preview = (n.content || '').slice(0, 200).trim() || '—';
-      const date = formatDate(n.updatedAt);
-      return \`<a class="note-card" href="\${href}">
-        <div class="label \${isGlobal ? 'global' : ''}">\${label}</div>
-        <div class="preview">\${preview.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div>
-        <div class="meta"><span>\${date}</span></div>
-      </a>\`;
-    }).join('');
-  } catch (e) {
-    list.innerHTML = '<p class="empty">Failed to load notes.</p>';
-  }
-}
-
-render();
-</script>
 </body>
 </html>`;
 }

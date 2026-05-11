@@ -1,5 +1,6 @@
 import { cssVarsStyle } from '../theme.js';
 import { notesDrawerCSS, notesDrawerHTML, notesDrawerScript } from '../notes-drawer.js';
+import { schedulerDrawerCSS, schedulerDrawerHTML, schedulerDrawerScript } from '../scheduler-drawer.js';
 
 export function renderTerminal(sessionName: string): string {
 	return /* html */ `<!DOCTYPE html>
@@ -61,6 +62,7 @@ export function renderTerminal(sessionName: string): string {
   header .notes-btn:hover { color: var(--panel-accent); }
   header .notes-btn svg { width: 15px; height: 15px; fill: currentColor; }
   ${notesDrawerCSS()}
+  ${schedulerDrawerCSS()}
 </style>
 </head>
 <body>
@@ -70,6 +72,9 @@ export function renderTerminal(sessionName: string): string {
   <button class="notes-btn" id="notes-toggle" title="Session notes">
     <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zm-1 2l5 5h-5V4zM6 20V4h5v7h7v9H6z"/></svg>
   </button>
+  <button class="sched-btn" id="sched-toggle" title="Schedule command">
+    <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67V7z"/></svg>
+  </button>
   <div class="status">
     <div class="dot" id="status-dot"></div>
     <span id="status-text">connecting</span>
@@ -77,6 +82,7 @@ export function renderTerminal(sessionName: string): string {
 </header>
 <div id="terminal-container"></div>
 ${notesDrawerHTML(`Notes — ${sessionName}`)}
+${schedulerDrawerHTML(`Scheduler — ${sessionName}`)}
 
 <script type="module">
 import { init, Terminal } from 'https://esm.sh/ghostty-web@latest';
@@ -310,6 +316,9 @@ connect();
 
 // ========== NOTES ==========
 ${notesDrawerScript(`session:${sessionName}`)}
+
+// ========== SCHEDULER ==========
+${schedulerDrawerScript(sessionName)}
 </script>
 </body>
 </html>`;

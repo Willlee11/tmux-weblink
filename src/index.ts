@@ -1,18 +1,62 @@
 #!/usr/bin/env node
+import { execFileSync } from "node:child_process";
 import { Hono } from "hono";
 import { serve } from "@hono/node-server";
 import { WebSocketServer, WebSocket } from "ws";
 import * as pty from "node-pty";
 import { listSessions } from "./sessions.js";
 import { renderLanding, renderTerminal, renderNotesIndex, renderNotesPage } from "./frontend.js";
+import { db, type StoredTask } from "./lib/db.js";
 
 type ClientMessage =
 	| { type: "input"; data: string }
 	| { type: "resize"; cols: number; rows: number };
 
+interface ScheduledTask extends StoredTask {
+	timeoutHandle: ReturnType<typeof setTimeout>;
+}
+
 const activePtys = new Set<pty.IPty>();
+const scheduledTasks = new Map<string, ScheduledTask>();
+
+function fireTask(id: string, sessionName: string, windowIndex: number, text: string) {
+	const target = `${sessionName}:${windowIndex}`;
+	try {
+		execFileSync("tmux", ["send-keys", "-t", target, "-l", text], { timeout: 5000 });
+		execFileSync("tmux", ["send-keys", "-t", target, "Enter"], { timeout: 5000 });
+	} catch (err: any) {
+		console.error(`[scheduler] send-keys to ${target} failed: ${err.message}`);
+	}
+	scheduledTasks.delete(id);
+	db.data.scheduledTasks = db.data.scheduledTasks.filter((t) => t.id !== id);
+	db.write().catch(console.error);
+}
+
+// Init db and re-schedule surviving tasks before starting server
+await db.read();
+
+const now = Date.now();
+const missed: string[] = [];
+for (const task of db.data.scheduledTasks) {
+	if (task.fireAt <= now) {
+		missed.push(task.id);
+		console.warn(`[scheduler] dropped missed task ${task.id} (was due ${new Date(task.fireAt).toISOString()})`);
+	} else {
+		const handle = setTimeout(
+			() => fireTask(task.id, task.sessionName, task.windowIndex, task.text),
+			task.fireAt - now,
+		);
+		scheduledTasks.set(task.id, { ...task, timeoutHandle: handle });
+	}
+}
+if (missed.length) {
+	db.data.scheduledTasks = db.data.scheduledTasks.filter((t) => !missed.includes(t.id));
+	await db.write();
+}
 
 const app = new Hono();
+
+// ── Page routes ────────────────────────────────────────────────────────────
 
 app.get("/", (c) => {
 	const sessions = listSessions();
@@ -25,13 +69,111 @@ app.get("/s/:session", (c) => {
 });
 
 app.get("/notes", (c) => {
-	return c.html(renderNotesIndex());
+	return c.html(renderNotesIndex(db.data.notes));
 });
 
 app.get("/notes/:session", (c) => {
 	const session = decodeURIComponent(c.req.param("session"));
 	return c.html(renderNotesPage(session));
 });
+
+// ── Notes API ──────────────────────────────────────────────────────────────
+
+app.get("/api/notes", (c) => {
+	const sorted = [...db.data.notes].sort((a, b) => (b.updatedAt ?? 0) - (a.updatedAt ?? 0));
+	return c.json(sorted);
+});
+
+app.get("/api/notes/:scope", (c) => {
+	const scope = decodeURIComponent(c.req.param("scope"));
+	const note = db.data.notes.find((n) => n.scope === scope);
+	return note ? c.json(note) : c.json(null, 404);
+});
+
+app.put("/api/notes/:scope", async (c) => {
+	const scope = decodeURIComponent(c.req.param("scope"));
+	let body: { content?: unknown };
+	try { body = await c.req.json(); } catch { return c.json({ error: "invalid json" }, 400); }
+	if (typeof body.content !== "string") return c.json({ error: "content must be string" }, 400);
+	const record = { scope, content: body.content, updatedAt: Date.now() };
+	const idx = db.data.notes.findIndex((n) => n.scope === scope);
+	if (idx >= 0) db.data.notes[idx] = record;
+	else db.data.notes.push(record);
+	await db.write();
+	return c.json({ ok: true });
+});
+
+// ── Scheduler API ──────────────────────────────────────────────────────────
+
+app.get("/api/session/:session/windows", (c) => {
+	const session = decodeURIComponent(c.req.param("session"));
+	try {
+		const raw = execFileSync(
+			"tmux",
+			["list-windows", "-t", session, "-F", "#{window_index}\t#{window_name}\t#{window_active}"],
+			{ encoding: "utf-8", timeout: 3000 },
+		);
+		const windows = raw.trim().split("\n").filter(Boolean).map((line) => {
+			const [index, name, active] = line.split("\t");
+			return { index: parseInt(index, 10), name, active: active === "1" };
+		});
+		return c.json(windows);
+	} catch {
+		return c.json([], 200);
+	}
+});
+
+app.get("/api/schedule", (c) => {
+	const session = c.req.query("session");
+	const tasks = [...scheduledTasks.values()]
+		.filter((t) => !session || t.sessionName === session)
+		.map(({ id, sessionName, windowIndex, text, fireAt, createdAt }) => ({
+			id, sessionName, windowIndex, text, fireAt, createdAt,
+			remainingMs: Math.max(0, fireAt - Date.now()),
+		}))
+		.sort((a, b) => a.fireAt - b.fireAt);
+	return c.json(tasks);
+});
+
+app.post("/api/schedule", async (c) => {
+	let body: { sessionName?: unknown; windowIndex?: unknown; text?: unknown; delayMs?: unknown };
+	try { body = await c.req.json(); } catch { return c.json({ error: "invalid json" }, 400); }
+
+	const { sessionName, windowIndex, text, delayMs } = body;
+	if (
+		typeof sessionName !== "string" || !sessionName ||
+		typeof windowIndex !== "number" || !Number.isInteger(windowIndex) || windowIndex < 0 ||
+		typeof text !== "string" || !text || text.length > 4096 ||
+		typeof delayMs !== "number" || delayMs < 1 || delayMs > 86_400_000
+	) {
+		return c.json({ error: "invalid body" }, 400);
+	}
+
+	const { randomUUID } = await import("node:crypto");
+	const id = randomUUID();
+	const createdAt = Date.now();
+	const fireAt = createdAt + delayMs;
+
+	const timeoutHandle = setTimeout(() => fireTask(id, sessionName, windowIndex, text), delayMs);
+	scheduledTasks.set(id, { id, sessionName, windowIndex, text, fireAt, createdAt, timeoutHandle });
+	db.data.scheduledTasks.push({ id, sessionName, windowIndex, text, fireAt, createdAt });
+	await db.write();
+
+	return c.json({ id, fireAt });
+});
+
+app.delete("/api/schedule/:id", (c) => {
+	const id = c.req.param("id");
+	const task = scheduledTasks.get(id);
+	if (!task) return c.json({ error: "not found" }, 404);
+	clearTimeout(task.timeoutHandle);
+	scheduledTasks.delete(id);
+	db.data.scheduledTasks = db.data.scheduledTasks.filter((t) => t.id !== id);
+	db.write().catch(console.error);
+	return c.json({ ok: true });
+});
+
+// ── WebSocket server ───────────────────────────────────────────────────────
 
 const port = parseInt(process.env.PORT || "3000", 10);
 
@@ -131,10 +273,12 @@ wss.on("connection", (ws: WebSocket, _req: import("http").IncomingMessage, sessi
 });
 
 function cleanup() {
+	for (const task of scheduledTasks.values()) {
+		try { clearTimeout(task.timeoutHandle); } catch {}
+	}
+	scheduledTasks.clear();
 	for (const p of activePtys) {
-		try {
-			p.kill();
-		} catch {}
+		try { p.kill(); } catch {}
 	}
 	activePtys.clear();
 	process.exit(0);
