@@ -20,6 +20,7 @@ interface ScheduledTask extends StoredTask {
 
 const activePtys = new Set<pty.IPty>();
 const scheduledTasks = new Map<string, ScheduledTask>();
+const extChildren: import("node:child_process").ChildProcess[] = [];
 
 function fireTask(id: string, sessionName: string, windowIndex: number, text: string) {
 	const target = `${sessionName}:${windowIndex}`;
@@ -40,7 +41,7 @@ await db.read();
 const extsDir   = path.join(process.cwd(), "extensions");
 const extensions = await loadExtensions(extsDir);
 for (const ext of extensions) {
-	if (ext.start) await spawnExtensionBackend(ext.dir, ext);
+	if (ext.start) extChildren.push(spawnExtensionBackend(ext.dir, ext));
 }
 
 const now = Date.now();
@@ -261,7 +262,11 @@ wss.on("connection", (ws: WebSocket, _req: import("http").IncomingMessage, sessi
 			typeof msg.cols === "number" &&
 			typeof msg.rows === "number"
 		) {
-			ptyProcess.resize(Math.max(10, msg.cols), Math.max(5, msg.rows));
+			try {
+				ptyProcess.resize(Math.max(10, msg.cols), Math.max(5, msg.rows));
+			} catch {
+				// PTY fd already closed — resize arrived after exit, ignore
+			}
 		}
 	});
 
@@ -291,6 +296,9 @@ function cleanup() {
 		try { p.kill(); } catch {}
 	}
 	activePtys.clear();
+	for (const child of extChildren) {
+		try { child.kill("SIGTERM"); } catch {}
+	}
 	process.exit(0);
 }
 

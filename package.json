@@ -11,9 +11,11 @@
   ],
   "scripts": {
     "postinstall": "find node_modules -path '*/node-pty/prebuilds/*/spawn-helper' -exec chmod +x {} + 2>/dev/null; true",
-    "prepublishOnly": "tsc",
-    "build": "tsc",
+    "prepublishOnly": "tsc && npm run build:exts",
+    "build": "tsc && npm run build:exts",
+    "build:exts": "node scripts/build-exts.mjs --force",
     "start": "node dist/index.js",
+    "predev": "node scripts/build-exts.mjs",
     "dev": "npx tsx src/index.ts"
   },
   "keywords": [

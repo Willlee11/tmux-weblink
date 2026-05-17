@@ -1,7 +1,7 @@
 import { readdir, readFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { spawn, type ChildProcess } from 'node:child_process';
-import { createServer } from 'node:net';
+import http from 'node:http';
 import path from 'node:path';
 import os from 'node:os';
 import type { Hono } from 'hono';
@@ -13,11 +13,12 @@ export interface ExtManifest {
   slot:        'sidebar' | 'panel';
   permissions: string[];
   views:       Array<{ entry: string }>;
-  backend?:    string;
   start?:      string;
   config:      unknown;
   /** Absolute path to the extension root directory (set by loader, not from JSON). */
   dir:         string;
+  /** Unix socket path assigned at runtime — not in JSON. */
+  _socket?:    string;
 }
 
 interface TmuxWebConfig {
@@ -47,18 +48,6 @@ async function tryLoadManifest(extDir: string): Promise<ExtManifest | null> {
   }
 }
 
-function findFreePort(): Promise<number> {
-  return new Promise((resolve, reject) => {
-    const srv = createServer();
-    srv.listen(0, '127.0.0.1', () => {
-      const port = (srv.address() as { port: number }).port;
-      srv.close(() => resolve(port));
-    });
-    srv.on('error', reject);
-  });
-}
-
-/** Resolve a plugin package name to its directory inside node_modules. */
 function resolvePluginDir(pkgName: string): string | null {
   const dir = path.join(process.cwd(), 'node_modules', pkgName);
   return existsSync(dir) ? dir : null;
@@ -99,14 +88,14 @@ export async function loadExtensions(extsDir: string): Promise<ExtManifest[]> {
   return all;
 }
 
-export async function spawnExtensionBackend(extDir: string, manifest: ExtManifest): Promise<ChildProcess> {
-  const port = await findFreePort();
-  manifest.backend = `http://127.0.0.1:${port}`;
+export function spawnExtensionBackend(extDir: string, manifest: ExtManifest): ChildProcess {
+  const sockPath = path.join(os.tmpdir(), `tmux-web-ext-${manifest.id}.sock`);
+  manifest._socket = sockPath;
 
   const [cmd, ...args] = (manifest.start as string).split(' ');
   const child = spawn(cmd, args, {
     cwd: extDir,
-    env: { ...process.env, EXT_PORT: String(port) },
+    env: { ...process.env, EXT_SOCKET: sockPath },
     stdio: 'pipe',
   });
 
@@ -120,6 +109,29 @@ export async function spawnExtensionBackend(extDir: string, manifest: ExtManifes
   return child;
 }
 
+function socketProxy(
+  sockPath: string,
+  method:   string,
+  reqPath:  string,
+  headers:  Record<string, string>,
+  body?:    Buffer,
+): Promise<{ status: number; contentType: string; body: Buffer }> {
+  return new Promise((resolve, reject) => {
+    const req = http.request({ socketPath: sockPath, path: reqPath, method, headers }, (res) => {
+      const chunks: Buffer[] = [];
+      res.on('data', (c: Buffer) => chunks.push(c));
+      res.on('end', () => resolve({
+        status:      res.statusCode ?? 200,
+        contentType: (res.headers['content-type'] as string) ?? 'application/json',
+        body:        Buffer.concat(chunks),
+      }));
+    });
+    req.on('error', reject);
+    if (body?.length) req.write(body);
+    req.end();
+  });
+}
+
 export function registerExtensionRoutes(
   app: Hono,
   _extsDir: string,
@@ -128,7 +140,7 @@ export function registerExtensionRoutes(
   for (const manifest of manifests) {
     const id      = manifest.id;
     const uiDir   = path.join(manifest.dir, 'ui');
-    const backend = manifest.backend;
+    const socket  = manifest._socket;
 
     // ── Static UI files: GET /ext/:id/ui/* ─────────────────────────────────
     app.get(`/ext/${id}/ui/:file{.+}`, async (c) => {
@@ -151,29 +163,19 @@ export function registerExtensionRoutes(
       });
     });
 
-    if (!backend) continue;
+    if (!socket) continue;
 
-    // ── Reverse proxy: ALL /ext/:id/api/* → backend ─────────────────────────
+    // ── Proxy: ALL /ext/:id/api/* → extension Unix socket ───────────────────
     app.all(`/ext/${id}/api/*`, async (c) => {
-      const suffix  = c.req.path.slice(`/ext/${id}/api`.length);
-      const search  = new URL(c.req.url).search;
-      const target  = `${backend}${suffix}${search}`;
-
+      const reqPath = c.req.path.slice(`/ext/${id}/api`.length) + new URL(c.req.url).search;
       const hasBody = !['GET', 'HEAD', 'DELETE'].includes(c.req.method);
-      const bodyBuf = hasBody ? await c.req.arrayBuffer() : undefined;
+      const bodyBuf = hasBody ? Buffer.from(await c.req.arrayBuffer()) : undefined;
+      const headers = Object.fromEntries(
+        [...c.req.raw.headers.entries()].filter(([k]) => k !== 'host'),
+      );
 
-      const upstream = await fetch(target, {
-        method:  c.req.method,
-        headers: Object.fromEntries(
-          [...c.req.raw.headers.entries()].filter(([k]) => k !== 'host'),
-        ),
-        body: bodyBuf,
-      });
-
-      const body = await upstream.arrayBuffer();
-      return c.body(Buffer.from(body), upstream.status as any, {
-        'Content-Type': upstream.headers.get('content-type') ?? 'application/json',
-      });
+      const result = await socketProxy(socket, c.req.method, reqPath, headers, bodyBuf);
+      return c.body(result.body.buffer.slice(result.body.byteOffset, result.body.byteOffset + result.body.byteLength) as ArrayBuffer, result.status as any, { 'Content-Type': result.contentType });
     });
   }
 }
