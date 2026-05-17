@@ -1,6 +1,6 @@
 {
   "name": "@tmux-web/ext-github-actions",
-  "version": "0.1.0",
+  "version": "0.0.1",
   "type": "module",
   "files": [
     "dist/",
@@ -13,10 +13,10 @@
     "start": "node dist/backend/server.js"
   },
   "dependencies": {
-    "express": "^4.21.0"
+    "@hono/node-server": "^1.19.0",
+    "hono": "^4.7.0"
   },
   "devDependencies": {
-    "@types/express": "^5.0.0",
     "@types/node": "^22.0.0",
     "esbuild": "^0.24.0",
     "typescript": "^5.7.0"

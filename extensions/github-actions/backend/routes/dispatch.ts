@@ -1,7 +1,7 @@
-import { Router, type Request, type Response } from 'express';
+import { Hono } from 'hono';
 import { parseWorkflowUrl } from './workflows.js';
 
-export const dispatchRouter = Router();
+export const dispatchRouter = new Hono();
 
 const GH_BASE = 'https://api.github.com';
 
@@ -15,20 +15,15 @@ function ghHeaders() {
 }
 
 // ─── POST /dispatch ──────────────────────────────────────────────────────────
-//
 // Trigger a workflow_dispatch event.
-// Body: { url: string, ref: string }  — url is the full GitHub Actions workflow URL
+// Body: { url: string, ref: string }
+dispatchRouter.post('/dispatch', async (c) => {
+  const { url, ref } = await c.req.json<{ url?: string; ref?: string }>();
 
-dispatchRouter.post('/dispatch', async (req: Request, res: Response) => {
-  const { url, ref } = req.body as Record<string, string>;
-
-  if (!url || !ref) {
-    res.status(400).json({ error: '`url` and `ref` are required' });
-    return;
-  }
+  if (!url || !ref) return c.json({ error: '`url` and `ref` are required' }, 400);
 
   const parsed = parseWorkflowUrl(url);
-  if (!parsed) { res.status(400).json({ error: 'Invalid GitHub Actions workflow URL' }); return; }
+  if (!parsed) return c.json({ error: 'Invalid GitHub Actions workflow URL' }, 400);
   const { repo, workflow } = parsed;
 
   const ghRes = await fetch(
@@ -40,12 +35,8 @@ dispatchRouter.post('/dispatch', async (req: Request, res: Response) => {
     },
   );
 
-  // GitHub returns 204 No Content on success
-  if (ghRes.status === 204) {
-    res.json({ ok: true });
-    return;
-  }
+  if (ghRes.status === 204) return c.json({ ok: true });
 
   const body = await ghRes.json().catch(() => ({}));
-  res.status(ghRes.status).json(body);
+  return c.json(body, ghRes.status as any);
 });

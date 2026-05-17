@@ -1,14 +1,7 @@
-/**
- * extensions/github-actions/backend/routes/runs.ts
- *
- * All workflow-run related routes, split out of index.ts for clarity.
- * Mount with: app.use(runsRouter)
- */
-
-import { Router, type Request, type Response } from 'express';
+import { Hono } from 'hono';
 import { parseWorkflowUrl } from './workflows.js';
 
-export const runsRouter = Router();
+export const runsRouter = new Hono();
 
 const GH_BASE = 'https://api.github.com';
 
@@ -31,34 +24,25 @@ async function ghFetch(path: string, options?: RequestInit) {
 }
 
 // ─── GET /runs ────────────────────────────────────────────────────────────────
-//
-// Query params (provide one of):
-//   url       — full GitHub Actions workflow URL (preferred)
-//   repo + workflow — "owner/repo" and "ci.yml"
-//
-// Optional:
-//   perPage   — number of runs to return  (default 5, max 10)
-//   branch    — filter by branch
-//
-// Returns: { total_count, workflow_runs: WorkflowRun[] }
-
-runsRouter.get('/runs', async (req: Request, res: Response) => {
-  let { url, repo, workflow, perPage = '5', branch } = req.query as Record<string, string>;
+runsRouter.get('/runs', async (c) => {
+  let repo     = c.req.query('repo');
+  let workflow = c.req.query('workflow');
+  const url    = c.req.query('url');
+  const perPage = c.req.query('perPage') ?? '5';
+  const branch  = c.req.query('branch');
 
   if (url) {
     const parsed = parseWorkflowUrl(url);
-    if (!parsed) { res.status(400).json({ error: 'Invalid GitHub Actions workflow URL' }); return; }
+    if (!parsed) return c.json({ error: 'Invalid GitHub Actions workflow URL' }, 400);
     repo     = parsed.repo;
     workflow = parsed.workflow;
   }
 
   if (!repo || !workflow) {
-    res.status(400).json({ error: 'Provide `url` or both `repo` and `workflow`' });
-    return;
+    return c.json({ error: 'Provide `url` or both `repo` and `workflow`' }, 400);
   }
 
   const clampedPerPage = Math.min(Number(perPage), 10);
-
   const params = new URLSearchParams({
     per_page: String(clampedPerPage),
     ...(branch ? { branch } : {}),
@@ -67,115 +51,77 @@ runsRouter.get('/runs', async (req: Request, res: Response) => {
   const { status, body } = await ghFetch(
     `/repos/${repo}/actions/workflows/${encodeURIComponent(workflow)}/runs?${params}`,
   );
-
-  res.status(status).json(body);
+  return c.json(body, status as any);
 });
 
 // ─── GET /runs/:runId ────────────────────────────────────────────────────────
-//
-// Fetch a single run by id — used to poll in-progress runs.
-//
-// Query params:
-//   repo — "owner/repo" (required)
+runsRouter.get('/runs/:runId', async (c) => {
+  const runId = c.req.param('runId');
+  const repo  = c.req.query('repo');
 
-runsRouter.get('/runs/:runId', async (req: Request, res: Response) => {
-  const { runId } = req.params;
-  const { repo } = req.query as Record<string, string>;
-
-  if (!repo) {
-    res.status(400).json({ error: '`repo` is required' });
-    return;
-  }
+  if (!repo) return c.json({ error: '`repo` is required' }, 400);
 
   const { status, body } = await ghFetch(`/repos/${repo}/actions/runs/${runId}`);
-  res.status(status).json(body);
+  return c.json(body, status as any);
 });
 
 // ─── GET /runs/:runId/jobs ───────────────────────────────────────────────────
-//
-// Fetch the jobs for a specific run (steps, conclusions, log links).
+runsRouter.get('/runs/:runId/jobs', async (c) => {
+  const runId = c.req.param('runId');
+  const repo  = c.req.query('repo');
 
-runsRouter.get('/runs/:runId/jobs', async (req: Request, res: Response) => {
-  const { runId } = req.params;
-  const { repo } = req.query as Record<string, string>;
-
-  if (!repo) {
-    res.status(400).json({ error: '`repo` is required' });
-    return;
-  }
+  if (!repo) return c.json({ error: '`repo` is required' }, 400);
 
   const { status, body } = await ghFetch(
     `/repos/${repo}/actions/runs/${runId}/jobs?filter=latest`,
   );
-  res.status(status).json(body);
+  return c.json(body, status as any);
 });
 
 // ─── POST /runs/:runId/rerun ─────────────────────────────────────────────────
-//
-// Re-run a specific run (all jobs).
-// Body: { repo: string }
+runsRouter.post('/runs/:runId/rerun', async (c) => {
+  const runId = c.req.param('runId');
+  const { repo } = await c.req.json<{ repo?: string }>();
 
-runsRouter.post('/runs/:runId/rerun', async (req: Request, res: Response) => {
-  const { runId } = req.params;
-  const { repo } = req.body as Record<string, string>;
-
-  if (!repo) {
-    res.status(400).json({ error: '`repo` is required in body' });
-    return;
-  }
+  if (!repo) return c.json({ error: '`repo` is required in body' }, 400);
 
   const { status, body } = await ghFetch(
     `/repos/${repo}/actions/runs/${runId}/rerun`,
     { method: 'POST' },
   );
 
-  res.status(status === 201 ? 200 : status).json(
-    status === 201 ? { ok: true, runId } : body,
-  );
+  if (status === 201) return c.json({ ok: true, runId });
+  return c.json(body, status as any);
 });
 
-// ─── POST /runs/:runId/rerun-failed ─────────────────────────────────────────
-//
-// Re-run only the failed jobs in a run.
+// ─── POST /runs/:runId/rerun-failed ──────────────────────────────────────────
+runsRouter.post('/runs/:runId/rerun-failed', async (c) => {
+  const runId = c.req.param('runId');
+  const { repo } = await c.req.json<{ repo?: string }>();
 
-runsRouter.post('/runs/:runId/rerun-failed', async (req: Request, res: Response) => {
-  const { runId } = req.params;
-  const { repo } = req.body as Record<string, string>;
-
-  if (!repo) {
-    res.status(400).json({ error: '`repo` is required in body' });
-    return;
-  }
+  if (!repo) return c.json({ error: '`repo` is required in body' }, 400);
 
   const { status, body } = await ghFetch(
     `/repos/${repo}/actions/runs/${runId}/rerun-failed-jobs`,
     { method: 'POST' },
   );
 
-  res.status(status === 201 ? 200 : status).json(
-    status === 201 ? { ok: true, runId } : body,
-  );
+  if (status === 201) return c.json({ ok: true, runId });
+  return c.json(body, status as any);
 });
 
 // ─── DELETE /runs/:runId ─────────────────────────────────────────────────────
-//
-// Cancel a run that's currently queued or in_progress.
+runsRouter.delete('/runs/:runId', async (c) => {
+  const runId = c.req.param('runId');
+  const repo  = c.req.query('repo');
 
-runsRouter.delete('/runs/:runId', async (req: Request, res: Response) => {
-  const { runId } = req.params;
-  const { repo } = req.query as Record<string, string>;
-
-  if (!repo) {
-    res.status(400).json({ error: '`repo` is required' });
-    return;
-  }
+  if (!repo) return c.json({ error: '`repo` is required' }, 400);
 
   const { status, body } = await ghFetch(
     `/repos/${repo}/actions/runs/${runId}/cancel`,
-    { method: 'POST' }, // GitHub uses POST for cancel
+    { method: 'POST' },
   );
 
-  res.status(status === 202 ? 200 : status).json(
-    status === 202 ? { ok: true, runId } : body,
-  );
+  if (status === 202) return c.json({ ok: true, runId });
+  return c.json(body, status as any);
 });
