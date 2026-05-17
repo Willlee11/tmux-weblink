@@ -1,5 +1,5 @@
 import { readdir, readFile } from 'node:fs/promises';
-import { existsSync } from 'node:fs';
+import { existsSync, mkdirSync } from 'node:fs';
 import { spawn, type ChildProcess } from 'node:child_process';
 import http from 'node:http';
 import path from 'node:path';
@@ -35,12 +35,28 @@ async function readConfig(): Promise<TmuxWebConfig> {
   }
 }
 
+async function deriveId(extDir: string): Promise<string> {
+  // Authoritative source: the npm package name (sans scope).
+  // Falls back to the directory basename for unpackaged local extensions.
+  const pkgPath = path.join(extDir, 'package.json');
+  if (existsSync(pkgPath)) {
+    try {
+      const pkg = JSON.parse(await readFile(pkgPath, 'utf-8')) as { name?: string };
+      if (typeof pkg.name === 'string' && pkg.name) {
+        return pkg.name.startsWith('@') ? pkg.name.split('/')[1] : pkg.name;
+      }
+    } catch { /* fall through */ }
+  }
+  return path.basename(extDir);
+}
+
 async function tryLoadManifest(extDir: string): Promise<ExtManifest | null> {
   const manifestPath = path.join(extDir, 'tmux-extension.json');
   if (!existsSync(manifestPath)) return null;
   try {
     const manifest = JSON.parse(await readFile(manifestPath, 'utf-8')) as ExtManifest;
     manifest.dir = extDir;
+    manifest.id  = await deriveId(extDir);
     return manifest;
   } catch (err: any) {
     console.warn(`[extensions] Failed to load ${manifestPath}: ${err.message}`);
@@ -90,12 +106,14 @@ export async function loadExtensions(extsDir: string): Promise<ExtManifest[]> {
 
 export function spawnExtensionBackend(extDir: string, manifest: ExtManifest): ChildProcess {
   const sockPath = path.join(os.tmpdir(), `tmux-web-ext-${manifest.id}.sock`);
+  const dataDir  = path.join(os.homedir(), '.tmux-web', 'extensions', manifest.id);
+  mkdirSync(dataDir, { recursive: true });
   manifest._socket = sockPath;
 
   const [cmd, ...args] = (manifest.start as string).split(' ');
   const child = spawn(cmd, args, {
     cwd: extDir,
-    env: { ...process.env, EXT_SOCKET: sockPath },
+    env: { ...process.env, EXT_SOCKET: sockPath, EXT_DATA_DIR: dataDir },
     stdio: 'pipe',
   });
 
@@ -139,7 +157,7 @@ export function registerExtensionRoutes(
 ): void {
   for (const manifest of manifests) {
     const id      = manifest.id;
-    const uiDir   = path.join(manifest.dir, 'ui');
+    const uiDir   = path.join(manifest.dir, 'dist', 'ui');
     const socket  = manifest._socket;
 
     // ── Static UI files: GET /ext/:id/ui/* ─────────────────────────────────

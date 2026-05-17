@@ -1,22 +1,10 @@
 /**
- * @tmux-web/ext-sdk
- *
- * Extension SDK for tmux-web. Drop this into your extension UI's entry point.
+ * @tmux-web/ext-sdk — extension SDK for tmux-web.
  *
  * @example
- * import { createExtension } from '@tmux-web/ext-sdk';
- *
- * const ext = createExtension('github-actions');
- *
- * ext.onContext(ctx => {
- *   console.log('attached to session:', ctx.session);
- * });
- *
- * ext.onConfig(async cfg => {
- *   const data = await ext.request('/runs?repo=' + cfg.repo);
- *   renderRuns(data.workflow_runs);
- *   ext.resize(document.body.scrollHeight);
- * });
+ *   import { createExtension } from '@tmux-web/ext-sdk';
+ *   const ext = createExtension();
+ *   ext.onContext(ctx => console.log('session:', ctx.session));
  */
 import { ExtBridge } from './bridge';
 
@@ -26,13 +14,11 @@ export { ExtBridge };
 let _bridge: ExtBridge | null = null;
 
 /**
- * Initialize the extension. Call exactly once at the top of your entry point.
- * Returns an ExtBridge you use for the lifetime of the extension.
+ * Initialize the extension. The id is auto-detected from the iframe URL,
+ * which is derived from the extension's npm package name.
  */
-export function createExtension(extensionId: string): ExtBridge {
-  if (_bridge) {
-    throw new Error('[ext-sdk] createExtension() called more than once');
-  }
-  _bridge = new ExtBridge(extensionId);
+export function createExtension(): ExtBridge {
+  if (_bridge) throw new Error('[ext-sdk] createExtension() called more than once');
+  _bridge = new ExtBridge();
   return _bridge;
 }

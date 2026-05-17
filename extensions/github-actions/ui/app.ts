@@ -20,7 +20,7 @@ interface Config {
   pollIntervalMs?: number;
 }
 
-const ext = createExtension('github-actions');
+const ext = createExtension();
 
 let _session   = '';
 let _pollTimer = 0;

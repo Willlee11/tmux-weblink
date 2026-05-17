@@ -4,13 +4,11 @@
   "type": "module",
   "files": [
     "dist/",
-    "ui/app.js",
-    "ui/index.html",
     "tmux-extension.json"
   ],
   "scripts": {
     "build:backend": "tsc -p tsconfig.json",
-    "build:ui": "esbuild ui/app.ts --bundle --outfile=ui/app.js --platform=browser --target=es2020 --alias:@tmux-web/ext-sdk=./backend/index.ts",
+    "build:ui": "mkdir -p dist/ui && esbuild ui/app.ts --bundle --outfile=dist/ui/app.js --platform=browser --target=es2020 --alias:@tmux-web/ext-sdk=./backend/index.ts && cp ui/index.html dist/ui/index.html",
     "build": "npm run build:backend && npm run build:ui",
     "start": "node dist/backend/server.js"
   },

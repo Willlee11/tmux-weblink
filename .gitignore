@@ -1,6 +1,9 @@
 node_modules/
 dist/
 
+# Extension runtime data — actual storage lives in ~/.tmux-web/
+extensions/*/data.json
+
 # Logs
 *.log
 npm-debug.log*

@@ -2,8 +2,11 @@ import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
 
-const DATA_DIR  = path.join(os.homedir(), '.tmux-web');
-const DATA_FILE = path.join(DATA_DIR, 'ext-github-actions.json');
+// Host (tmux-web) injects EXT_DATA_DIR; fallback only matters when running the
+// extension standalone for local dev.
+const DATA_DIR  = process.env.EXT_DATA_DIR
+  ?? path.join(os.homedir(), '.tmux-web', 'extensions', 'github-actions');
+const DATA_FILE = path.join(DATA_DIR, 'data.json');
 
 interface Store {
   sessions: Record<string, string[]>;

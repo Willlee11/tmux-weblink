@@ -1,5 +1,4 @@
 {
-  "id": "github-actions",
   "name": "GitHub Actions",
   "icon": "⚡",
   "slot": "sidebar",

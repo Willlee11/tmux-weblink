@@ -9,8 +9,12 @@ export class ExtBridge {
   private configCb:  ConfigCallback  | null = null;
   private _config:   unknown = null;
 
-  constructor(extensionId: string) {
-    this.extId = extensionId;
+  constructor() {
+    // The iframe URL is `/ext/<id>/ui/...` — the host already knows our id,
+    // so we read it back from our own location instead of hardcoding.
+    const m = window.location.pathname.match(/^\/ext\/([^/]+)\//);
+    if (!m) throw new Error('[ext-sdk] cannot detect extension id from iframe URL');
+    this.extId = m[1];
     window.addEventListener('message', this._onMessage.bind(this));
     // Signal to the parent that the iframe is ready to receive config
     window.parent.postMessage({ type: 'ext:ready' } satisfies ExtMessage, '*');
