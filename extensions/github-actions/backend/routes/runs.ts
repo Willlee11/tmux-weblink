@@ -4,10 +4,11 @@ import { parseWorkflowUrl } from './workflows.js';
 export const runsRouter = new Hono();
 
 const GH_BASE = 'https://api.github.com';
+const GITHUB_PAT = process.env.GITHUB_PAT ?? "";
 
 function ghHeaders() {
   return {
-    Authorization:          `Bearer ${process.env.GITHUB_PAT}`,
+    Authorization:          `Bearer ${GITHUB_PAT}`,
     Accept:                 'application/vnd.github+json',
     'X-GitHub-Api-Version': '2022-11-28',
     'User-Agent':           'tmux-web-github-actions-ext/0.1',
