@@ -1,6 +1,7 @@
 import { execFileSync } from 'node:child_process';
 import { writeFile, mkdir } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import path from 'node:path';
 import { getDataRoot, getSettingsPath } from './state-paths.js';
 import { readSettings, writeSettings } from './settings.js';
@@ -8,6 +9,9 @@ import { readSettings, writeSettings } from './settings.js';
 const DATA_ROOT   = getDataRoot();
 const PLUGIN_DIR  = DATA_ROOT;
 const CONFIG_DISPLAY = getSettingsPath();
+
+const require = createRequire(import.meta.url);
+const { version } = require('../../package.json') as { version: string };
 
 async function ensureInstallDir(): Promise<void> {
   await mkdir(PLUGIN_DIR, { recursive: true });
@@ -72,6 +76,10 @@ export async function cmdList(): Promise<void> {
   }
 }
 
+export function printVersion(): void {
+  console.log(version);
+}
+
 export function printUsage(): void {
   const dataDirDisplay = DATA_ROOT;
 
@@ -79,6 +87,8 @@ export function printUsage(): void {
 
 Usage:
   tmux-web                       Start the server (PORT env var, default 3000)
+  tmux-web -V, --version         Print version and exit
+  tmux-web -h, --help            Show this help
   tmux-web add <package>         Install a plugin and enable it
   tmux-web remove <package>      Uninstall a plugin and disable it
   tmux-web list                  Show enabled plugins

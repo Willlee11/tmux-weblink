@@ -1,16 +1,34 @@
 #!/usr/bin/env node
 import { execFileSync } from "node:child_process";
+import { chmodSync, existsSync, readdirSync, statSync } from "node:fs";
+import { createRequire } from "node:module";
 import path from "node:path";
 import { Hono } from "hono";
 import { serve } from "@hono/node-server";
 import { WebSocketServer, WebSocket } from "ws";
 import * as pty from "node-pty";
+
+// Ensure node-pty's spawn-helper is executable. Some installers (notably npx
+// with hoisted deps) strip the +x bit, which makes pty.spawn fail with
+// posix_spawnp.
+try {
+	const ptyDir = path.dirname(createRequire(import.meta.url).resolve("node-pty/package.json"));
+	const prebuilds = path.join(ptyDir, "prebuilds");
+	if (existsSync(prebuilds)) {
+		for (const arch of readdirSync(prebuilds)) {
+			const helper = path.join(prebuilds, arch, "spawn-helper");
+			if (existsSync(helper) && !(statSync(helper).mode & 0o111)) {
+				chmodSync(helper, 0o755);
+			}
+		}
+	}
+} catch {}
 import { listSessions } from "./sessions.js";
 import { renderLanding, renderTerminal, renderNotesIndex, renderNotesPage } from "./frontend.js";
 import { db, type StoredTask } from "./lib/db.js";
 import { recordSessionAccess, getSessionAccessMap } from "./lib/session-access.js";
 import { loadExtensions, spawnExtensionBackend, registerExtensionRoutes } from "./lib/ext-loader.js";
-import { cmdAdd, cmdRemove, cmdList, printUsage } from "./lib/cli.js";
+import { cmdAdd, cmdRemove, cmdList, printUsage, printVersion } from "./lib/cli.js";
 import { readSettings } from "./lib/settings.js";
 import { buildCommandbarSessions } from "./lib/commandbar.js";
 
@@ -18,26 +36,38 @@ import { buildCommandbarSessions } from "./lib/commandbar.js";
 // Runs before any server setup so `tmux-web add/remove/list` are fast and
 // don't try to bind a port or load the db.
 {
-	const [sub, arg] = process.argv.slice(2);
-	switch (sub) {
-		case "add":
-			if (!arg) { console.error("usage: tmux-web add <package>"); process.exit(1); }
-			await cmdAdd(arg);
-			process.exit(0);
-		case "remove":
-		case "rm":
-			if (!arg) { console.error("usage: tmux-web remove <package>"); process.exit(1); }
-			await cmdRemove(arg);
-			process.exit(0);
-		case "list":
-		case "ls":
-			await cmdList();
-			process.exit(0);
-		case "help":
-		case "--help":
-		case "-h":
-			printUsage();
-			process.exit(0);
+	const args = process.argv.slice(2);
+	if (args.length > 0) {
+		const [sub, arg] = args;
+		switch (sub) {
+			case "add":
+				if (!arg) { console.error("usage: tmux-web add <package>"); process.exit(1); }
+				await cmdAdd(arg);
+				process.exit(0);
+			case "remove":
+			case "rm":
+				if (!arg) { console.error("usage: tmux-web remove <package>"); process.exit(1); }
+				await cmdRemove(arg);
+				process.exit(0);
+			case "list":
+			case "ls":
+				await cmdList();
+				process.exit(0);
+			case "help":
+			case "--help":
+			case "-h":
+				printUsage();
+				process.exit(0);
+			case "-V":
+			case "--version":
+			case "-v":
+				printVersion();
+				process.exit(0);
+			default:
+				console.error(`unknown argument: ${sub}`);
+				printUsage();
+				process.exit(1);
+		}
 	}
 }
 

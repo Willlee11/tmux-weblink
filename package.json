@@ -1,6 +1,6 @@
 {
   "name": "tmux-web",
-  "version": "0.1.8",
+  "version": "0.1.9",
   "description": "Access tmux sessions from your browser via a web-based terminal",
   "type": "module",
   "bin": {
@@ -10,7 +10,7 @@
     "dist"
   ],
   "scripts": {
-    "postinstall": "find node_modules -path '*/node-pty/prebuilds/*/spawn-helper' -exec chmod +x {} + 2>/dev/null; true",
+    "postinstall": "node scripts/fix-pty-perms.mjs",
     "prepublishOnly": "tsc && npm run build:exts",
     "build": "tsc && npm run build:exts",
     "build:exts": "node scripts/build-exts.mjs --force",
