@@ -31,7 +31,7 @@
     "url": "https://github.com/ashutoshpw/tmux-web"
   },
   "engines": {
-    "node": ">=18"
+    "node": ">=22"
   },
   "dependencies": {
     "@hono/node-server": "^1.19.12",
