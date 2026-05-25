@@ -17,8 +17,8 @@ flowchart LR
 
 ## Components
 
-- **Landing page** — Lists all active tmux sessions; clicking one opens a full terminal view powered by [ghostty-web](https://github.com/nickolay/ghostty-web).
-- **Terminal** — The browser connects over WebSocket; the server spawns `tmux attach-session` via a PTY. Resize, input, and scrollback work; the client auto-reconnects if the connection drops.
+- **Landing page** — Lists all active tmux sessions; clicking one opens a full terminal view powered by a local xterm.js client bundle by default.
+- **Terminal** — The browser connects over WebSocket; the server spawns `tmux attach-session` via a PTY. Resize, input, and scrollback work; the client auto-reconnects if the connection drops. The terminal renderer defaults to `xterm`; start with `tmux-web --ghostty` or `TMUX_WEB_TERMINAL_RENDERER=ghostty tmux-web` to use ghostty-web instead. `--xterm` forces the default renderer.
 
 ### Terminal buffer loading
 
@@ -37,8 +37,9 @@ If the pane is on the **alternate screen** (vim, less, etc.), no snapshot is sen
 | `TMUX_WEB_HISTORY_CHUNK` | `500` | Lines fetched per scroll-up request |
 | `TMUX_WEB_SYNC_IDLE_MS` | `200` | Idle time after last PTY byte before sync ends |
 | `TMUX_WEB_SYNC_MAX_MS` | `3000` | Maximum sync duration before live forwarding |
+| `TMUX_WEB_TERMINAL_RENDERER` | `xterm` | Browser renderer: `xterm` or `ghostty` |
 
-WebSocket messages are JSON: server → client `snapshot`, `data`, `history`; client → server `input`, `resize`, `load_history`.
+WebSocket messages are JSON: server → client `snapshot`, `data`, `history`; client → server `input`, `resize`, `load_history`. The browser renderer is isolated in the terminal client bundle so the page shell, WebSocket protocol, and tmux capture flow can survive a future renderer swap.
 
 ### Image paste (Claude Code, OpenCode, etc.)
 
@@ -55,6 +56,9 @@ Paste (Cmd/Ctrl+V) prefers clipboard images over plain text when both are presen
 
 If tmux-web is exposed beyond localhost, treat uploads as sensitive (paths are readable by processes on the host). No automatic cleanup of `uploads/` in v1.
 
+- **Themes** — Built-in templates (`vscode`, `ghostty`) define shell CSS variables and xterm palette. The active theme is persisted at `{configRoot}/tmux-web/theme.json` (e.g. `~/.config/tmux-web/theme.json`) and loaded once at server startup. Switch with `tmux-web theme set <name>` and restart the server. If the file is missing, `vscode` is written automatically (matches the previous default look).
+
 - **Notes** — Per-session and global Markdown scratchpads persist to `~/.tmux-web/db.json` via lowdb (or `~/.dev/.tmux-web/db.json` in dev mode). See [Notes](notes.md).
 - **Scheduler** — Queues `tmux send-keys` calls to fire after a delay and re-arms surviving tasks on restart. See [Scheduler](scheduler.md).
+- **Windows drawer** — On the terminal page, a header tab icon opens a drawer listing tmux windows in the current session. Tapping a row runs `tmux select-window` on the host so the attached PTY switches without mobile keybindings. List: `GET /api/session/:session/windows`; switch: `POST /api/session/:session/select-window` with body `{ windowIndex: number }`.
 - **Extensions** — Sidebar plugins run as isolated child processes; the host reverse-proxies `/ext/<id>/api/*` to each extension over a Unix socket. See [Extensions](extensions.md) for install, config, and author guide.
