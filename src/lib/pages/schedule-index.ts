@@ -58,6 +58,7 @@ export function renderScheduleIndex(tasks: ScheduleTaskView[], theme: TmuxWebThe
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 <title>Scheduled tasks — tmux-web</title>
 <style>
   ${cssVarsStyle(theme.shell)}

@@ -239,6 +239,23 @@ app.get("/assets/:file", async (c) => {
 	return c.notFound();
 });
 
+// Terminal-window favicon (SVG). Served at both /favicon.svg and the path
+// browsers auto-request, /favicon.ico, so every page resolves it without a 404.
+const FAVICON_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <rect x="2.5" y="5.5" width="27" height="21" rx="4" fill="#0d1117" stroke="#7dd3fc" stroke-width="2"/>
+  <path d="M8 13l4.2 3.1L8 19.2" fill="none" stroke="#7dd3fc" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+  <line x1="15.5" y1="19.6" x2="22.5" y2="19.6" stroke="#7dd3fc" stroke-width="2.2" stroke-linecap="round"/>
+</svg>`;
+
+const serveFavicon = (c: import("hono").Context) =>
+	c.body(FAVICON_SVG, 200, {
+		"Content-Type": "image/svg+xml; charset=utf-8",
+		"Cache-Control": "public, max-age=86400",
+	});
+
+app.get("/favicon.svg", serveFavicon);
+app.get("/favicon.ico", serveFavicon);
+
 // ── Page routes ────────────────────────────────────────────────────────────
 
 app.get("/", (c) => {
