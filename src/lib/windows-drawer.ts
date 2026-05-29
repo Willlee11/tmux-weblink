@@ -58,6 +58,13 @@ export function windowsDrawerCSS(): string {
     padding: 24px 16px; text-align: center; color: var(--panel-muted);
     font-size: 12px; font-family: 'JetBrains Mono', monospace;
   }
+  #windows-new-btn {
+    display: flex; align-items: center; gap: 4px;
+    background: none; border: none; color: var(--panel-muted); cursor: pointer;
+    padding: 2px 8px; border-radius: 4px; font-size: 18px; line-height: 1;
+    transition: color 0.15s;
+  }
+  #windows-new-btn:hover { color: var(--panel-accent); }
   @media (max-width: 560px) {
     #windows-drawer { width: min(100vw - 16px, 400px); }
     .windows-row { min-height: 52px; padding: 14px 16px; }
@@ -72,6 +79,7 @@ export function windowsDrawerHTML(title: string): string {
   ${drawerResizeHandleHTML()}
   <div class="drawer-header">
     <span>${escapeHtml(title)}</span>
+    <button id="windows-new-btn" title="New window">+</button>
     <button id="windows-close">&times;</button>
   </div>
   <div id="windows-error"></div>
@@ -214,6 +222,24 @@ function closeWindowsDrawer() {
     history.pushState({}, '', url);
   }
 }
+
+document.getElementById('windows-new-btn').addEventListener('click', async () => {
+  clearWindowsError();
+  try {
+    const res = await fetch(
+      '/api/session/' + encodeURIComponent(WIN_SESSION) + '/new-window',
+      { method: 'POST' },
+    );
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      showWindowsError(data.error || 'Failed to create window');
+      return;
+    }
+    renderWindowsList(await fetchWinList());
+  } catch {
+    showWindowsError('Failed to create window');
+  }
+});
 
 document.getElementById('windows-toggle').addEventListener('click', () => {
   if (windowsDrawer.classList.contains('open')) closeWindowsDrawer();

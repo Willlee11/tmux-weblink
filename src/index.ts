@@ -50,6 +50,7 @@ import { ImageUploadError, saveUploadedImage } from "./lib/image-upload.js";
 import {
 	listSessionWindows,
 	selectSessionWindow,
+	newSessionWindow,
 	TmuxWindowsError,
 } from "./lib/tmux-windows.js";
 import { getActivePaneInfo } from "./lib/tmux-panes.js";
@@ -501,6 +502,21 @@ app.post("/api/session/:session/select-window", async (c) => {
 		}
 		console.error("[select-window]", err);
 		return c.json({ error: "select-window failed" }, 500);
+	}
+});
+
+app.post("/api/session/:session/new-window", (c) => {
+	const session = decodeURIComponent(c.req.param("session"));
+	try {
+		newSessionWindow(session);
+		recordActivePane(session);
+		return c.json({ ok: true });
+	} catch (err) {
+		if (err instanceof TmuxWindowsError) {
+			return c.json({ error: err.message }, err.status);
+		}
+		console.error("[new-window]", err);
+		return c.json({ error: "new-window failed" }, 500);
 	}
 });
 

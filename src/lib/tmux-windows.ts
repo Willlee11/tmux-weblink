@@ -45,6 +45,18 @@ function sessionExists(session: string): boolean {
 	}
 }
 
+export function newSessionWindow(session: string): void {
+	if (!sessionExists(session)) {
+		throw new TmuxWindowsError("session not found", 404);
+	}
+	try {
+		execFileSync("tmux", ["new-window", "-t", session], { timeout: 3000 });
+	} catch (err: unknown) {
+		const message = err instanceof Error ? err.message : "new-window failed";
+		throw new TmuxWindowsError(message, 500);
+	}
+}
+
 export function selectSessionWindow(session: string, windowIndex: number): void {
 	if (!sessionExists(session)) {
 		throw new TmuxWindowsError("session not found", 404);
