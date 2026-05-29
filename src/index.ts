@@ -43,6 +43,7 @@ import {
 	capturePaneTail,
 	capturePaneHistoryChunk,
 	isAlternateScreen,
+	toCrlf,
 } from "./lib/tmux-capture.js";
 import { readTerminalBufferConfig } from "./lib/terminal-config.js";
 import { ImageUploadError, saveUploadedImage } from "./lib/image-upload.js";
@@ -567,7 +568,7 @@ wss.on("connection", (ws: WebSocket, _req: import("http").IncomingMessage, sessi
 		if (!isAlternateScreen(paneTarget)) {
 			try {
 				const data = capturePaneTail(paneTarget, initialLines);
-				sendServerMessage(ws, { type: "snapshot", data, lines: initialLines });
+				sendServerMessage(ws, { type: "snapshot", data: toCrlf(data), lines: initialLines });
 			} catch {
 				// No snapshot — client waits for live PTY output
 			}
@@ -648,7 +649,7 @@ wss.on("connection", (ws: WebSocket, _req: import("http").IncomingMessage, sessi
 					before,
 					historyChunk,
 				);
-				sendServerMessage(ws, { type: "history", data: chunk, before, lines });
+				sendServerMessage(ws, { type: "history", data: toCrlf(chunk), before, lines });
 			} catch {
 				sendServerMessage(ws, { type: "history", data: "", before, lines: 0 });
 			}

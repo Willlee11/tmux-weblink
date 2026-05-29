@@ -75,6 +75,10 @@ type ServerMessage =
 declare global {
 	interface Window {
 		__TMUX_WEB_TERMINAL__?: TerminalPageConfig;
+		tmuxWeb?: {
+			sendInput(data: string): void;
+			focusTerminal(): void;
+		};
 	}
 }
 
@@ -613,6 +617,13 @@ async function ingestImageBlob(blob: Blob) {
 
 term.onData((data) => sendTerminalInput(data));
 term.onResize(({ cols, rows }) => sendJSON({ type: 'resize', cols, rows }));
+
+// Expose a minimal hook so inline page scripts (e.g. the mobile toolbar) can send
+// text to the active pane and refocus the terminal without importing this module.
+window.tmuxWeb = {
+	sendInput: sendTerminalInput,
+	focusTerminal,
+};
 term.onScroll(() => {
 	if (phase !== 'live' || historyLoading || !term.isNearScrollbackTop()) return;
 	historyLoading = true;

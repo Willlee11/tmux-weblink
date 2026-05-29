@@ -4,6 +4,7 @@ import { escapeHtml, escapeAttr } from '../html.js';
 import { notesDrawerCSS, notesDrawerHTML, notesDrawerScript } from '../notes-drawer.js';
 import { schedulerDrawerCSS, schedulerDrawerHTML, schedulerDrawerScript } from '../scheduler-drawer.js';
 import { windowsDrawerCSS, windowsDrawerHTML, windowsDrawerScript } from '../windows-drawer.js';
+import { mobileToolbarCSS, mobileToolbarHTML, mobileToolbarScript } from '../mobile-toolbar.js';
 import type { ExtManifest } from '../ext-loader.js';
 import {
 	commandbarButtonHTML,
@@ -207,6 +208,7 @@ export function renderTerminal(
   }
   header .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--panel-muted); transition: background 0.2s; }
   header .dot.connected { background: var(--panel-success); }
+  @media (max-width: 560px) { header .status #status-text { display: none; } }
   #terminal-container { flex: 1; width: 100%; min-height: 0; overflow: hidden; background: var(--terminal-bg); }
   #terminal-container .xterm { height: 100%; padding: 0; }
   /* Hide whatever the active renderer mounts (xterm .xterm div or ghostty canvas)
@@ -229,6 +231,7 @@ export function renderTerminal(
   ${notesDrawerCSS()}
   ${schedulerDrawerCSS()}
   ${windowsDrawerCSS()}
+  ${mobileToolbarCSS()}
   ${extDrawerCSS()}
 </style>
 </head>
@@ -253,6 +256,7 @@ export function renderTerminal(
   </div>
 </header>
 <div id="terminal-container" class="terminal-pending"></div>
+${mobileToolbarHTML()}
 ${commandbarEnabled ? commandbarHTML() : ''}
 ${notesDrawerHTML(`Notes — ${sessionName}`)}
 ${schedulerDrawerHTML(`Scheduler — ${sessionName}`)}
@@ -277,6 +281,9 @@ ${schedulerDrawerScript(sessionName)}
 
 // ========== WINDOWS ==========
 ${windowsDrawerScript(sessionName)}
+
+// ========== MOBILE TOOLBAR ==========
+${mobileToolbarScript(sessionName)}
 
 // ========== COMMANDBAR ==========
 ${commandbarEnabled ? commandbarScript(commandbarSessions, commandbarActions) : ''}

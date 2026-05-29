@@ -2,6 +2,17 @@ import { execFileSync } from "node:child_process";
 
 const TMUX_TIMEOUT_MS = 3000;
 
+/**
+ * Convert bare LF line endings to CRLF for terminal (xterm) rendering. Idempotent.
+ *
+ * `tmux capture-pane -p` separates lines with bare `\n`. xterm.js treats a lone
+ * `\n` as line-feed-only (cursor down, same column) and only returns to column 0
+ * on `\r`, so replaying raw capture output produces a cascading "staircase".
+ */
+export function toCrlf(text: string): string {
+	return text.replace(/\r?\n/g, "\r\n");
+}
+
 function tmux(args: string[]): string {
 	return execFileSync("tmux", args, {
 		encoding: "utf-8",
