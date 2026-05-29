@@ -7,6 +7,10 @@ export interface TmuxWebSettings {
 	commandbar?: boolean;
 	terminalRenderer?: 'xterm' | 'ghostty';
 	defaultView?: 'default' | 'recent';
+	/** Enable the /agents page that watches AI agents in recently-viewed panes. */
+	agents?: boolean;
+	/** Probe watched panes on a background interval (even when /agents is closed). */
+	agentsBackgroundWatch?: boolean;
 }
 
 const CONFIG_PATH = getSettingsPath();

@@ -4,3 +4,4 @@ export { renderNotesIndex } from './lib/pages/notes-index.js';
 export { renderNotesPage } from './lib/pages/notes-page.js';
 export { renderSettings, renderThemeSettings } from './lib/pages/settings.js';
 export { renderScheduleIndex } from './lib/pages/schedule-index.js';
+export { renderAgentsIndex } from './lib/pages/agents-index.js';

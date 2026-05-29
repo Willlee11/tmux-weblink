@@ -8,6 +8,7 @@ import {
 	commandbarHTML,
 	commandbarScript,
 	type CommandbarSession,
+	type CommandbarAction,
 } from '../commandbar.js';
 
 type TmuxSession = { name: string; windows: number; attached: boolean };
@@ -71,14 +72,18 @@ export function renderLanding(
 		accessMap: Map<string, number>;
 		commandbarEnabled?: boolean;
 		commandbarSessions?: CommandbarSession[];
+		agentsEnabled?: boolean;
 		theme: TmuxWebTheme;
 	},
 ): string {
-	const { view, accessMap, commandbarEnabled = false, commandbarSessions = [], theme } = opts;
+	const { view, accessMap, commandbarEnabled = false, commandbarSessions = [], agentsEnabled = false, theme } = opts;
 	const sorted = sortSessionsForView(sessions, view, accessMap);
-	const commandbarActions = [
+	const commandbarActions: CommandbarAction[] = [
 		{ label: 'Open notes', meta: 'Global notes', clickTargetId: 'notes-toggle' },
 	];
+	if (agentsEnabled) {
+		commandbarActions.push({ label: 'View All Agents', meta: 'Running agents', href: '/agents' });
+	}
 
 	const rows = sorted
 		.map(
@@ -184,6 +189,7 @@ export function renderLanding(
   <a href="${refreshHref}" class="refresh">refresh</a>
   <a href="/notes" class="notes-link">View all notes</a>
   <a href="/schedule" class="notes-link">View scheduled tasks</a>
+  ${agentsEnabled ? '<a href="/agents" class="notes-link">View agents</a>' : ''}
 </div>
 ${commandbarEnabled ? commandbarHTML() : ''}
 ${notesDrawerHTML('Notes — Global')}

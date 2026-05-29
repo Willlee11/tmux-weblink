@@ -8,7 +8,10 @@ export type CommandbarSession = {
 export type CommandbarAction = {
 	label: string;
 	meta: string;
-	clickTargetId: string;
+	/** Click this element id on select (e.g. open a drawer). */
+	clickTargetId?: string;
+	/** Or navigate to this URL on select. Takes precedence over clickTargetId. */
+	href?: string;
 };
 
 export function buildCommandbarSessions(
@@ -195,7 +198,11 @@ export function commandbarScript(sessions: CommandbarSession[], actions: Command
   function selectItem(item) {
     if (item.kind === 'action') {
       setOpen(false);
-      document.getElementById(item.clickTargetId)?.click();
+      if (item.href) {
+        window.location.href = item.href;
+        return;
+      }
+      if (item.clickTargetId) document.getElementById(item.clickTargetId)?.click();
       return;
     }
     selectSession(item);

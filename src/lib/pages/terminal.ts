@@ -11,6 +11,7 @@ import {
 	commandbarHTML,
 	commandbarScript,
 	type CommandbarSession,
+	type CommandbarAction,
 } from '../commandbar.js';
 import { drawerResizeCSS, drawerResizeHandleHTML, drawerResizeScript } from '../drawer-resize.js';
 import type { TerminalBufferConfig } from '../terminal-config.js';
@@ -123,13 +124,14 @@ export function renderTerminal(
 	opts: {
 		commandbarEnabled?: boolean;
 		commandbarSessions?: CommandbarSession[];
+		agentsEnabled?: boolean;
 		terminal?: TerminalBufferConfig;
 		theme: TmuxWebTheme;
 		renderer?: 'xterm' | 'ghostty';
 	},
 ): string {
 	const sidebarExts = extensions.filter(e => e.slot === 'sidebar');
-	const { commandbarEnabled = false, commandbarSessions = [], theme, renderer = 'xterm' } = opts;
+	const { commandbarEnabled = false, commandbarSessions = [], agentsEnabled = false, theme, renderer = 'xterm' } = opts;
 	const terminalCfg = opts.terminal ?? {
 		initialLines: 1000,
 		historyChunk: 500,
@@ -137,11 +139,14 @@ export function renderTerminal(
 		syncMaxMs: 3000,
 	};
 	const scrollback = terminalCfg.initialLines + 2 * terminalCfg.historyChunk;
-	const commandbarActions = [
+	const commandbarActions: CommandbarAction[] = [
 		{ label: 'Open notes', meta: `Notes for ${sessionName}`, clickTargetId: 'notes-toggle' },
 		{ label: 'Open scheduler', meta: `Schedule command in ${sessionName}`, clickTargetId: 'sched-toggle' },
 		{ label: 'Switch window', meta: `Windows in ${sessionName}`, clickTargetId: 'windows-toggle' },
 	];
+	if (agentsEnabled) {
+		commandbarActions.push({ label: 'View All Agents', meta: 'Running agents', href: '/agents' });
+	}
 	return /* html */ `<!DOCTYPE html>
 <html lang="en">
 <head>

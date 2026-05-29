@@ -25,7 +25,7 @@ try {
 	}
 } catch {}
 import { listSessions } from "./sessions.js";
-import { renderLanding, renderTerminal, renderNotesIndex, renderNotesPage, renderSettings, renderThemeSettings, renderScheduleIndex } from "./frontend.js";
+import { renderLanding, renderTerminal, renderNotesIndex, renderNotesPage, renderSettings, renderThemeSettings, renderScheduleIndex, renderAgentsIndex } from "./frontend.js";
 import { db } from "./lib/db.js";
 import { recordSessionAccess, getSessionAccessMap } from "./lib/session-access.js";
 import { loadExtensions, spawnExtensionBackend, registerExtensionRoutes } from "./lib/ext-loader.js";
@@ -51,6 +51,13 @@ import {
 	selectSessionWindow,
 	TmuxWindowsError,
 } from "./lib/tmux-windows.js";
+import { getActivePaneInfo } from "./lib/tmux-panes.js";
+import { recordWatchedPane } from "./lib/watched-panes.js";
+import {
+	probeWatchedPanes,
+	startBackgroundWatch,
+	getCachedAgentStatuses,
+} from "./lib/agents-watch.js";
 
 loadDotEnv();
 
@@ -149,10 +156,13 @@ const scheduler = new SchedulerService({
 // Init db and re-schedule surviving tasks before starting server
 await db.read();
 db.data.sessionAccess ??= [];
+db.data.watchedPanes ??= [];
 
 const settings = await readSettings();
 const activeTheme = await readActiveTheme();
 const commandbarEnabled = settings.commandbar === true;
+const agentsEnabled = settings.agents === true;
+const agentsBackgroundWatch = agentsEnabled && settings.agentsBackgroundWatch === true;
 const terminalRenderer = resolveTerminalRenderer(startupArgs, settings.terminalRenderer);
 const extsDir   = path.join(process.cwd(), "extensions");
 const extensions = await loadExtensions(extsDir);
@@ -161,6 +171,25 @@ for (const ext of extensions) {
 }
 
 await scheduler.restoreFromDb();
+
+// Record the session's current active pane into the watch list (most-recent
+// first, capped at 10). No-op unless the agents feature is enabled. Fire-and-
+// forget: navigation must never block or fail on this.
+function recordActivePane(session: string): void {
+	if (!agentsEnabled) return;
+	try {
+		const pane = getActivePaneInfo(session);
+		if (!pane) return;
+		void recordWatchedPane({
+			paneId: pane.paneId,
+			sessionName: session,
+			windowIndex: pane.windowIndex,
+			paneIndex: pane.paneIndex,
+		}).catch(() => {});
+	} catch {
+		// tmux unavailable / session gone — ignore.
+	}
+}
 
 const app = new Hono();
 
@@ -220,7 +249,7 @@ app.get("/", (c) => {
 	const sessions = listSessions();
 	const accessMap = getSessionAccessMap();
 	const commandbarSessions = commandbarEnabled ? buildCommandbarSessions(sessions, accessMap) : [];
-	return c.html(renderLanding(sessions, { view, accessMap, commandbarEnabled, commandbarSessions, theme: activeTheme }));
+	return c.html(renderLanding(sessions, { view, accessMap, commandbarEnabled, commandbarSessions, agentsEnabled, theme: activeTheme }));
 });
 
 app.get("/s/:session", async (c) => {
@@ -232,6 +261,7 @@ app.get("/s/:session", async (c) => {
 	return c.html(renderTerminal(session, extensions, {
 		commandbarEnabled,
 		commandbarSessions,
+		agentsEnabled,
 		terminal: terminalBufferConfig,
 		theme: activeTheme,
 		renderer: terminalRenderer,
@@ -249,6 +279,19 @@ app.get("/notes/:session", (c) => {
 
 app.get("/schedule", (c) => {
 	return c.html(renderScheduleIndex(scheduler.list(), activeTheme));
+});
+
+app.get("/agents", (c) => {
+	if (!agentsEnabled) return c.redirect("/settings", 303);
+	return c.html(renderAgentsIndex(activeTheme));
+});
+
+app.get("/api/agents", async (c) => {
+	if (!agentsEnabled) return c.json({ error: "agents page disabled" }, 403);
+	// When the background watcher runs, serve its cache (no re-probe). Otherwise
+	// probe on demand for this request.
+	const statuses = agentsBackgroundWatch ? getCachedAgentStatuses() : await probeWatchedPanes();
+	return c.json(statuses);
 });
 
 // ── Settings pages ───────────────────────────────────────────────────────────
@@ -278,6 +321,8 @@ app.post("/settings", async (c) => {
 	await writeSettings({
 		...current,
 		commandbar: body.commandbar !== undefined,
+		agents: body.agents !== undefined,
+		agentsBackgroundWatch: body.agentsBackgroundWatch !== undefined,
 		terminalRenderer: renderer,
 		defaultView,
 	});
@@ -414,6 +459,7 @@ app.post("/api/session/:session/select-window", async (c) => {
 
 	try {
 		selectSessionWindow(session, windowIndex);
+		recordActivePane(session);
 		return c.json({ ok: true });
 	} catch (err) {
 		if (err instanceof TmuxWindowsError) {
@@ -449,6 +495,10 @@ const port = parseInt(process.env.PORT || "3000", 10);
 const server = serve({ fetch: app.fetch, port }, (info) => {
 	console.log(`tmux-web running at http://localhost:${info.port}`);
 });
+
+// Optional always-on agent watcher: a single interval that probes only the
+// watched panes and caches the result for /api/agents. Off unless enabled.
+if (agentsBackgroundWatch) startBackgroundWatch();
 
 const wss = new WebSocketServer({ noServer: true });
 
@@ -494,6 +544,8 @@ wss.on("connection", (ws: WebSocket, _req: import("http").IncomingMessage, sessi
 		} catch {
 			paneTarget = sessionName;
 		}
+
+		recordActivePane(sessionName);
 
 		if (!isAlternateScreen(paneTarget)) {
 			try {

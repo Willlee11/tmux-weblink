@@ -24,10 +24,19 @@ export interface SessionAccessRecord {
 	lastAccessedAt: number; // ms timestamp
 }
 
+export interface WatchedPaneRecord {
+	paneId: string;        // stable tmux pane id, e.g. "%5"
+	sessionName: string;
+	windowIndex: number;
+	paneIndex: number;
+	watchedAt: number;     // ms timestamp
+}
+
 export interface DbSchema {
 	notes: NoteRecord[];
 	scheduledTasks: StoredTask[];
 	sessionAccess: SessionAccessRecord[];
+	watchedPanes: WatchedPaneRecord[];
 }
 
 const dbDir = getDataRoot();
@@ -35,5 +44,5 @@ mkdirSync(dbDir, { recursive: true });
 
 export const db = new Low<DbSchema>(
 	new JSONFile<DbSchema>(join(dbDir, 'db.json')),
-	{ notes: [], scheduledTasks: [], sessionAccess: [] },
+	{ notes: [], scheduledTasks: [], sessionAccess: [], watchedPanes: [] },
 );
