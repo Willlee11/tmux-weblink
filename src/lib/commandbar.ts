@@ -31,21 +31,19 @@ export function buildCommandbarSessions(
 export function commandbarCSS(): string {
 	return `
   .cmdbar-btn {
-    display: inline-flex; align-items: center; gap: 6px;
-    background: rgba(0,0,0,0.16); color: var(--panel-muted);
-    border: 1px solid var(--panel-border); border-radius: 6px;
+    display: inline-flex; align-items: center;
+    background: none; color: var(--panel-muted);
+    border: none; padding: 0;
     cursor: pointer; font-family: 'JetBrains Mono', 'SF Mono', 'Menlo', monospace;
-    font-size: 11px; line-height: 1; padding: 6px 8px;
-    transition: border-color 0.15s, color 0.15s, background 0.15s;
+    line-height: 1;
+    transition: color 0.15s;
   }
   .cmdbar-btn:hover,
   .cmdbar-btn:focus-visible {
-    color: var(--panel-accent); border-color: rgba(125, 211, 252, 0.35);
-    outline: none; background: rgba(125, 211, 252, 0.08);
+    color: var(--panel-accent); outline: none;
   }
-  .cmdbar-btn svg { width: 14px; height: 14px; fill: currentColor; flex: 0 0 auto; }
   .cmdbar-shortcut {
-    color: var(--panel-muted); border: 1px solid rgba(148, 163, 184, 0.22);
+    color: inherit; border: 1px solid rgba(148, 163, 184, 0.22);
     border-radius: 4px; padding: 2px 4px; font-size: 10px;
   }
   .cmdbar-backdrop {
@@ -106,16 +104,13 @@ export function commandbarCSS(): string {
   }
   @media (max-width: 560px) {
     .cmdbar-panel { top: 54px; width: calc(100vw - 16px); max-height: calc(100vh - 70px); }
-    .cmdbar-shortcut { display: none; }
     .cmdbar-row { align-items: flex-start; flex-direction: column; gap: 4px; }
     .cmdbar-row-meta { text-align: left; }
   }`;
 }
 
 export function commandbarButtonHTML(label = 'Sessions'): string {
-	return `<button class="cmdbar-btn" id="cmdbar-open" title="Open command bar">
-    <svg viewBox="0 0 24 24"><path d="M9.5 3a6.5 6.5 0 0 1 5.18 10.43l4.45 4.44-1.42 1.42-4.44-4.45A6.5 6.5 0 1 1 9.5 3Zm0 2a4.5 4.5 0 1 0 0 9 4.5 4.5 0 0 0 0-9Z"/></svg>
-    <span>${label}</span>
+	return `<button class="cmdbar-btn" id="cmdbar-open" title="${label} (⌘K)" aria-label="${label} (⌘K)">
     <span class="cmdbar-shortcut">⌘K</span>
   </button>`;
 }
