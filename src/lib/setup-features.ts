@@ -34,6 +34,23 @@ export const SETUP_FEATURES: SetupFeature[] = [
     },
   },
   {
+    id: 'agents',
+    label: 'Agents page',
+    description: 'watch AI agents (Claude, Codex, OpenCode, Cursor) in recently-viewed panes',
+    kind: 'builtin',
+    isEnabled: (cfg) => cfg.agents === true,
+    async enable() {
+      const cfg = await readSettings();
+      await writeSettings({ ...cfg, agents: true });
+      console.log('✓ agents page enabled');
+    },
+    async disable() {
+      const cfg = await readSettings();
+      await writeSettings({ ...cfg, agents: false });
+      console.log('✓ agents page disabled');
+    },
+  },
+  {
     id: 'github-actions',
     label: 'GitHub Actions extension',
     description: 'sidebar CI status for workflow runs',

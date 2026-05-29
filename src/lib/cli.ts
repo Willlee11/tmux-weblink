@@ -2,13 +2,13 @@ import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { createRequire } from 'node:module';
 import { getDataRoot, getSettingsPath, getThemePath } from './state-paths.js';
-import { readSettings } from './settings.js';
+import { readSettings, writeSettings } from './settings.js';
 import { readActiveTheme, setActiveThemeTemplate } from './theme-store.js';
 import { isThemeTemplateId, THEME_TEMPLATE_IDS } from './themes/index.js';
 import { cmdAdd, cmdRemove, getPluginDir } from './plugins.js';
 import { getEnvFilePath } from './load-env.js';
 import { SETUP_FEATURES, writeGithubPat } from './setup-features.js';
-import { promptYesNo, promptSecret, requireTty } from './setup-prompts.js';
+import { promptYesNo, promptChoice, promptSecret, requireTty } from './setup-prompts.js';
 
 const DATA_ROOT = getDataRoot();
 const PLUGIN_DIR = getPluginDir();
@@ -21,6 +21,7 @@ export { cmdAdd, cmdRemove };
 
 type SetupFlags = {
   commandbar?: boolean;
+  agents?: boolean;
   githubActions?: boolean;
   yes?: boolean;
 };
@@ -39,6 +40,12 @@ function parseSetupArgs(argv: string[]): SetupFlags {
       case '--no-commandbar':
         flags.commandbar = false;
         break;
+      case '--agents':
+        flags.agents = true;
+        break;
+      case '--no-agents':
+        flags.agents = false;
+        break;
       case '--github-actions':
         flags.githubActions = true;
         break;
@@ -51,13 +58,17 @@ function parseSetupArgs(argv: string[]): SetupFlags {
 }
 
 function flagKey(id: string): keyof SetupFlags {
-  return id === 'github-actions' ? 'githubActions' : 'commandbar';
+  switch (id) {
+    case 'github-actions': return 'githubActions';
+    case 'agents': return 'agents';
+    default: return 'commandbar';
+  }
 }
 
 export async function cmdSetup(argv: string[]): Promise<void> {
   const args = argv[0] === 'setup' ? argv.slice(1) : argv;
   const flags = parseSetupArgs(args);
-  const nonInteractive = flags.yes || flags.commandbar !== undefined || flags.githubActions !== undefined;
+  const nonInteractive = flags.yes || flags.commandbar !== undefined || flags.agents !== undefined || flags.githubActions !== undefined;
 
   if (!nonInteractive) requireTty();
 
@@ -86,6 +97,18 @@ export async function cmdSetup(argv: string[]): Promise<void> {
     selections.set(feature.id, enabled);
   }
 
+  // Terminal renderer is a choice, not a feature toggle. Ask interactively,
+  // defaulting to the saved renderer (xterm for a fresh install).
+  let rendererChoice: 'xterm' | 'ghostty' | undefined;
+  if (!nonInteractive) {
+    const current = cfg.terminalRenderer === 'ghostty' ? 'ghostty' : 'xterm';
+    rendererChoice = (await promptChoice(
+      'Terminal renderer (xterm.js is the default; ghostty-web is experimental)',
+      ['xterm', 'ghostty'],
+      current,
+    )) as 'xterm' | 'ghostty';
+  }
+
   for (const feature of SETUP_FEATURES) {
     const enabled = selections.get(feature.id)!;
     if (enabled) {
@@ -93,6 +116,12 @@ export async function cmdSetup(argv: string[]): Promise<void> {
     } else {
       await feature.disable();
     }
+  }
+
+  if (rendererChoice) {
+    const latest = await readSettings();
+    await writeSettings({ ...latest, terminalRenderer: rendererChoice });
+    console.log(`✓ terminal renderer set to ${rendererChoice}`);
   }
 
   const githubOn = selections.get('github-actions') === true;

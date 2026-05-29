@@ -26,6 +26,27 @@ export async function promptYesNo(
   }
 }
 
+export async function promptChoice(
+  question: string,
+  choices: string[],
+  defaultChoice: string,
+): Promise<string> {
+  // Default is shown uppercase, e.g. "XTERM/ghostty".
+  const hint = choices.map((c) => (c === defaultChoice ? c.toUpperCase() : c)).join('/');
+  const rl = readline.createInterface({ input, output });
+  try {
+    for (;;) {
+      const answer = (await rl.question(`${question} [${hint}]: `)).trim().toLowerCase();
+      if (!answer) return defaultChoice;
+      const match = choices.find((c) => c.toLowerCase() === answer);
+      if (match) return match;
+      output.write(`Please choose one of: ${choices.join(', ')}\n`);
+    }
+  } finally {
+    rl.close();
+  }
+}
+
 export async function promptSecret(label: string): Promise<string> {
   const rl = readline.createInterface({ input, output });
   try {
