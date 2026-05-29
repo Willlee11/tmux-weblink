@@ -10,7 +10,7 @@
  * allocation-heavy work — so it stays cheap to run per poll.
  */
 
-export type Agent = 'claude' | 'codex' | 'opencode' | 'cursor';
+export type Agent = 'claude' | 'codex' | 'opencode' | 'cursor' | 'droid' | 'copilot';
 export type AgentState = 'idle' | 'working' | 'blocked' | 'unknown';
 
 export const AGENT_LABELS: Record<Agent, string> = {
@@ -18,6 +18,8 @@ export const AGENT_LABELS: Record<Agent, string> = {
 	codex: 'Codex',
 	opencode: 'OpenCode',
 	cursor: 'Cursor Agent',
+	droid: 'Droid',
+	copilot: 'GitHub Copilot',
 };
 
 // Process names that are launchers/runtimes rather than the agent itself.
@@ -58,7 +60,14 @@ function agentFromBasename(name: string): Agent | null {
 			return 'opencode';
 		case 'cursor':
 		case 'cursor-agent':
+		case 'agent':
 			return 'cursor';
+		case 'droid':
+			return 'droid';
+		case 'copilot':
+		case 'github-copilot':
+		case 'gh-copilot':
+			return 'copilot';
 		default:
 			return null;
 	}
@@ -200,6 +209,34 @@ function detectCursor(lines: string[], liveLower: string): AgentState {
 	return 'idle';
 }
 
+function detectDroid(lines: string[], liveLower: string): AgentState {
+	if (
+		hasSelectionMenu(lines) ||
+		liveLower.includes('[y/n]') ||
+		liveLower.includes('(y/n)') ||
+		liveLower.includes('allow this') ||
+		liveLower.includes('do you want')
+	) {
+		return 'blocked';
+	}
+	if (hasInterruptHint(liveLower) || hasSpinnerActivity(lines)) return 'working';
+	return 'idle';
+}
+
+function detectCopilot(lines: string[], liveLower: string): AgentState {
+	if (
+		hasSelectionMenu(lines) ||
+		liveLower.includes('[y/n]') ||
+		liveLower.includes('(y/n)') ||
+		liveLower.includes('allow command') ||
+		liveLower.includes('do you want')
+	) {
+		return 'blocked';
+	}
+	if (hasInterruptHint(liveLower) || hasSpinnerActivity(lines)) return 'working';
+	return 'idle';
+}
+
 /**
  * Classify the agent's current state from the captured screen.
  * Falls back to 'unknown' for unrecognized agents.
@@ -212,6 +249,8 @@ export function detectState(agent: Agent, screen: string): AgentState {
 		case 'codex': return detectCodex(lines, liveLower);
 		case 'opencode': return detectOpenCode(lines, liveLower);
 		case 'cursor': return detectCursor(lines, liveLower);
+		case 'droid': return detectDroid(lines, liveLower);
+		case 'copilot': return detectCopilot(lines, liveLower);
 		default: return 'unknown';
 	}
 }
