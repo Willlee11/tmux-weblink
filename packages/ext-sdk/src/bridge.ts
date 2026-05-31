@@ -2,21 +2,30 @@ import type { ExtContext, ExtMessage } from './types.js';
 
 type ContextCallback = (ctx: ExtContext) => void;
 type ConfigCallback  = (cfg: unknown) => void | Promise<void>;
+type VoidCallback    = () => void | Promise<void>;
 
 export class ExtBridge {
   private readonly extId: string;
   private contextCb: ContextCallback | null = null;
   private configCb:  ConfigCallback  | null = null;
+  private openCb:    VoidCallback    | null = null;
+  private closeCb:   VoidCallback    | null = null;
   private _config:   unknown = null;
 
+  private pendingContext: ExtContext | null = null;
+  private pendingConfig:  unknown = null;
+  private pendingOpen    = false;
+  private pendingClose   = false;
+
   constructor() {
-    // The iframe URL is `/ext/<id>/ui/...` — the host already knows our id,
-    // so we read it back from our own location instead of hardcoding.
     const m = window.location.pathname.match(/^\/ext\/([^/]+)\//);
     if (!m) throw new Error('[ext-sdk] cannot detect extension id from iframe URL');
     this.extId = m[1];
     window.addEventListener('message', this._onMessage.bind(this));
-    // Signal to the parent that the iframe is ready to receive config
+  }
+
+  /** Call after all `on*` handlers are registered so early host messages are not lost. */
+  ready(): void {
     window.parent.postMessage({ type: 'ext:ready' } satisfies ExtMessage, '*');
   }
 
@@ -24,20 +33,53 @@ export class ExtBridge {
     const msg = event.data as ExtMessage;
     if (!msg?.type) return;
 
-    if (msg.type === 'ext:context' && this.contextCb) {
-      this.contextCb(msg.context);
+    if (msg.type === 'ext:context') {
+      if (this.contextCb) this.contextCb(msg.context);
+      else this.pendingContext = msg.context;
     } else if (msg.type === 'ext:config') {
       this._config = msg.config;
       if (this.configCb) this.configCb(msg.config);
+      else this.pendingConfig = msg.config;
+    } else if (msg.type === 'ext:open') {
+      if (this.openCb) void this.openCb();
+      else this.pendingOpen = true;
+    } else if (msg.type === 'ext:close') {
+      if (this.closeCb) void this.closeCb();
+      else this.pendingClose = true;
     }
   }
 
   onContext(cb: ContextCallback): void {
     this.contextCb = cb;
+    if (this.pendingContext) {
+      cb(this.pendingContext);
+      this.pendingContext = null;
+    }
   }
 
   onConfig(cb: ConfigCallback): void {
     this.configCb = cb;
+    if (this.pendingConfig !== null) {
+      this._config = this.pendingConfig;
+      void cb(this.pendingConfig);
+      this.pendingConfig = null;
+    }
+  }
+
+  onOpen(cb: VoidCallback): void {
+    this.openCb = cb;
+    if (this.pendingOpen) {
+      this.pendingOpen = false;
+      void cb();
+    }
+  }
+
+  onClose(cb: VoidCallback): void {
+    this.closeCb = cb;
+    if (this.pendingClose) {
+      this.pendingClose = false;
+      void cb();
+    }
   }
 
   getConfig(): unknown {

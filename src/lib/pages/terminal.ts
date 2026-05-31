@@ -4,6 +4,7 @@ import { escapeHtml, escapeAttr } from '../html.js';
 import { notesDrawerCSS, notesDrawerHTML, notesDrawerScript } from '../notes-drawer.js';
 import { schedulerDrawerCSS, schedulerDrawerHTML, schedulerDrawerScript } from '../scheduler-drawer.js';
 import { windowsDrawerCSS, windowsDrawerHTML, windowsDrawerScript } from '../windows-drawer.js';
+import { sessionsDrawerCSS, sessionsDrawerButtonHTML, sessionsDrawerHTML, sessionsDrawerScript } from '../sessions-drawer.js';
 import { mobileToolbarCSS, mobileToolbarHTML, mobileToolbarScript } from '../mobile-toolbar.js';
 import type { ExtManifest } from '../ext-loader.js';
 import {
@@ -78,13 +79,20 @@ ${drawerResizeScript(`ext-${id}-drawer`, `tmux-web:drawer-width:ext:${id}`, 360)
   const toggle   = document.getElementById('ext-${id}-toggle');
   const close    = document.getElementById('ext-${id}-close');
 
+  function notifyFrame(type) {
+    if (frame.contentWindow) frame.contentWindow.postMessage({ type }, '*');
+  }
+
   function openDrawer() {
     drawer.classList.add('open');
     backdrop.classList.add('open');
+    sendMessages();
+    notifyFrame('ext:open');
   }
   function closeDrawer() {
     drawer.classList.remove('open');
     backdrop.classList.remove('open');
+    notifyFrame('ext:close');
   }
 
   toggle.addEventListener('click', () => {
@@ -141,6 +149,7 @@ export function renderTerminal(
 	};
 	const scrollback = terminalCfg.initialLines + 2 * terminalCfg.historyChunk;
 	const commandbarActions: CommandbarAction[] = [
+		{ label: 'Open sessions sidebar', meta: 'Recent and pinned sessions', clickTargetId: 'sessions-toggle' },
 		{ label: 'Open notes', meta: `Notes for ${sessionName}`, clickTargetId: 'notes-toggle' },
 		{ label: 'Open scheduler', meta: `Schedule command in ${sessionName}`, clickTargetId: 'sched-toggle' },
 		{ label: 'Switch window', meta: `Windows in ${sessionName}`, clickTargetId: 'windows-toggle' },
@@ -231,12 +240,14 @@ export function renderTerminal(
   ${notesDrawerCSS()}
   ${schedulerDrawerCSS()}
   ${windowsDrawerCSS()}
+  ${sessionsDrawerCSS()}
   ${mobileToolbarCSS()}
   ${extDrawerCSS()}
 </style>
 </head>
 <body>
 <header>
+  ${sessionsDrawerButtonHTML()}
   <h1><a href="/" aria-label="Go to home">tmux</a></h1>
   <span class="session">${escapeHtml(sessionName)}</span>
   ${commandbarEnabled ? commandbarButtonHTML('Sessions') : ''}
@@ -261,6 +272,7 @@ ${commandbarEnabled ? commandbarHTML() : ''}
 ${notesDrawerHTML(`Notes — ${sessionName}`)}
 ${schedulerDrawerHTML(`Scheduler — ${sessionName}`)}
 ${windowsDrawerHTML(`Windows — ${sessionName}`)}
+${sessionsDrawerHTML()}
 ${sidebarExts.map(e => extDrawerHTML(e)).join('\n')}
 
 <script type="module">
@@ -281,6 +293,9 @@ ${schedulerDrawerScript(sessionName)}
 
 // ========== WINDOWS ==========
 ${windowsDrawerScript(sessionName)}
+
+// ========== SESSIONS SIDEBAR ==========
+${sessionsDrawerScript(sessionName)}
 
 // ========== WINDOW DEEP-LINK (?window=N) ==========
 {

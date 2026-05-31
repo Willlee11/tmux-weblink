@@ -1,0 +1,38 @@
+{
+  "name": "@tmux-web/ext-gh-workflow",
+  "version": "0.1.0",
+  "description": "Shared GitHub CLI helpers for tmux-web extensions",
+  "type": "module",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ashutoshpw/tmux-web",
+    "directory": "packages/ext-gh-workflow"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist/"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@types/node": "^25.8.0",
+    "typescript": "^5.7.0",
+    "vitest": "^2.1.9"
+  },
+  "overrides": {
+    "esbuild": "0.24.2"
+  }
+}

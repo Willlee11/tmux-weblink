@@ -15,7 +15,7 @@ tmux-web ships a small core. Anything beyond the terminal — GitHub Actions sta
 tmux-web setup
 ```
 
-Walks through optional features: command bar, GitHub Actions extension, and an optional `GITHUB_PAT` saved to `~/.tmux-web/.env`.
+Walks through optional features: command bar, GitHub Actions, and Git Workflow extensions. When either GitHub extension is enabled, setup checks `gh auth status` and prints instructions if you are not logged in. No `GITHUB_PAT` or `.env` token is required for normal local use — `gh auth login` is enough.
 
 Non-interactive:
 
@@ -60,11 +60,19 @@ tmux-web remove @tmux-web/ext-github-actions
 
 Extensions inherit the env of the `tmux-web` process. **tmux-web loads `~/.tmux-web/.env` automatically** on every start (dev mode uses `~/.dev/.tmux-web/.env`). Variables already set in your shell are not overwritten.
 
-Create or update the file manually, or use `tmux-web setup` to save `GITHUB_PAT`:
+The GitHub Actions and Git Workflow extensions call GitHub through **`gh api`** / **`gh repo view`**, so you need the [GitHub CLI](https://cli.github.com/) installed and on your `PATH`. Authenticate locally with:
+
+```bash
+gh auth login
+```
+
+No `~/.tmux-web/.env` token is required for normal interactive use on your machine.
+
+For headless or systemd deployments where interactive login is not possible, set a token in `~/.tmux-web/.env` instead (`gh` honors `GH_TOKEN`; `GITHUB_PAT` is also passed through as `GH_TOKEN`):
 
 ```bash
 cat > ~/.tmux-web/.env <<'EOF'
-GITHUB_PAT=github_pat_xxx
+GH_TOKEN=github_pat_xxx
 PORT=9878
 EOF
 chmod 600 ~/.tmux-web/.env
@@ -72,7 +80,7 @@ chmod 600 ~/.tmux-web/.env
 tmux-web
 ```
 
-For a systemd service, use `EnvironmentFile=/home/youruser/.tmux-web/.env` (same path tmux-web reads by default).
+For a systemd service, use `EnvironmentFile=/home/youruser/.tmux-web/.env` (same path tmux-web reads by default). The service user must either have run `gh auth login` or have `GH_TOKEN`/`GITHUB_PAT` set in that file.
 
 ---
 
@@ -217,6 +225,8 @@ ext.onConfig(async (cfg) => {
   // render…
   ext.resize(document.body.scrollHeight);
 });
+
+ext.ready();
 ```
 
 What the SDK gives you:
@@ -225,6 +235,9 @@ What the SDK gives you:
 | --- | --- |
 | `ext.onContext(cb)` | Fires once with `{ session, host }` after the iframe loads |
 | `ext.onConfig(cb)` | Fires with the `config` block from `tmux-extension.json` |
+| `ext.onOpen(cb)` | Fires when the user opens the extension drawer |
+| `ext.onClose(cb)` | Fires when the user closes the extension drawer |
+| `ext.ready()` | Signal to the host that handlers are registered (call after `onContext` / `onOpen` setup) |
 | `ext.request<T>(path, opts?)` | Fetches `/ext/<id>/api${path}` — proxied to your backend's socket |
 | `ext.resize(height)` | Tells the host how tall the drawer should be |
 
@@ -240,6 +253,8 @@ ext.request('/runs') ─HTTP──► /ext/<id>/api/runs ──Unix socket──
                                   └── /ext/<id>/ui/*  ──serves──► dist/ui/* static files
 postMessage('ext:ready')  ◄────── 
 postMessage('ext:context') ──────►
+postMessage('ext:open')   ──────►  (drawer opened)
+postMessage('ext:close')  ──────►  (drawer closed)
 postMessage('ext:resize')   ◄────
 ```
 
@@ -273,3 +288,9 @@ Users install via:
 ```bash
 tmux-web add @yourscope/your-extension
 ```
+
+### Bundled extensions
+
+| Extension | Guide |
+| --- | --- |
+| `@tmux-web/ext-git-workflow` | [Git Workflow](extensions/git-workflow.md) — git status, worktree handoff, commit/push |

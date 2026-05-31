@@ -7,8 +7,8 @@ import { readActiveTheme, setActiveThemeTemplate } from './theme-store.js';
 import { isThemeTemplateId, THEME_TEMPLATE_IDS } from './themes/index.js';
 import { cmdAdd, cmdRemove, getPluginDir } from './plugins.js';
 import { getEnvFilePath } from './load-env.js';
-import { SETUP_FEATURES, writeGithubPat } from './setup-features.js';
-import { promptYesNo, promptChoice, promptSecret, requireTty } from './setup-prompts.js';
+import { SETUP_FEATURES, verifyGithubCliAuth } from './setup-features.js';
+import { promptYesNo, promptChoice, requireTty } from './setup-prompts.js';
 
 const DATA_ROOT = getDataRoot();
 const PLUGIN_DIR = getPluginDir();
@@ -124,13 +124,10 @@ export async function cmdSetup(argv: string[]): Promise<void> {
     console.log(`✓ terminal renderer set to ${rendererChoice}`);
   }
 
-  const githubOn = selections.get('github-actions') === true;
-  if (githubOn && !nonInteractive) {
-    const pat = await promptSecret('GitHub PAT (optional, press Enter to skip)');
-    if (pat) {
-      const envPath = await writeGithubPat(pat);
-      console.log(`✓ saved GITHUB_PAT to ${envPath} (loaded automatically on startup)`);
-    }
+  const githubExtOn = selections.get('github-actions') === true
+    || selections.get('git-workflow') === true;
+  if (githubExtOn) {
+    await verifyGithubCliAuth();
   }
 
   console.log(`\nDone. Settings: ${CONFIG_DISPLAY}`);
