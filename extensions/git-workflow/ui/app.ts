@@ -15,6 +15,13 @@ interface PrInfo {
   checks: PrCheck[];
 }
 
+interface BranchChecks {
+  branch: string;
+  headSha: string;
+  url: string;
+  checks: PrCheck[];
+}
+
 interface PaneData {
   session: string;
   paneId: string;
@@ -33,6 +40,7 @@ interface PaneData {
   paneReady: boolean;
   fetchedAt: number;
   pr?: PrInfo | null;
+  branchChecks?: BranchChecks | null;
 }
 
 interface StatusResponse {
@@ -108,7 +116,7 @@ async function sendCheckError(checkUrl: string): Promise<void> {
       method: 'POST',
       body: {
         session: _session,
-        text: `The PR check failed with following error here: ${checkUrl}, do check the root cause for this issue`,
+        text: `The check failed with following error here: ${checkUrl}, do check the root cause for this issue`,
       },
     });
   } catch (e) {
@@ -121,18 +129,27 @@ function renderPrSection(data: PaneData): void {
   const checksList = document.getElementById('checks-list')!;
   checksList.innerHTML = '';
 
-  if (!data.pr) {
+  const src = data.pr
+    ? { labelText: 'PR', linkText: `#${data.pr.number}: ${data.pr.title}`, href: data.pr.url, checks: data.pr.checks }
+    : data.branchChecks
+      ? { labelText: 'Branch', linkText: data.branchChecks.branch, href: data.branchChecks.url, checks: data.branchChecks.checks }
+      : null;
+
+  if (!src) {
     section.setAttribute('hidden', '');
     return;
   }
 
   section.removeAttribute('hidden');
 
-  const link = document.getElementById('pr-link') as HTMLAnchorElement;
-  link.textContent = `#${data.pr.number}: ${data.pr.title}`;
-  link.href = data.pr.url;
+  const label = document.getElementById('checks-label');
+  if (label) label.textContent = src.labelText;
 
-  for (const check of data.pr.checks) {
+  const link = document.getElementById('pr-link') as HTMLAnchorElement;
+  link.textContent = src.linkText;
+  link.href = src.href;
+
+  for (const check of src.checks) {
     const cls = checkStatusClass(check);
     const row = document.createElement('div');
     row.className = 'check-row';

@@ -3,7 +3,7 @@ import { EventEmitter } from 'node:events';
 import { PassThrough } from 'node:stream';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { __setExecFileForTests } from '../src/gh-client.js';
-import { fetchPrForBranch, fetchPrChecks } from '../src/gh-pr.js';
+import { fetchPrForBranch, fetchPrChecks, fetchBranchHead } from '../src/gh-pr.js';
 
 function createSpawnMock() {
   return vi.fn<typeof spawn>();
@@ -152,5 +152,58 @@ describe('fetchPrChecks', () => {
 
     const result = await fetchPrChecks('myorg/myrepo', 'abc123');
     expect(result).toEqual([]);
+  });
+});
+
+describe('fetchBranchHead', () => {
+  let spawnMock: ReturnType<typeof createSpawnMock>;
+
+  beforeEach(() => {
+    spawnMock = createSpawnMock();
+    __setExecFileForTests(spawnMock);
+  });
+
+  it('maps the commit response to BranchHead shape', async () => {
+    mockSpawnSuccess(spawnMock, {
+      sha: 'abc123def456',
+      html_url: 'https://github.com/myorg/myrepo/commit/abc123def456',
+    });
+
+    const result = await fetchBranchHead('myorg/myrepo', 'main');
+    expect(result).toEqual({
+      headSha: 'abc123def456',
+      url: 'https://github.com/myorg/myrepo/commit/abc123def456',
+    });
+  });
+
+  it('falls back to a tree url when html_url is missing', async () => {
+    mockSpawnSuccess(spawnMock, { sha: 'abc123def456' });
+
+    const result = await fetchBranchHead('myorg/myrepo', 'main');
+    expect(result).toEqual({
+      headSha: 'abc123def456',
+      url: 'https://github.com/myorg/myrepo/tree/main',
+    });
+  });
+
+  it('passes the correct commit endpoint to the API', async () => {
+    mockSpawnSuccess(spawnMock, { sha: 'abc123def456' });
+
+    await fetchBranchHead('myorg/myrepo', 'main');
+
+    expect(spawnMock).toHaveBeenCalledWith(
+      'gh',
+      ['api', '--include', 'repos/myorg/myrepo/commits/main'],
+      expect.any(Object),
+    );
+  });
+
+  it('returns null on a non-200 response', async () => {
+    spawnMock.mockImplementation(() =>
+      createChild('HTTP/2.0 404 Not Found\n\n{"message":"Not Found"}', '', 0),
+    );
+
+    const result = await fetchBranchHead('myorg/myrepo', 'main');
+    expect(result).toBeNull();
   });
 });

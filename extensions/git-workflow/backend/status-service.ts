@@ -1,4 +1,4 @@
-import { ghRepoView, fetchPrForBranch, fetchPrChecks } from '@tmux-web/ext-gh-workflow';
+import { ghRepoView, fetchPrForBranch, fetchPrChecks, fetchBranchHead } from '@tmux-web/ext-gh-workflow';
 import { capturePaneTail, getActivePaneInfo, type ActivePaneInfo } from './tmux.js';
 import { isPaneReady } from './pane-ready.js';
 import {
@@ -65,6 +65,7 @@ async function buildPaneCache(session: string, pane: ActivePaneInfo): Promise<St
   const branchSource = mainRepoPath ?? root;
 
   let pr = null;
+  let branchChecks = null;
   const branch = gitStatus.branch;
   if (branch !== 'main' && branch !== 'master') {
     try {
@@ -75,6 +76,16 @@ async function buildPaneCache(session: string, pane: ActivePaneInfo): Promise<St
       }
     } catch {
       // PR fetch is best-effort; don't fail the status response
+    }
+  } else {
+    try {
+      const head = await fetchBranchHead(github.nameWithOwner, branch);
+      if (head) {
+        const checks = await fetchPrChecks(github.nameWithOwner, head.headSha);
+        branchChecks = { branch, headSha: head.headSha, url: head.url, checks };
+      }
+    } catch {
+      // branch checks fetch is best-effort; don't fail the status response
     }
   }
 
@@ -96,6 +107,7 @@ async function buildPaneCache(session: string, pane: ActivePaneInfo): Promise<St
     paneReady,
     fetchedAt: Date.now(),
     pr,
+    branchChecks,
   };
 
   const key = cacheKey(session, pane.paneId, panePath);

@@ -17,6 +17,8 @@ export {
 export {
   fetchPrForBranch,
   fetchPrChecks,
+  fetchBranchHead,
   type PrCheck,
   type PrInfo,
+  type BranchHead,
 } from './gh-pr.js';

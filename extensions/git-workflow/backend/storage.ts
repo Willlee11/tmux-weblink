@@ -1,7 +1,7 @@
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
-import type { PrInfo } from '@tmux-web/ext-gh-workflow';
+import type { PrInfo, PrCheck } from '@tmux-web/ext-gh-workflow';
 
 const DATA_ROOT = process.env.TMUX_WEB_DATA_ROOT
   ?? path.join(os.homedir(), '.tmux-web');
@@ -9,6 +9,13 @@ const DATA_ROOT = process.env.TMUX_WEB_DATA_ROOT
 const DATA_DIR  = process.env.EXT_DATA_DIR
   ?? path.join(DATA_ROOT, 'extensions', 'git-workflow');
 const DATA_FILE = path.join(DATA_DIR, 'data.json');
+
+export interface BranchChecks {
+  branch: string;
+  headSha: string;
+  url: string;
+  checks: PrCheck[];
+}
 
 export interface PaneCache {
   session: string;
@@ -28,6 +35,7 @@ export interface PaneCache {
   paneReady: boolean;
   fetchedAt: number;
   pr?: PrInfo | null;
+  branchChecks?: BranchChecks | null;
 }
 
 interface Store {

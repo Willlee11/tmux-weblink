@@ -57,6 +57,27 @@ export async function fetchPrForBranch(
   };
 }
 
+export interface BranchHead {
+  headSha: string;
+  url: string;
+}
+
+export async function fetchBranchHead(
+  nameWithOwner: string,
+  branch: string,
+): Promise<BranchHead | null> {
+  const result = await ghApi(`repos/${nameWithOwner}/commits/${branch}`);
+  if (result.status !== 200 || !result.body) return null;
+
+  const data = result.body as { sha?: string; html_url?: string };
+  if (!data.sha) return null;
+
+  return {
+    headSha: data.sha,
+    url: data.html_url ?? `https://github.com/${nameWithOwner}/tree/${branch}`,
+  };
+}
+
 export async function fetchPrChecks(
   nameWithOwner: string,
   headSha: string,
