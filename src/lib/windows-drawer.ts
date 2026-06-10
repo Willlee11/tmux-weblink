@@ -256,6 +256,15 @@ document.getElementById('windows-toggle').addEventListener('click', () => {
 document.getElementById('windows-close').addEventListener('click', closeWindowsDrawer);
 windowsBackdrop.addEventListener('click', closeWindowsDrawer);
 
+// A tmux-side window switch (pushed over the terminal WebSocket) re-renders the
+// list so the 'current' highlight tracks tmux. Re-fetch rather than trust the
+// pushed payload so custom labels stay merged. Only when the drawer is open.
+window.addEventListener('tmux:windows', async () => {
+  if (windowsDrawer.classList.contains('open')) {
+    renderWindowsList(await fetchWinList());
+  }
+});
+
 window.addEventListener('popstate', () => {
   const tab = new URLSearchParams(location.search).get('tab');
   if (tab === 'windows') openWindowsDrawer();

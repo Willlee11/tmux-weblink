@@ -41,6 +41,7 @@ import { buildCommandbarSessions } from "./lib/commandbar.js";
 import { pinView, unpinView, listPinnedViews } from "./lib/pinned-views.js";
 import { listWindowLabels, setWindowLabel } from "./lib/window-labels.js";
 import { captureAndStoreWindows, getStoredWindows } from "./lib/session-windows.js";
+import { acquireControlClient, killAllControlClients } from "./lib/tmux-control.js";
 import { buildSidebarSessions } from "./lib/sessions-sidebar.js";
 import {
 	getSessionPaneTarget,
@@ -151,7 +152,12 @@ type ClientMessage =
 type ServerMessage =
 	| { type: "snapshot"; data: string; lines: number }
 	| { type: "data"; data: string }
-	| { type: "history"; data: string; before: number; lines: number };
+	| { type: "history"; data: string; before: number; lines: number }
+	| {
+			type: "window_changed";
+			activeIndex: number;
+			windows: { index: number; name: string; active: boolean }[];
+	  };
 
 function sendServerMessage(ws: WebSocket, msg: ServerMessage) {
 	if (ws.readyState === WebSocket.OPEN) {
@@ -729,6 +735,7 @@ wss.on("connection", (ws: WebSocket, _req: import("http").IncomingMessage, sessi
 	let syncIdleTimer: ReturnType<typeof setTimeout> | null = null;
 	let syncMaxTimer: ReturnType<typeof setTimeout> | null = null;
 	let paneTarget = sessionName;
+	let releaseControl: (() => void) | null = null;
 
 	const clearSyncTimers = () => {
 		if (syncIdleTimer) {
@@ -789,6 +796,12 @@ wss.on("connection", (ws: WebSocket, _req: import("http").IncomingMessage, sessi
 
 	activePtys.add(ptyProcess);
 
+	// Mirror tmux-side window switches (Ctrl+B n, other clients, scripts) back to
+	// this tab. One control client per session, shared across tabs, refcounted.
+	releaseControl = acquireControlClient(sessionName, ({ activeIndex, windows }) => {
+		sendServerMessage(ws, { type: "window_changed", activeIndex, windows });
+	});
+
 	syncMaxTimer = setTimeout(finishSync, syncMaxMs);
 
 	ptyProcess.onData((data: string) => {
@@ -847,6 +860,10 @@ wss.on("connection", (ws: WebSocket, _req: import("http").IncomingMessage, sessi
 
 	ws.on("close", () => {
 		clearSyncTimers();
+		if (releaseControl) {
+			releaseControl();
+			releaseControl = null;
+		}
 		if (ptyProcess) {
 			activePtys.delete(ptyProcess);
 			ptyProcess.kill();
@@ -856,6 +873,10 @@ wss.on("connection", (ws: WebSocket, _req: import("http").IncomingMessage, sessi
 
 	ws.on("error", () => {
 		clearSyncTimers();
+		if (releaseControl) {
+			releaseControl();
+			releaseControl = null;
+		}
 		if (ptyProcess) {
 			activePtys.delete(ptyProcess);
 			ptyProcess.kill();
@@ -866,6 +887,7 @@ wss.on("connection", (ws: WebSocket, _req: import("http").IncomingMessage, sessi
 
 function cleanup() {
 	scheduler.cleanup();
+	killAllControlClients();
 	for (const p of activePtys) {
 		try { p.kill(); } catch {}
 	}

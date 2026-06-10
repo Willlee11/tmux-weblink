@@ -70,7 +70,12 @@ type TerminalPageConfig = {
 type ServerMessage =
 	| { type: 'snapshot'; data: string; lines: number }
 	| { type: 'data'; data: string }
-	| { type: 'history'; data: string; before: number; lines: number };
+	| { type: 'history'; data: string; before: number; lines: number }
+	| {
+			type: 'window_changed';
+			activeIndex: number;
+			windows: { index: number; name: string; active: boolean }[];
+	  };
 
 declare global {
 	interface Window {
@@ -435,6 +440,20 @@ function handleServerMessage(raw: string) {
 		phase = 'live';
 		term.reset();
 		void term.write(msg.data).then(() => term.scrollToBottom());
+		return;
+	}
+
+	if (msg.type === 'window_changed' && typeof msg.activeIndex === 'number') {
+		// tmux switched the active window (keyboard, another client, a script).
+		// Reflect it in the URL silently — no history entry, idempotent if we
+		// initiated the switch ourselves via the sidebar.
+		const url = new URL(location.href);
+		if (url.searchParams.get('window') !== String(msg.activeIndex)) {
+			url.searchParams.set('window', String(msg.activeIndex));
+			history.replaceState(history.state, '', url);
+		}
+		// Let the windows drawer live-refresh its list/highlight if it's open.
+		window.dispatchEvent(new CustomEvent('tmux:windows', { detail: msg.windows }));
 		return;
 	}
 
