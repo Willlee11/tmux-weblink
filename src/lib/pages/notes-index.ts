@@ -1,6 +1,8 @@
 import { cssVarsStyle } from '../theme.js';
 import type { NoteRecord } from '../db.js';
 import type { TmuxWebTheme } from '../themes/types.js';
+import { commandbarCSS, commandbarHTML, commandbarScript, commandbarButtonHTML } from '../commandbar.js';
+import type { CommandbarSession } from '../commandbar.js';
 
 function escapeHtml(s: string): string {
 	return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -11,7 +13,7 @@ function formatDate(ts: number): string {
 	return d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
 
-export function renderNotesIndex(notes: NoteRecord[], theme: TmuxWebTheme): string {
+export function renderNotesIndex(notes: NoteRecord[], theme: TmuxWebTheme, commandbarEnabled = false, commandbarSessions: CommandbarSession[] = []): string {
 	const sorted = [...notes].sort((a, b) => (b.updatedAt ?? 0) - (a.updatedAt ?? 0));
 
 	const cards = sorted.map((n) => {
@@ -71,16 +73,22 @@ export function renderNotesIndex(notes: NoteRecord[], theme: TmuxWebTheme): stri
     display: flex; justify-content: space-between;
   }
   .empty { font-size: 13px; color: var(--panel-muted); line-height: 1.6; margin-top: 20px; }
+  ${commandbarEnabled ? commandbarCSS() : ''}
 </style>
 </head>
 <body>
 <div class="container">
   <div class="page-header">
     <h1>All notes</h1>
+    ${commandbarEnabled ? commandbarButtonHTML('Search') : ''}
     <a href="/" class="back-link">Back</a>
   </div>
   <div id="notes-list">${body}</div>
 </div>
+${commandbarEnabled ? commandbarHTML() : ''}
+<script type="module">
+${commandbarEnabled ? commandbarScript(commandbarSessions, []) : ''}
+</script>
 </body>
 </html>`;
 }

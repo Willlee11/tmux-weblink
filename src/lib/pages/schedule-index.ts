@@ -1,5 +1,7 @@
 import { cssVarsStyle } from '../theme.js';
 import type { TmuxWebTheme } from '../themes/types.js';
+import { commandbarCSS, commandbarHTML, commandbarScript, commandbarButtonHTML } from '../commandbar.js';
+import type { CommandbarSession } from '../commandbar.js';
 
 export interface ScheduleTaskView {
 	id: string;
@@ -54,6 +56,8 @@ export function renderScheduleIndex(
 	triggered: TriggeredTaskView[],
 	theme: TmuxWebTheme,
 	retentionDays = 7,
+	commandbarEnabled = false,
+	commandbarSessions: CommandbarSession[] = [],
 ): string {
 	const sorted = [...tasks].sort((a, b) => a.fireAt - b.fireAt);
 
@@ -224,12 +228,14 @@ export function renderScheduleIndex(
     border: 1px solid var(--panel-border); padding: 6px 14px; border-radius: 6px; transition: all 0.15s;
   }
   .footer-link:hover { border-color: var(--panel-accent); color: var(--panel-accent); }
+  ${commandbarEnabled ? commandbarCSS() : ''}
 </style>
 </head>
 <body>
 <div class="container">
   <div class="page-header">
     <h1>Scheduled tasks</h1>
+    ${commandbarEnabled ? commandbarButtonHTML('Search') : ''}
     <a href="/" class="back-link">Back</a>
   </div>
   <div class="tab-bar">
@@ -441,6 +447,10 @@ document.getElementById('schedule-list').addEventListener('focusout', (e) => {
 
 tick();
 setInterval(tick, 1000);
+</script>
+${commandbarEnabled ? commandbarHTML() : ''}
+<script type="module">
+${commandbarEnabled ? commandbarScript(commandbarSessions, []) : ''}
 </script>
 </body>
 </html>`;

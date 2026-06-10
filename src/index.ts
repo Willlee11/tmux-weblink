@@ -308,21 +308,25 @@ app.get("/s/:session", async (c) => {
 });
 
 app.get("/notes", (c) => {
-	return c.html(renderNotesIndex(db.data.notes, activeTheme));
+	const commandbarSessions = commandbarEnabled ? buildCommandbarSessions(listSessions(), getSessionAccessMap()) : [];
+	return c.html(renderNotesIndex(db.data.notes, activeTheme, commandbarEnabled, commandbarSessions));
 });
 
 app.get("/notes/:session", (c) => {
 	const session = decodeURIComponent(c.req.param("session"));
-	return c.html(renderNotesPage(session, activeTheme));
+	const commandbarSessions = commandbarEnabled ? buildCommandbarSessions(listSessions(), getSessionAccessMap()) : [];
+	return c.html(renderNotesPage(session, activeTheme, commandbarEnabled, commandbarSessions));
 });
 
 app.get("/schedule", (c) => {
-	return c.html(renderScheduleIndex(scheduler.list(), scheduler.listTriggered(), activeTheme, scheduleHistoryDays));
+	const commandbarSessions = commandbarEnabled ? buildCommandbarSessions(listSessions(), getSessionAccessMap()) : [];
+	return c.html(renderScheduleIndex(scheduler.list(), scheduler.listTriggered(), activeTheme, scheduleHistoryDays, commandbarEnabled, commandbarSessions));
 });
 
 app.get("/agents", (c) => {
 	if (!agentsEnabled) return c.redirect("/settings", 303);
-	return c.html(renderAgentsIndex(activeTheme));
+	const commandbarSessions = commandbarEnabled ? buildCommandbarSessions(listSessions(), getSessionAccessMap()) : [];
+	return c.html(renderAgentsIndex(activeTheme, commandbarEnabled, commandbarSessions));
 });
 
 app.get("/api/agents", async (c) => {

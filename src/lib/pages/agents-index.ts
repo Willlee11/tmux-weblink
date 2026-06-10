@@ -1,8 +1,10 @@
 import { cssVarsStyle } from '../theme.js';
 import type { TmuxWebTheme } from '../themes/types.js';
 import { AGENT_LABELS } from '../agent-detect.js';
+import { commandbarCSS, commandbarHTML, commandbarScript, commandbarButtonHTML } from '../commandbar.js';
+import type { CommandbarSession } from '../commandbar.js';
 
-export function renderAgentsIndex(theme: TmuxWebTheme): string {
+export function renderAgentsIndex(theme: TmuxWebTheme, commandbarEnabled = false, commandbarSessions: CommandbarSession[] = []): string {
 	// Static labels are injected so the client can render without a round-trip
 	// for the agent display names.
 	const labels = JSON.stringify(AGENT_LABELS).replace(/</g, '\\u003c');
@@ -53,12 +55,14 @@ export function renderAgentsIndex(theme: TmuxWebTheme): string {
     border: 1px solid var(--panel-border); padding: 6px 14px; border-radius: 6px; transition: all 0.15s;
   }
   .footer-link:hover { border-color: var(--panel-accent); color: var(--panel-accent); }
+  ${commandbarEnabled ? commandbarCSS() : ''}
 </style>
 </head>
 <body>
 <div class="container">
   <div class="page-header">
     <h1>Agents</h1>
+    ${commandbarEnabled ? commandbarButtonHTML('Search') : ''}
     <a href="/" class="back-link">Back</a>
   </div>
   <p class="sub">AI agents in the last panes you viewed. Updates automatically.</p>
@@ -105,6 +109,10 @@ async function poll() {
 
 poll();
 setInterval(poll, 2500);
+</script>
+${commandbarEnabled ? commandbarHTML() : ''}
+<script type="module">
+${commandbarEnabled ? commandbarScript(commandbarSessions, []) : ''}
 </script>
 </body>
 </html>`;
