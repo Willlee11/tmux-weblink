@@ -55,6 +55,7 @@ import {
 	listSessionWindows,
 	selectSessionWindow,
 	newSessionWindow,
+	newTmuxSession,
 	TmuxWindowsError,
 } from "./lib/tmux-windows.js";
 import { getActivePaneInfo } from "./lib/tmux-panes.js";
@@ -309,7 +310,7 @@ app.get("/s/:session", async (c) => {
 
 app.get("/notes", (c) => {
 	const commandbarSessions = commandbarEnabled ? buildCommandbarSessions(listSessions(), getSessionAccessMap()) : [];
-	return c.html(renderNotesIndex(db.data.notes, activeTheme, commandbarEnabled, commandbarSessions));
+	return c.html(renderNotesIndex(db.data.notes, activeTheme, commandbarEnabled, commandbarSessions, agentsEnabled));
 });
 
 app.get("/notes/:session", (c) => {
@@ -320,7 +321,7 @@ app.get("/notes/:session", (c) => {
 
 app.get("/schedule", (c) => {
 	const commandbarSessions = commandbarEnabled ? buildCommandbarSessions(listSessions(), getSessionAccessMap()) : [];
-	return c.html(renderScheduleIndex(scheduler.list(), scheduler.listTriggered(), activeTheme, scheduleHistoryDays, commandbarEnabled, commandbarSessions));
+	return c.html(renderScheduleIndex(scheduler.list(), scheduler.listTriggered(), activeTheme, scheduleHistoryDays, commandbarEnabled, commandbarSessions, agentsEnabled));
 });
 
 app.get("/agents", (c) => {
@@ -418,6 +419,46 @@ app.post("/settings/theme", async (c) => {
 app.get("/api/sessions", (c) => {
 	if (!commandbarEnabled) return c.json({ error: "commandbar disabled" }, 404);
 	return c.json(buildCommandbarSessions(listSessions(), getSessionAccessMap()));
+});
+
+app.post("/api/sessions/new", async (c) => {
+	let body: { name?: unknown; dir?: unknown };
+	try { body = await c.req.json(); } catch { return c.json({ error: "invalid json" }, 400); }
+	const name = typeof body.name === "string" ? body.name.trim() : "";
+	if (!name) return c.json({ error: "name is required" }, 400);
+	if (!/^[a-zA-Z0-9_\-. ]+$/.test(name)) return c.json({ error: "name contains invalid characters" }, 400);
+	const dir = typeof body.dir === "string" && body.dir.trim() ? body.dir.trim() : undefined;
+	const existing = listSessions();
+	if (existing.some((s) => s.name === name)) return c.json({ error: "session already exists" }, 409);
+	try {
+		newTmuxSession(name, dir);
+		return c.json({ ok: true });
+	} catch (err) {
+		const msg = err instanceof TmuxWindowsError ? err.message : "failed to create session";
+		return c.json({ error: msg }, 500);
+	}
+});
+
+app.get("/api/fs/list", (c) => {
+	const home = process.env.HOME ?? "/";
+	let rawPath = c.req.query("path") ?? home;
+	if (rawPath.startsWith("~")) rawPath = home + rawPath.slice(1);
+	if (!rawPath.startsWith("/")) rawPath = path.join(home, rawPath);
+	try {
+		const entries = readdirSync(rawPath);
+		const dirs: string[] = [];
+		for (const entry of entries) {
+			if (entry.startsWith(".")) continue;
+			try {
+				const full = path.join(rawPath, entry);
+				if (statSync(full).isDirectory()) dirs.push(full);
+			} catch {}
+			if (dirs.length >= 50) break;
+		}
+		return c.json({ dirs });
+	} catch {
+		return c.json({ dirs: [] });
+	}
 });
 
 function sidebarSessionsPayload(currentSession?: string) {

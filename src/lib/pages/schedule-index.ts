@@ -1,7 +1,15 @@
 import { cssVarsStyle } from '../theme.js';
 import type { TmuxWebTheme } from '../themes/types.js';
-import { commandbarCSS, commandbarHTML, commandbarScript, commandbarButtonHTML } from '../commandbar.js';
+import { commandbarCSS, commandbarHTML, commandbarScript } from '../commandbar.js';
 import type { CommandbarSession } from '../commandbar.js';
+import { notesDrawerCSS, notesDrawerHTML, notesDrawerScript } from '../notes-drawer.js';
+import {
+	sharedLayoutCSS,
+	sharedHeader,
+	sharedSidebar,
+	newSessionModalHTML,
+	newSessionModalScript,
+} from '../shared-layout.js';
 
 export interface ScheduleTaskView {
 	id: string;
@@ -58,10 +66,10 @@ export function renderScheduleIndex(
 	retentionDays = 7,
 	commandbarEnabled = false,
 	commandbarSessions: CommandbarSession[] = [],
+	agentsEnabled = false,
 ): string {
 	const sorted = [...tasks].sort((a, b) => a.fireAt - b.fireAt);
 
-	// Group by session, preserving earliest-fire order between groups.
 	const groups = new Map<string, ScheduleTaskView[]>();
 	for (const t of sorted) {
 		const arr = groups.get(t.sessionName);
@@ -108,24 +116,7 @@ export function renderScheduleIndex(
 	const upcomingBody = sorted.length ? sections : '<p class="empty" id="empty-msg">No scheduled tasks.</p>';
 	const triggeredBody = renderTriggeredPanel(triggered, retentionDays);
 
-	return /* html */ `<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-<title>Scheduled tasks — tmux-web</title>
-<style>
-  ${cssVarsStyle(theme.shell)}
-  html, body { background: var(--page-bg); color: var(--page-fg); min-height: 100%; font-family: 'JetBrains Mono', 'SF Mono', 'Menlo', monospace; }
-  .container { max-width: 640px; margin: 60px auto; padding: 0 20px; }
-  .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 32px; }
-  h1 { font-size: 18px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--panel-accent); }
-  .back-link {
-    font-size: 12px; color: var(--panel-muted); text-decoration: none;
-    border: 1px solid var(--panel-border); padding: 6px 14px; border-radius: 6px; transition: all 0.15s;
-  }
-  .back-link:hover { border-color: var(--panel-accent); color: var(--panel-accent); }
+	const pageSpecificCSS = `
   .session-group { margin-bottom: 18px; }
   .session-head {
     display: flex; align-items: center; gap: 8px; text-decoration: none;
@@ -197,15 +188,15 @@ export function renderScheduleIndex(
   .reschedule-confirm-btn:hover { background: rgba(115,201,145,0.22); }
   .reschedule-confirm-btn:disabled { opacity: 0.4; cursor: not-allowed; }
   .reschedule-error { font-size: 11px; color: #cc6666; }
-  .tab-bar { display: flex; gap: 4px; border-bottom: 1px solid var(--panel-border); margin-bottom: 20px; }
-  .tab {
+  .page-tab-bar { display: flex; gap: 4px; border-bottom: 1px solid var(--panel-border); margin-bottom: 20px; }
+  .page-tab {
     font-size: 12px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase;
     color: var(--panel-muted); background: none; border: none; cursor: pointer;
     padding: 8px 14px; font-family: inherit; border-bottom: 2px solid transparent;
     margin-bottom: -1px; transition: color 0.15s, border-color 0.15s;
   }
-  .tab:hover { color: var(--panel-accent); }
-  .tab.active { color: var(--panel-accent); border-bottom-color: var(--panel-accent); }
+  .page-tab:hover { color: var(--panel-accent); }
+  .page-tab.active { color: var(--panel-accent); border-bottom-color: var(--panel-accent); }
   .tab-panel { display: none; }
   .tab-panel.active { display: block; }
   .status-pill {
@@ -222,44 +213,60 @@ export function renderScheduleIndex(
     margin-top: 2px; padding-top: 6px; border-top: 1px solid var(--panel-border);
   }
   .empty { font-size: 13px; color: var(--panel-muted); line-height: 1.6; margin-top: 20px; }
-  .footer-links { margin-top: 24px; display: flex; gap: 10px; }
-  .footer-link {
-    display: inline-block; font-size: 12px; color: var(--panel-muted); text-decoration: none;
-    border: 1px solid var(--panel-border); padding: 6px 14px; border-radius: 6px; transition: all 0.15s;
-  }
-  .footer-link:hover { border-color: var(--panel-accent); color: var(--panel-accent); }
   ${commandbarEnabled ? commandbarCSS() : ''}
+  ${notesDrawerCSS()}`;
+
+	return /* html */ `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+<title>Scheduled tasks — tmux-web</title>
+<style>
+  ${cssVarsStyle(theme.shell)}
+  ${sharedLayoutCSS(pageSpecificCSS)}
 </style>
 </head>
 <body>
-<div class="container">
-  <div class="page-header">
-    <h1>Scheduled tasks</h1>
-    ${commandbarEnabled ? commandbarButtonHTML('Search') : ''}
-    <a href="/" class="back-link">Back</a>
-  </div>
-  <div class="tab-bar">
-    <button class="tab active" data-tab="upcoming">Upcoming</button>
-    <button class="tab" data-tab="triggered">Recently Triggered</button>
-  </div>
-  <div class="tab-panel active" data-panel="upcoming">
-    <div id="schedule-list">${upcomingBody}</div>
-  </div>
-  <div class="tab-panel" data-panel="triggered">
-    ${triggeredBody}
-  </div>
-  <div class="footer-links">
-    <a href="/schedule" class="footer-link">refresh</a>
-    <a href="/notes" class="footer-link">View all notes</a>
+
+${sharedHeader({ commandbarEnabled, title: 'Scheduled' })}
+
+<div class="page-wrap">
+  <div class="page-layout">
+    ${sharedSidebar({ activePage: 'schedule', agentsEnabled, refreshHref: '/schedule' })}
+    <main class="main-panel">
+      <div class="page-tab-bar">
+        <button class="page-tab active" data-tab="upcoming">Upcoming</button>
+        <button class="page-tab" data-tab="triggered">Recently Triggered</button>
+      </div>
+      <div class="tab-panel active" data-panel="upcoming">
+        <div id="schedule-list">${upcomingBody}</div>
+      </div>
+      <div class="tab-panel" data-panel="triggered">
+        ${triggeredBody}
+      </div>
+    </main>
   </div>
 </div>
+
+${newSessionModalHTML()}
+${commandbarEnabled ? commandbarHTML() : ''}
+${notesDrawerHTML('Notes — Global')}
+
 <script type="module">
+${notesDrawerScript('__global__')}
+${commandbarEnabled ? commandbarScript(commandbarSessions, []) : ''}
+${newSessionModalScript()}
+</script>
+
+<script>
 // ── Tabs ─────────────────────────────────────────────────────────────────
 function activateTab(name) {
-  document.querySelectorAll('.tab').forEach((t) => t.classList.toggle('active', t.dataset.tab === name));
+  document.querySelectorAll('.page-tab').forEach((t) => t.classList.toggle('active', t.dataset.tab === name));
   document.querySelectorAll('.tab-panel').forEach((p) => p.classList.toggle('active', p.dataset.panel === name));
 }
-document.querySelectorAll('.tab').forEach((t) => {
+document.querySelectorAll('.page-tab').forEach((t) => {
   t.addEventListener('click', () => {
     const name = t.dataset.tab;
     activateTab(name);
@@ -293,8 +300,6 @@ function tick() {
 }
 
 function refreshEmptyState() {
-  // Drop session groups that have no remaining tasks, then show the empty
-  // message if nothing is left.
   document.querySelectorAll('.session-group').forEach((g) => {
     if (!g.querySelector('.task')) g.remove();
   });
@@ -397,12 +402,8 @@ document.getElementById('schedule-list').addEventListener('click', async (e) => 
         const task = document.querySelector('.task[data-id="' + id + '"]');
         if (task) task.remove();
         refreshEmptyState();
-      } else {
-        cancelBtn.disabled = false;
-      }
-    } catch {
-      cancelBtn.disabled = false;
-    }
+      } else { cancelBtn.disabled = false; }
+    } catch { cancelBtn.disabled = false; }
     return;
   }
 
@@ -447,10 +448,6 @@ document.getElementById('schedule-list').addEventListener('focusout', (e) => {
 
 tick();
 setInterval(tick, 1000);
-</script>
-${commandbarEnabled ? commandbarHTML() : ''}
-<script type="module">
-${commandbarEnabled ? commandbarScript(commandbarSessions, []) : ''}
 </script>
 </body>
 </html>`;
