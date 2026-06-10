@@ -138,3 +138,34 @@ export function selectSessionWindow(session: string, windowIndex: number): void 
 		throw new TmuxWindowsError(message, 500);
 	}
 }
+
+export function renameSessionWindow(
+	session: string,
+	windowIndex: number,
+	name: string,
+): void {
+	if (!sessionExists(session)) {
+		throw new TmuxWindowsError("session not found", 404);
+	}
+
+	const windows = listSessionWindows(session);
+	if (!windows.some((w) => w.index === windowIndex)) {
+		throw new TmuxWindowsError("window not found", 404);
+	}
+
+	const trimmed = name.trim();
+	if (!trimmed) {
+		throw new TmuxWindowsError("name is required", 500);
+	}
+
+	try {
+		execFileSync(
+			"tmux",
+			["rename-window", "-t", `${session}:${windowIndex}`, trimmed],
+			{ timeout: 3000 },
+		);
+	} catch (err: unknown) {
+		const message = err instanceof Error ? err.message : "rename-window failed";
+		throw new TmuxWindowsError(message, 500);
+	}
+}

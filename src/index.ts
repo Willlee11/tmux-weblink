@@ -25,9 +25,10 @@ try {
 	}
 } catch {}
 import { listSessions } from "./sessions.js";
-import { renderLanding, renderTerminal, renderNotesIndex, renderNotesPage, renderSettings, renderThemeSettings, renderScheduleIndex, renderAgentsIndex } from "./frontend.js";
+import { renderLanding, renderTerminal, renderNotesIndex, renderNotesPage, renderSettings, renderThemeSettings, renderScheduleIndex, renderAgentsIndex, renderHistoryIndex } from "./frontend.js";
 import { db } from "./lib/db.js";
 import { recordSessionAccess, getSessionAccessMap } from "./lib/session-access.js";
+import { listWindowHistory, clearWindowHistory } from "./lib/window-history.js";
 import { loadExtensions, spawnExtensionBackend, registerExtensionRoutes } from "./lib/ext-loader.js";
 import { SchedulerService, isValidScheduleInput, isValidRescheduleInput } from "./lib/scheduler.js";
 import { handleClientMessage } from "./lib/ws-message.js";
@@ -56,6 +57,7 @@ import {
 	listSessionWindows,
 	selectSessionWindow,
 	newSessionWindow,
+	renameSessionWindow,
 	newTmuxSession,
 	TmuxWindowsError,
 } from "./lib/tmux-windows.js";
@@ -334,6 +336,18 @@ app.get("/agents", (c) => {
 	if (!agentsEnabled) return c.redirect("/settings", 303);
 	const commandbarSessions = commandbarEnabled ? buildCommandbarSessions(listSessions(), getSessionAccessMap()) : [];
 	return c.html(renderAgentsIndex(activeTheme, commandbarEnabled, commandbarSessions));
+});
+
+app.get("/history", (c) => {
+	const sessions = listSessions();
+	const commandbarSessions = commandbarEnabled ? buildCommandbarSessions(sessions, getSessionAccessMap()) : [];
+	const liveSessionNames = new Set(sessions.map((s) => s.name));
+	return c.html(renderHistoryIndex(listWindowHistory(), activeTheme, commandbarEnabled, commandbarSessions, agentsEnabled, liveSessionNames));
+});
+
+app.post("/api/history/clear", async (c) => {
+	await clearWindowHistory();
+	return c.json({ ok: true });
 });
 
 app.get("/api/agents", async (c) => {
@@ -673,6 +687,40 @@ app.post("/api/session/:session/select-window", async (c) => {
 		}
 		console.error("[select-window]", err);
 		return c.json({ error: "select-window failed" }, 500);
+	}
+});
+
+app.post("/api/session/:session/rename-window", async (c) => {
+	const session = decodeURIComponent(c.req.param("session"));
+	let body: { windowIndex?: unknown; name?: unknown };
+	try {
+		body = await c.req.json();
+	} catch {
+		return c.json({ error: "invalid json" }, 400);
+	}
+
+	const { windowIndex } = body;
+	if (
+		typeof windowIndex !== "number" ||
+		!Number.isInteger(windowIndex) ||
+		windowIndex < 0
+	) {
+		return c.json({ error: "windowIndex must be a non-negative integer" }, 400);
+	}
+	if (typeof body.name !== "string" || !body.name.trim()) {
+		return c.json({ error: "name is required" }, 400);
+	}
+
+	try {
+		renameSessionWindow(session, windowIndex, body.name);
+		captureAndStoreWindows(session);
+		return c.json({ ok: true });
+	} catch (err) {
+		if (err instanceof TmuxWindowsError) {
+			return c.json({ error: err.message }, err.status);
+		}
+		console.error("[rename-window]", err);
+		return c.json({ error: "rename-window failed" }, 500);
 	}
 });
 

@@ -50,13 +50,28 @@ export function windowsDrawerCSS(): string {
     font-family: 'JetBrains Mono', monospace; transition: background 0.15s;
   }
   .windows-row:last-child { border-bottom: none; }
-  .windows-row:hover:not(:disabled) { background: rgba(125, 211, 252, 0.06); }
-  .windows-row:disabled { cursor: default; opacity: 0.85; }
+  .windows-row:not(.is-active):hover { background: rgba(125, 211, 252, 0.06); }
+  .windows-row.is-active { cursor: default; opacity: 0.85; }
   .windows-row-index {
     font-size: 12px; color: var(--panel-muted); flex-shrink: 0; min-width: 24px;
   }
   .windows-row-name {
-    flex: 1; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    flex: 1; min-width: 0; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .windows-row-edit {
+    flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+    background: none; border: none; padding: 4px; border-radius: 4px;
+    color: var(--panel-muted); cursor: pointer; opacity: 0;
+    transition: opacity 0.15s, color 0.15s;
+  }
+  .windows-row:hover .windows-row-edit, .windows-row-edit:focus-visible { opacity: 1; }
+  .windows-row-edit:hover { color: var(--panel-accent); }
+  .windows-row-edit svg { width: 14px; height: 14px; fill: currentColor; display: block; }
+  .windows-row-input {
+    flex: 1; min-width: 0; font-family: 'JetBrains Mono', monospace; font-size: 14px;
+    background: var(--page-bg); color: var(--page-fg);
+    border: 1px solid var(--panel-accent); border-radius: 4px;
+    padding: 4px 8px; outline: none;
   }
   .windows-row-badge {
     font-size: 10px; color: var(--panel-success); text-transform: uppercase;
@@ -77,6 +92,7 @@ export function windowsDrawerCSS(): string {
     #windows-drawer { width: min(100vw - 16px, 400px); }
     .windows-row { min-height: 52px; padding: 14px 16px; }
     .windows-row-name { font-size: 15px; }
+    .windows-row-edit { opacity: 0.6; }
   }`;
 }
 
@@ -104,6 +120,25 @@ const windowsBackdrop = document.getElementById('windows-backdrop');
 const windowsList = document.getElementById('windows-list');
 const windowsError = document.getElementById('windows-error');
 let windowsRefreshInterval = null;
+let editingWindow = false;
+
+const PENCIL_PATH = 'M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34a.996.996 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z';
+
+function makeEditIcon() {
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'windows-row-edit';
+  btn.title = 'Rename window';
+  btn.setAttribute('aria-label', 'Rename window');
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('viewBox', '0 0 24 24');
+  svg.setAttribute('aria-hidden', 'true');
+  const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  path.setAttribute('d', PENCIL_PATH);
+  svg.appendChild(path);
+  btn.appendChild(svg);
+  return btn;
+}
 
 function showWindowsError(msg) {
   windowsError.textContent = msg;
@@ -139,10 +174,8 @@ function renderWindowsList(windows) {
     return;
   }
   for (const w of windows) {
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = 'windows-row';
-    btn.disabled = w.active;
+    const row = document.createElement('div');
+    row.className = 'windows-row' + (w.active ? ' is-active' : '');
 
     const idx = document.createElement('span');
     idx.className = 'windows-row-index';
@@ -152,20 +185,89 @@ function renderWindowsList(windows) {
     name.className = 'windows-row-name';
     name.textContent = w.label || w.name;
 
-    btn.appendChild(idx);
-    btn.appendChild(name);
+    row.appendChild(idx);
+    row.appendChild(name);
+
+    const edit = makeEditIcon();
+    edit.addEventListener('click', (e) => {
+      e.stopPropagation();
+      startWindowRename(w, name);
+    });
+    row.appendChild(edit);
 
     if (w.active) {
       const badge = document.createElement('span');
       badge.className = 'windows-row-badge';
       badge.textContent = 'current';
-      btn.appendChild(badge);
+      row.appendChild(badge);
     } else {
-      btn.addEventListener('click', () => selectWindow(w.index));
+      row.setAttribute('role', 'button');
+      row.tabIndex = 0;
+      row.addEventListener('click', () => selectWindow(w.index));
+      row.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectWindow(w.index); }
+      });
     }
 
-    windowsList.appendChild(btn);
+    windowsList.appendChild(row);
   }
+}
+
+function startWindowRename(win, nameEl) {
+  const row = nameEl.parentNode;
+  if (!row || row.querySelector('.windows-row-input')) return;
+  editingWindow = true;
+
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.className = 'windows-row-input';
+  input.value = win.name || '';
+  input.placeholder = win.name || 'window name';
+
+  let done = false;
+  const finish = async (save) => {
+    if (done) return;
+    done = true;
+    editingWindow = false;
+    const newName = input.value.trim();
+    if (save && newName && newName !== win.name) {
+      try {
+        const res = await fetch(
+          '/api/session/' + encodeURIComponent(WIN_SESSION) + '/rename-window',
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ windowIndex: win.index, name: newName }),
+          },
+        );
+        if (res.ok) {
+          win.name = newName;
+          clearWindowsError();
+        } else {
+          const data = await res.json().catch(() => ({}));
+          showWindowsError(data.error || 'Failed to rename window');
+        }
+      } catch {
+        showWindowsError('Failed to rename window');
+      }
+    }
+    nameEl.textContent = win.label || win.name;
+    input.replaceWith(nameEl);
+  };
+
+  // Keep clicks/keys local so the row's switch handler and the drawer's global
+  // Escape-to-close don't fire while editing.
+  input.addEventListener('click', (e) => e.stopPropagation());
+  input.addEventListener('keydown', (e) => {
+    e.stopPropagation();
+    if (e.key === 'Enter') { e.preventDefault(); void finish(true); }
+    else if (e.key === 'Escape') { e.preventDefault(); void finish(false); }
+  });
+  input.addEventListener('blur', () => { void finish(true); });
+
+  nameEl.replaceWith(input);
+  input.focus();
+  input.select();
 }
 
 async function selectWindow(windowIndex) {
@@ -193,7 +295,7 @@ async function selectWindow(windowIndex) {
 function startWindowsRefresh() {
   stopWindowsRefresh();
   windowsRefreshInterval = setInterval(async () => {
-    if (!windowsDrawer.classList.contains('open')) return;
+    if (!windowsDrawer.classList.contains('open') || editingWindow) return;
     renderWindowsList(await fetchWinList());
   }, 2500);
 }
@@ -260,7 +362,7 @@ windowsBackdrop.addEventListener('click', closeWindowsDrawer);
 // list so the 'current' highlight tracks tmux. Re-fetch rather than trust the
 // pushed payload so custom labels stay merged. Only when the drawer is open.
 window.addEventListener('tmux:windows', async () => {
-  if (windowsDrawer.classList.contains('open')) {
+  if (windowsDrawer.classList.contains('open') && !editingWindow) {
     renderWindowsList(await fetchWinList());
   }
 });

@@ -1,5 +1,6 @@
 import * as pty from "node-pty";
 import { captureAndStoreWindows } from "./session-windows.js";
+import { recordWindowVisit } from "./window-history.js";
 
 // Per-session tmux control-mode (`-CC`) client. It is a read-only observer:
 // we never write to it. tmux emits structured `%...` event lines on its active
@@ -67,6 +68,9 @@ function defaultRequery(session: string): WindowChangePayload | null {
 	const windows = captureAndStoreWindows(session);
 	if (!windows.length) return null;
 	const active = windows.find((w) => w.active);
+	// Log the window we just landed on to visit history (fire-and-forget). This
+	// fires on every active-window change tmux reports — web-driven or tmux-side.
+	if (active) void recordWindowVisit(session, active.index, active.name);
 	return {
 		activeIndex: active ? active.index : windows[0].index,
 		windows: windows.map((w) => ({ index: w.index, name: w.name, active: w.active })),

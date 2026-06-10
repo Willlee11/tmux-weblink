@@ -69,6 +69,13 @@ export interface SessionWindowsRecord {
 	updatedAt: number;     // ms timestamp; captured when the session is focused
 }
 
+export interface WindowHistoryRecord {
+	sessionName: string;
+	windowIndex: number;
+	windowName: string;    // real tmux window name at visit time (human-readable)
+	visitedAt: number;     // ms timestamp
+}
+
 export interface DbSchema {
 	notes: NoteRecord[];
 	scheduledTasks: StoredTask[];
@@ -78,6 +85,7 @@ export interface DbSchema {
 	watchedPanes: WatchedPaneRecord[];
 	windowLabels: WindowLabelRecord[];
 	sessionWindows: SessionWindowsRecord[];
+	windowHistory: WindowHistoryRecord[];
 }
 
 const dbDir = getDataRoot();
@@ -85,5 +93,5 @@ mkdirSync(dbDir, { recursive: true });
 
 export const db = new Low<DbSchema>(
 	new JSONFile<DbSchema>(join(dbDir, 'db.json')),
-	{ notes: [], scheduledTasks: [], triggeredTasks: [], sessionAccess: [], pinnedViews: [], watchedPanes: [], windowLabels: [], sessionWindows: [] },
+	{ notes: [], scheduledTasks: [], triggeredTasks: [], sessionAccess: [], pinnedViews: [], watchedPanes: [], windowLabels: [], sessionWindows: [], windowHistory: [] },
 );
