@@ -19,10 +19,22 @@ describe('mobile toolbar', () => {
 		expect(css).toContain('@media (max-width: 560px)');
 	});
 
+	it('renders modifier options for Esc, Tab, and Ctrl in the send modal', () => {
+		const html = mobileToolbarHTML();
+		expect(html).toContain('name="type-modifier"');
+		expect(html).toContain('value="Esc"');
+		expect(html).toContain('value="Tab"');
+		expect(html).toContain('value="Ctrl"');
+		expect(html).toContain('value="None"');
+	});
+
 	it('Send ⏎ appends a carriage return and uses feature-detected speech recognition', () => {
 		const script = mobileToolbarScript('demo');
 		// Enter branch appends \r (escaped in the generated source string).
-		expect(script).toContain("text + '\\r'");
+		expect(script).toContain('payload + \'\\r\'');
+		expect(script).toContain("const payload = buildPayload(text, withEnter);");
+		expect(script).toContain('code & 0x1f');
+		expect(script).toContain('Ctrl needs a key');
 		// Sends through the global hook exposed by terminal-client.
 		expect(script).toContain('window.tmuxWeb.sendInput');
 		// Browser Web Speech API with graceful fallback.

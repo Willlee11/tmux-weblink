@@ -223,6 +223,7 @@ export function renderTerminal(
 	const scrollback = terminalCfg.initialLines + 2 * terminalCfg.historyChunk;
 	const commandbarActions: CommandbarAction[] = [
 		{ label: 'Switch window', meta: `Windows in ${sessionName}`, subView: 'windows' },
+		{ label: 'Send Command', meta: 'Send input to active window', clickTargetId: 'type-toggle' },
 		{ label: 'Open sessions sidebar', meta: 'Recent and pinned sessions', clickTargetId: 'sessions-toggle' },
 		{ label: 'Open notes', meta: `Notes for ${sessionName}`, clickTargetId: 'notes-toggle' },
 		{ label: 'Open scheduler', meta: `Schedule command in ${sessionName}`, clickTargetId: 'sched-toggle' },

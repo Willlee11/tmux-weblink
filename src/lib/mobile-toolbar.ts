@@ -80,6 +80,55 @@ export function mobileToolbarCSS(): string {
     transition: background 0.15s, color 0.15s;
   }
   #type-modal .type-modal-footer button:hover { background: rgba(125, 211, 252, 0.08); }
+  .type-modal-modifiers {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 4px;
+    padding: 3px;
+    background: var(--terminal-bg, rgba(0,0,0,0.28));
+    border: 1px solid var(--panel-border);
+    border-radius: 7px;
+  }
+  .type-modal-modifiers label {
+    position: relative;
+    min-width: 0;
+    cursor: pointer;
+  }
+  .type-modal-modifiers input {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+  }
+  .type-modal-modifier-label {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 32px;
+    border: 1px solid transparent;
+    border-radius: 5px;
+    color: var(--panel-muted);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    line-height: 1;
+    transition: background 0.15s, border-color 0.15s, color 0.15s;
+  }
+  .type-modal-modifiers label:hover .type-modal-modifier-label {
+    color: var(--panel-accent);
+    background: rgba(125, 211, 252, 0.08);
+  }
+  .type-modal-modifiers input:focus-visible + .type-modal-modifier-label {
+    outline: 1px solid var(--panel-accent);
+    outline-offset: 1px;
+  }
+  .type-modal-modifiers label:has(input:checked) .type-modal-modifier-label {
+    border-color: var(--panel-accent);
+    background: rgba(125, 211, 252, 0.1);
+    color: var(--panel-accent);
+  }
+  .type-modal-modifiers label:has(input[value="Ctrl"]:checked) .type-modal-modifier-label {
+    border-color: var(--panel-success);
+    color: var(--panel-success);
+  }
   #type-modal .type-modal-footer #type-send-enter {
     border-color: var(--panel-success); color: var(--panel-success);
   }`;
@@ -101,6 +150,12 @@ export function mobileToolbarHTML(): string {
     <span>Send to pane</span>
     <button id="type-close" type="button" aria-label="Close">&times;</button>
   </div>
+  <div class="type-modal-modifiers" role="group" aria-label="Special key">
+    <label><input type="radio" name="type-modifier" value="None" checked /><span class="type-modal-modifier-label">None</span></label>
+    <label><input type="radio" name="type-modifier" value="Esc" /><span class="type-modal-modifier-label">Esc</span></label>
+    <label><input type="radio" name="type-modifier" value="Tab" /><span class="type-modal-modifier-label">Tab</span></label>
+    <label><input type="radio" name="type-modifier" value="Ctrl" /><span class="type-modal-modifier-label">Ctrl</span></label>
+  </div>
   <textarea id="type-input" placeholder="Type a command or tap the mic…" autocapitalize="off" autocomplete="off" autocorrect="off" spellcheck="false"></textarea>
   <div id="type-status"></div>
   <div class="type-modal-footer">
@@ -121,6 +176,7 @@ export function mobileToolbarScript(_sessionName: string): string {
   const closeBtn = document.getElementById('type-close');
   const sendBtn = document.getElementById('type-send');
   const sendEnterBtn = document.getElementById('type-send-enter');
+  const keyInputs = Array.from(document.querySelectorAll('input[name="type-modifier"]'));
 
   function setStatus(msg, isError) {
     status.textContent = msg || '';
@@ -143,10 +199,45 @@ export function mobileToolbarScript(_sessionName: string): string {
     stopRecognition();
   }
 
+  function getActiveModifier() {
+    const active = keyInputs.find((candidate) => candidate.checked);
+    return active ? active.value : 'None';
+  }
+
+  function toControlChar(value) {
+    const code = value.charCodeAt(0);
+    return String.fromCharCode(code & 0x1f);
+  }
+
+  function buildPayload(text, withEnter) {
+    const modifier = getActiveModifier();
+    let payload = text;
+
+    if (modifier === 'Esc') {
+      payload = '\\u001b' + text;
+    } else if (modifier === 'Tab') {
+      payload = '\\t' + text;
+    } else if (modifier === 'Ctrl') {
+      if (!text) {
+        setStatus('Ctrl needs a key', true);
+        return null;
+      }
+      payload = toControlChar(text[0]) + text.slice(1);
+    }
+
+    return withEnter ? payload + '\\r' : payload;
+  }
+
   function send(withEnter) {
     const text = input.value;
-    if (text && window.tmuxWeb && window.tmuxWeb.sendInput) {
-      window.tmuxWeb.sendInput(withEnter ? text + '\\r' : text);
+    if (window.tmuxWeb && window.tmuxWeb.sendInput) {
+      const payload = buildPayload(text, withEnter);
+      if (payload === null) return;
+      const hasText = !!text;
+      const modifier = getActiveModifier();
+      if (hasText || modifier !== 'None') {
+        window.tmuxWeb.sendInput(payload);
+      }
     }
     input.value = '';
     setStatus('');

@@ -127,4 +127,13 @@ describe('terminal page', () => {
 		expect(toggleIndex).toBeGreaterThan(-1);
 		expect(tmuxIndex).toBeGreaterThan(toggleIndex);
 	});
+
+	it('includes Send Command action for the terminal commandbar', () => {
+		const html = renderTerminal('dev', [], { theme: vscodeTheme, commandbarEnabled: true, commandbarSessions: [] });
+
+		expect(html).toContain('Send Command');
+		expect(html).toContain('Send input to active window');
+		expect(html).toContain('clickTargetId":"type-toggle"');
+		expect(html).toContain('id="type-toggle"');
+	});
 });
