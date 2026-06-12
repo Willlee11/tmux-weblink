@@ -15,6 +15,11 @@ export interface ExtManifest {
   slot:        'sidebar' | 'panel';
   permissions: string[];
   views:       Array<{ entry: string }>;
+  panel?: {
+    entry: string;
+    title?: string;
+    defaultWidth?: number;
+  };
   start?:      string;
   config:      unknown;
   /** Absolute path to the extension root directory (set by loader, not from JSON). */

@@ -4,12 +4,17 @@ import {
   buildWorktreePath,
   classifyKind,
   generateWorktreeId,
+  listChangedFiles,
   parseCheckedOutBranches,
+  parseStatusPorcelain,
+  resolveRepoPath,
 } from '../extensions/git-workflow/backend/git.js';
 import { cacheKey } from '../extensions/git-workflow/backend/storage.js';
 import { isPaneReady, paneNotReadyReason } from '../extensions/git-workflow/backend/pane-ready.js';
 import path from 'node:path';
 import os from 'node:os';
+import { execFileSync } from 'node:child_process';
+import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 
 describe('cacheKey', () => {
   it('combines session, paneId, and path', () => {
@@ -66,6 +71,88 @@ describe('buildHandoffBranchName', () => {
   it('creates a namespaced branch from the source branch and worktree id', () => {
     expect(buildHandoffBranchName('feature/current', 'a1b2c3d4'))
       .toBe('tmux-web/feature/current/a1b2c3d4');
+  });
+});
+
+describe('parseStatusPorcelain', () => {
+  it('parses untracked, modified, deleted, and renamed entries', () => {
+    const raw = [
+      '?? new.txt',
+      'M  edited.ts',
+      ' D gone.ts',
+      'R  renamed.ts',
+      'old-name.ts',
+      '',
+    ].join('\0');
+
+    expect(parseStatusPorcelain(raw)).toEqual([
+      { path: 'new.txt', status: '??' },
+      { path: 'edited.ts', status: 'M' },
+      { path: 'gone.ts', status: 'D' },
+      { path: 'renamed.ts', oldPath: 'old-name.ts', status: 'R' },
+    ]);
+  });
+});
+
+describe('resolveRepoPath', () => {
+  it('normalizes paths inside the repository root', () => {
+    expect(resolveRepoPath('/tmp/repo', 'src/app.ts')).toEqual({
+      absolutePath: path.resolve('/tmp/repo/src/app.ts'),
+      relativePath: 'src/app.ts',
+    });
+  });
+
+  it('rejects paths outside the repository root', () => {
+    expect(() => resolveRepoPath('/tmp/repo', '../escape.txt')).toThrow('Path escapes repository root');
+  });
+});
+
+describe('listChangedFiles', () => {
+  it('returns real line counts for tracked edits and untracked files', () => {
+    const repoDir = mkdtempSync(path.join(os.tmpdir(), 'tmux-web-git-'));
+    try {
+      execFileSync('git', ['init'], { cwd: repoDir });
+      execFileSync('git', ['config', 'user.name', 'tmux-web'], { cwd: repoDir });
+      execFileSync('git', ['config', 'user.email', 'tmux-web@example.com'], { cwd: repoDir });
+
+      writeFileSync(path.join(repoDir, 'tracked.txt'), 'one\ntwo\n', 'utf-8');
+      execFileSync('git', ['add', 'tracked.txt'], { cwd: repoDir });
+      execFileSync('git', ['commit', '-m', 'initial'], { cwd: repoDir });
+
+      writeFileSync(path.join(repoDir, 'tracked.txt'), 'one\ntwo\nthree\n', 'utf-8');
+      writeFileSync(path.join(repoDir, 'new.txt'), 'alpha\nbeta\n', 'utf-8');
+
+      expect(listChangedFiles(repoDir)).toEqual([
+        { path: 'new.txt', status: '??', oldPath: null, added: 2, removed: 0 },
+        { path: 'tracked.txt', status: 'M', oldPath: null, added: 1, removed: 0 },
+      ]);
+    } finally {
+      rmSync(repoDir, { recursive: true, force: true });
+    }
+  });
+
+  it('expands untracked directories into file entries', () => {
+    const repoDir = mkdtempSync(path.join(os.tmpdir(), 'tmux-web-git-'));
+    try {
+      execFileSync('git', ['init'], { cwd: repoDir });
+      execFileSync('git', ['config', 'user.name', 'tmux-web'], { cwd: repoDir });
+      execFileSync('git', ['config', 'user.email', 'tmux-web@example.com'], { cwd: repoDir });
+
+      writeFileSync(path.join(repoDir, 'tracked.txt'), 'base\n', 'utf-8');
+      execFileSync('git', ['add', 'tracked.txt'], { cwd: repoDir });
+      execFileSync('git', ['commit', '-m', 'initial'], { cwd: repoDir });
+
+      mkdirSync(path.join(repoDir, 'drafts'));
+      writeFileSync(path.join(repoDir, 'drafts', 'one.txt'), 'first\n', 'utf-8');
+      writeFileSync(path.join(repoDir, 'drafts', 'two.txt'), 'second\nthird\n', 'utf-8');
+
+      expect(listChangedFiles(repoDir)).toEqual([
+        { path: 'drafts/one.txt', status: '??', oldPath: null, added: 1, removed: 0 },
+        { path: 'drafts/two.txt', status: '??', oldPath: null, added: 2, removed: 0 },
+      ]);
+    } finally {
+      rmSync(repoDir, { recursive: true, force: true });
+    }
   });
 });
 

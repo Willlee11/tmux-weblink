@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <style>
+    :root {
+      --bg: #0f141b;
+      --panel: #141b24;
+      --panel-2: #101720;
+      --border: #243241;
+      --fg: #d8dee7;
+      --muted: #8895a4;
+      --accent: #8fd3ff;
+      --success: #73c991;
+      --danger: #f14c4c;
+      --warn: #e9c46a;
+      --selected: rgba(143, 211, 255, 0.12);
+    }
+
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      margin: 0;
+      height: 100%;
+      overflow: hidden;
+      background: var(--bg);
+      color: var(--fg);
+      font: 12px/1.5 'JetBrains Mono', ui-monospace, monospace;
+    }
+
+    button, input {
+      font: inherit;
+    }
+
+    button {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      border-radius: 6px;
+      padding: 6px 10px;
+      cursor: pointer;
+    }
+    button:hover:not(:disabled) {
+      color: var(--fg);
+      border-color: var(--accent);
+    }
+    button:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+
+    input {
+      width: 100%;
+      background: rgba(0, 0, 0, 0.24);
+      color: var(--fg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 8px 10px;
+      outline: none;
+    }
+    input:focus {
+      border-color: var(--accent);
+    }
+
+    .layout {
+      display: grid;
+      grid-template-rows: auto 1fr;
+      height: 100%;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+      background: var(--panel);
+    }
+
+    .title {
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+      gap: 2px;
+    }
+
+    .repo {
+      color: var(--fg);
+      font-size: 13px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .meta {
+      color: var(--muted);
+      font-size: 11px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .toolbar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+
+    .workspace {
+      min-height: 0;
+      display: grid;
+      grid-template-columns: 320px minmax(0, 1fr);
+      overflow: hidden;
+    }
+
+    .sidebar {
+      width: 320px;
+      min-width: 320px;
+      max-width: 320px;
+      overflow: hidden;
+      border-right: 1px solid var(--border);
+      background: var(--panel-2);
+      display: grid;
+      grid-template-rows: auto auto 1fr;
+    }
+
+    .sidebar-block {
+      min-height: 0;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .sidebar-block:last-child {
+      border-bottom: none;
+    }
+
+    .block-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      min-width: 0;
+      padding: 12px 14px 8px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      font-size: 10px;
+    }
+
+    .block-title {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 0;
+    }
+
+    .block-count {
+      flex: 0 0 auto;
+    }
+
+    .segmented {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      align-items: stretch;
+      gap: 2px;
+      padding: 2px;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      background: rgba(0, 0, 0, 0.18);
+    }
+
+    .segmented button {
+      border: none;
+      border-radius: 999px;
+      padding: 4px 8px;
+      color: var(--muted);
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      min-width: 0;
+      text-align: center;
+      white-space: nowrap;
+    }
+
+    .segmented button.active {
+      color: var(--fg);
+      background: rgba(143, 211, 255, 0.16);
+    }
+
+    .controls-row {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      align-items: stretch;
+      padding: 0 12px 10px;
+    }
+
+    .controls-row input {
+      min-width: 0;
+    }
+
+    .controls-row .segmented {
+      width: 100%;
+    }
+
+    .block-body {
+      min-height: 0;
+      min-width: 0;
+      overflow: auto;
+      padding: 0 8px 10px;
+    }
+
+    .file-list {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      min-width: 0;
+      overflow: hidden;
+    }
+
+    .row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      width: 100%;
+      min-width: 0;
+      padding: 7px 8px;
+      border-radius: 6px;
+      cursor: pointer;
+      border: 1px solid transparent;
+    }
+    .row:hover {
+      background: rgba(255, 255, 255, 0.02);
+      border-color: rgba(143, 211, 255, 0.18);
+    }
+    .row.selected {
+      background: var(--selected);
+      border-color: rgba(143, 211, 255, 0.3);
+    }
+
+    .tree-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 8px;
+      border-radius: 6px;
+      border: 1px solid transparent;
+      cursor: pointer;
+      min-width: 0;
+    }
+    .tree-row:hover {
+      background: rgba(255, 255, 255, 0.02);
+      border-color: rgba(143, 211, 255, 0.18);
+    }
+    .tree-row.selected {
+      background: var(--selected);
+      border-color: rgba(143, 211, 255, 0.3);
+    }
+
+    .indent {
+      display: inline-block;
+      flex: 0 0 auto;
+    }
+
+    .caret {
+      width: 12px;
+      color: var(--muted);
+      flex: 0 0 auto;
+      text-align: center;
+    }
+
+    .tree-name,
+    .path-label {
+      min-width: 0;
+      flex: 1;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .status {
+      flex: 0 0 auto;
+      width: 28px;
+      color: var(--muted);
+    }
+    .status.add { color: var(--success); }
+    .status.del { color: var(--danger); }
+    .status.ren { color: var(--warn); }
+    .status.mod { color: var(--accent); }
+
+    .counts {
+      flex: 0 0 auto;
+      color: var(--muted);
+      font-size: 11px;
+      white-space: nowrap;
+    }
+    .counts .add { color: var(--success); }
+    .counts .del { color: var(--danger); }
+
+    .changed-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 999px;
+      background: var(--accent);
+      flex: 0 0 auto;
+    }
+
+    .main {
+      min-width: 0;
+      min-height: 0;
+      display: grid;
+      grid-template-rows: auto auto auto 1fr auto;
+      background: var(--bg);
+    }
+
+    .banner {
+      min-height: 0;
+      padding: 0 16px;
+      font-size: 11px;
+      color: var(--muted);
+    }
+    .banner.show {
+      padding-top: 8px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--border);
+    }
+    .banner.warn { color: var(--warn); }
+    .banner.error { color: var(--danger); }
+    .banner.info { color: var(--accent); }
+
+    .filebar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 12px 16px 10px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .file-meta {
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .selected-path {
+      font-size: 13px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .selected-sub {
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    .file-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+
+    .tabs {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 16px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .tab {
+      padding: 5px 10px;
+      border-radius: 999px;
+    }
+    .tab.active {
+      color: var(--fg);
+      border-color: var(--accent);
+      background: rgba(143, 211, 255, 0.12);
+    }
+
+    .dirty {
+      color: var(--warn);
+      font-size: 11px;
+      margin-left: auto;
+    }
+
+    .viewer {
+      min-height: 0;
+      position: relative;
+      display: grid;
+    }
+
+    .view {
+      min-height: 0;
+      display: none;
+    }
+    .view.active {
+      display: block;
+    }
+
+    .editor-host {
+      height: 100%;
+    }
+
+    .empty {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--muted);
+      text-align: center;
+      padding: 24px;
+      height: 100%;
+    }
+
+    .footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 10px 16px;
+      border-top: 1px solid var(--border);
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    .cm-editor {
+      height: 100%;
+      background: var(--bg);
+      color: var(--fg);
+    }
+    .cm-scroller {
+      font-family: 'JetBrains Mono', ui-monospace, monospace;
+      line-height: 1.5;
+    }
+
+    .cm-line {
+      min-height: 1.5em;
+    }
+
+    .cm-line.git-added-line {
+      background: rgba(115, 201, 145, 0.13);
+      box-shadow: inset 3px 0 0 var(--success);
+    }
+
+    .cm-line.git-modified-line {
+      background: rgba(143, 211, 255, 0.12);
+      box-shadow: inset 3px 0 0 var(--accent);
+    }
+
+    .cm-line.git-added-line.cm-activeLine {
+      background: rgba(115, 201, 145, 0.2);
+    }
+
+    .cm-line.git-modified-line.cm-activeLine {
+      background: rgba(143, 211, 255, 0.19);
+    }
+
+    @media (max-width: 900px) {
+      .workspace {
+        grid-template-columns: 280px 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <header class="topbar">
+      <div class="title">
+        <div class="repo" id="repo-label">Loading review context…</div>
+        <div class="meta" id="context-label">—</div>
+      </div>
+      <div class="toolbar">
+        <button id="refresh-btn">Refresh</button>
+        <button id="close-btn">Close</button>
+      </div>
+    </header>
+
+    <div class="workspace">
+      <aside class="sidebar">
+        <div class="sidebar-block">
+          <div class="block-head">
+            <div class="block-title">
+              <span>Changed Files</span>
+              <span id="changed-count" class="block-count">0</span>
+            </div>
+          </div>
+          <div class="controls-row">
+            <input id="file-search" type="text" placeholder="Filter files" />
+            <div class="segmented" aria-label="Changed files view mode">
+              <button id="changed-view-list" class="active" type="button">List</button>
+              <button id="changed-view-tree" type="button">Tree</button>
+            </div>
+          </div>
+          <div class="block-body">
+            <div id="changed-list" class="file-list"></div>
+          </div>
+        </div>
+
+        <div class="sidebar-block">
+          <div class="block-head">
+            <span>Repository</span>
+            <span id="repo-root-label"></span>
+          </div>
+        </div>
+
+        <div class="sidebar-block">
+          <div class="block-body">
+            <div id="tree-list" class="file-list"></div>
+          </div>
+        </div>
+      </aside>
+
+      <main class="main">
+        <div id="banner" class="banner"></div>
+
+        <div class="filebar">
+          <div class="file-meta">
+            <div class="selected-path" id="selected-path">Select a file</div>
+            <div class="selected-sub" id="selected-sub">Changed files default to Diff. Repository files open in Edit.</div>
+          </div>
+          <div class="file-actions">
+            <button id="restore-btn" hidden>Restore</button>
+            <button id="reload-btn" disabled>Reload</button>
+            <button id="save-btn" disabled>Save</button>
+          </div>
+        </div>
+
+        <div class="tabs">
+          <button id="tab-diff" class="tab active">Diff</button>
+          <button id="tab-edit" class="tab">Edit</button>
+          <div id="dirty-indicator" class="dirty"></div>
+        </div>
+
+        <div class="viewer">
+          <div id="empty-view" class="empty">Select a changed file or browse the repository.</div>
+          <div id="diff-view" class="view">
+            <div id="diff-editor" class="editor-host"></div>
+          </div>
+          <div id="edit-view" class="view">
+            <div id="edit-editor" class="editor-host"></div>
+          </div>
+        </div>
+
+        <footer class="footer">
+          <span id="footer-status">—</span>
+          <span id="footer-updated">—</span>
+        </footer>
+      </main>
+    </div>
+  </div>
+
+  <script src="review.js"></script>
+</body>
+</html>

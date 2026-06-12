@@ -1,18 +1,162 @@
-import { execFileSync } from 'node:child_process';
-import { existsSync, mkdirSync } from 'node:fs';
-import { randomBytes } from 'node:crypto';
+import { spawnSync } from 'node:child_process';
+import { createHash, randomBytes } from 'node:crypto';
+import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
 const GIT_TIMEOUT_MS = 15_000;
+const MAX_EDITABLE_FILE_BYTES = 512 * 1024;
 
-function git(args: string[], cwd: string): string {
-  return execFileSync('git', args, {
+type GitExecResult = { stdout: string; stderr: string; status: number };
+
+export type GitFileStatus = 'A' | 'M' | 'D' | 'R' | '??';
+
+export interface ChangedFileSummary {
+  path: string;
+  status: GitFileStatus;
+  oldPath?: string | null;
+  added: number;
+  removed: number;
+}
+
+export interface ReviewDirectoryEntry {
+  path: string;
+  name: string;
+  kind: 'file' | 'dir';
+  changed: boolean;
+}
+
+export interface FileTokenInfo {
+  token: string;
+  size: number;
+}
+
+function runGit(args: string[], cwd: string, allowFailure = false): GitExecResult {
+  const result = spawnSync('git', args, {
     cwd,
     encoding: 'utf-8',
     timeout: GIT_TIMEOUT_MS,
     stdio: ['ignore', 'pipe', 'pipe'],
-  }).trimEnd();
+  });
+
+  if (result.error) throw result.error;
+
+  const status = result.status ?? 0;
+  const stdout = result.stdout?.trimEnd?.() ?? '';
+  const stderr = result.stderr?.trimEnd?.() ?? '';
+
+  if (!allowFailure && status !== 0) {
+    throw new Error(stderr || stdout || `git ${args.join(' ')} failed`);
+  }
+
+  return { stdout, stderr, status };
+}
+
+function git(args: string[], cwd: string): string {
+  return runGit(args, cwd).stdout;
+}
+
+function slashPath(value: string): string {
+  return value.split(path.sep).join('/');
+}
+
+function lineCount(content: string): number {
+  if (!content) return 0;
+  let count = 0;
+  for (let i = 0; i < content.length; i++) {
+    if (content.charCodeAt(i) === 10) count++;
+  }
+  if (!content.endsWith('\n')) count++;
+  return count;
+}
+
+function isProbablyBinary(buffer: Buffer): boolean {
+  if (buffer.includes(0)) return true;
+  const text = buffer.toString('utf-8');
+  return text.includes('\uFFFD');
+}
+
+function buildToken(buffer: Buffer): string {
+  return createHash('sha1').update(buffer).digest('hex');
+}
+
+function summarizeStatusCode(code: string): GitFileStatus | null {
+  if (code === '??') return '??';
+  if (code === '!!') return null;
+  const flags = code.replace(/\s/g, '');
+  if (!flags) return null;
+  if (flags.includes('R') || flags.includes('C')) return 'R';
+  if (flags.includes('A')) return 'A';
+  if (flags.includes('D')) return 'D';
+  return 'M';
+}
+
+export function parseStatusPorcelain(raw: string): Array<{ path: string; oldPath?: string | null; status: GitFileStatus }> {
+  const entries: Array<{ path: string; oldPath?: string | null; status: GitFileStatus }> = [];
+  let index = 0;
+
+  while (index < raw.length) {
+    const end = raw.indexOf('\0', index);
+    if (end === -1) break;
+
+    const record = raw.slice(index, end);
+    index = end + 1;
+    if (!record) continue;
+
+    const code = record.slice(0, 2);
+    const filePath = record.slice(3);
+    const status = summarizeStatusCode(code);
+
+    let oldPath: string | null = null;
+    if (code.includes('R') || code.includes('C')) {
+      const oldEnd = raw.indexOf('\0', index);
+      if (oldEnd !== -1) {
+        oldPath = raw.slice(index, oldEnd);
+        index = oldEnd + 1;
+      }
+    }
+
+    if (!status) continue;
+    if (oldPath === null) entries.push({ path: filePath, status });
+    else entries.push({ path: filePath, oldPath, status });
+  }
+
+  return entries;
+}
+
+function numstatForPath(repoRootPath: string, filePath: string): { added: number; removed: number } {
+  const out = runGit(['diff', '--numstat', '--find-renames', 'HEAD', '--', filePath], repoRootPath, true).stdout;
+  const line = out.split('\n').find((value) => value.trim() !== '');
+  if (!line) return { added: 0, removed: 0 };
+  const [addedRaw, removedRaw] = line.split('\t', 3);
+  const added = addedRaw === '-' ? 0 : parseInt(addedRaw ?? '0', 10);
+  const removed = removedRaw === '-' ? 0 : parseInt(removedRaw ?? '0', 10);
+  return {
+    added: Number.isFinite(added) ? added : 0,
+    removed: Number.isFinite(removed) ? removed : 0,
+  };
+}
+
+function countUntrackedFileLines(absolutePath: string): { added: number; removed: number } {
+  try {
+    const buffer = readFileSync(absolutePath);
+    if (isProbablyBinary(buffer)) return { added: 0, removed: 0 };
+    return { added: lineCount(buffer.toString('utf-8')), removed: 0 };
+  } catch {
+    return { added: 0, removed: 0 };
+  }
+}
+
+function listFilesRecursively(rootPath: string): string[] {
+  const entries = readdirSync(rootPath, { withFileTypes: true });
+  const files: string[] = [];
+  for (const entry of entries) {
+    if (entry.name === '.git') continue;
+    const absolute = path.join(rootPath, entry.name);
+    if (entry.isDirectory()) files.push(...listFilesRecursively(absolute));
+    else if (entry.isFile()) files.push(absolute);
+  }
+  return files;
 }
 
 export function repoRoot(cwd: string): string | null {
@@ -21,6 +165,10 @@ export function repoRoot(cwd: string): string | null {
   } catch {
     return null;
   }
+}
+
+export function currentHead(repoRootPath: string): string {
+  return git(['rev-parse', 'HEAD'], repoRootPath);
 }
 
 export function worktreeRootDir(): string {
@@ -85,33 +233,55 @@ export function isBranchCheckedOut(repoRootPath: string, branch: string): boolea
 
 export interface GitStatusInfo {
   branch: string;
+  headSha: string;
   dirty: boolean;
   changes: { added: number; removed: number };
   ahead: number;
   behind: number;
 }
 
-export function getGitStatus(repoRootPath: string): GitStatusInfo {
-  const branch = git(['branch', '--show-current'], repoRootPath) || 'HEAD';
+export function listChangedFiles(repoRootPath: string): ChangedFileSummary[] {
+  const porcelain = runGit(['status', '--porcelain=v1', '-z'], repoRootPath, true).stdout;
+  const statusEntries = parseStatusPorcelain(porcelain);
 
-  let added = 0;
-  let removed = 0;
-  let dirty = false;
-  try {
-    const porcelain = git(['status', '--porcelain'], repoRootPath);
-    if (porcelain) {
-      dirty = true;
-      for (const line of porcelain.split('\n')) {
-        if (!line.trim()) continue;
-        const idx = line.slice(0, 2);
-        if (idx[0] !== ' ' && idx[0] !== '?') added++;
-        if (idx[1] !== ' ' && idx[1] !== '?') removed++;
-        if (idx === '??') added++;
+  const files = statusEntries.flatMap((entry) => {
+    if (entry.status === '??') {
+      const resolved = resolveRepoPath(repoRootPath, entry.path);
+      if (existsSync(resolved.absolutePath) && statSync(resolved.absolutePath).isDirectory()) {
+        return listFilesRecursively(resolved.absolutePath).map((absolutePath) => {
+          const relativePath = slashPath(path.relative(repoRootPath, absolutePath));
+          const counts = countUntrackedFileLines(absolutePath);
+          return {
+            path: relativePath,
+            status: entry.status,
+            oldPath: entry.oldPath ?? null,
+            added: counts.added,
+            removed: counts.removed,
+          };
+        });
       }
     }
-  } catch {
-    dirty = false;
-  }
+
+    const counts = entry.status === '??'
+      ? countUntrackedFileLines(resolveRepoPath(repoRootPath, entry.path).absolutePath)
+      : numstatForPath(repoRootPath, entry.path);
+    return [{
+      path: entry.path,
+      status: entry.status,
+      oldPath: entry.oldPath ?? null,
+      added: counts.added,
+      removed: counts.removed,
+    }];
+  });
+
+  files.sort((a, b) => a.path.localeCompare(b.path));
+  return files;
+}
+
+export function getGitStatus(repoRootPath: string): GitStatusInfo {
+  const branch = git(['branch', '--show-current'], repoRootPath) || 'HEAD';
+  const headSha = currentHead(repoRootPath);
+  const files = listChangedFiles(repoRootPath);
 
   let ahead = 0;
   let behind = 0;
@@ -124,7 +294,17 @@ export function getGitStatus(repoRootPath: string): GitStatusInfo {
     // no upstream
   }
 
-  return { branch, dirty, changes: { added, removed }, ahead, behind };
+  return {
+    branch,
+    headSha,
+    dirty: files.length > 0,
+    changes: {
+      added: files.reduce((sum, file) => sum + file.added, 0),
+      removed: files.reduce((sum, file) => sum + file.removed, 0),
+    },
+    ahead,
+    behind,
+  };
 }
 
 export function listBranchNames(repoRootPath: string): string[] {
@@ -176,11 +356,7 @@ export function ensureLocalBranch(repoRootPath: string, branch: string): void {
   } catch {
     return;
   }
-  execFileSync('git', ['fetch', 'origin', `${branch}:${branch}`], {
-    cwd: repoRootPath,
-    encoding: 'utf-8',
-    timeout: GIT_TIMEOUT_MS,
-  });
+  runGit(['fetch', 'origin', `${branch}:${branch}`], repoRootPath);
 }
 
 export function createWorktree(
@@ -194,17 +370,9 @@ export function createWorktree(
   if (createBranch) {
     const args = ['worktree', 'add', '-b', branch, worktreePath];
     if (startPoint) args.push(startPoint);
-    execFileSync('git', args, {
-      cwd: mainRepoRoot,
-      encoding: 'utf-8',
-      timeout: GIT_TIMEOUT_MS,
-    });
+    runGit(args, mainRepoRoot);
   } else {
-    execFileSync('git', ['worktree', 'add', worktreePath, branch], {
-      cwd: mainRepoRoot,
-      encoding: 'utf-8',
-      timeout: GIT_TIMEOUT_MS,
-    });
+    runGit(['worktree', 'add', worktreePath, branch], mainRepoRoot);
   }
 }
 
@@ -227,4 +395,123 @@ export function commitAll(repoRootPath: string, message: string): void {
 
 export function push(repoRootPath: string): void {
   git(['push'], repoRootPath);
+}
+
+export function resolveRepoPath(repoRootPath: string, relativePath = ''): { absolutePath: string; relativePath: string } {
+  const absoluteRoot = path.resolve(repoRootPath);
+  const absolutePath = path.resolve(absoluteRoot, relativePath || '.');
+  if (absolutePath !== absoluteRoot && !absolutePath.startsWith(absoluteRoot + path.sep)) {
+    throw new Error('Path escapes repository root');
+  }
+  const normalized = absolutePath === absoluteRoot ? '' : slashPath(path.relative(absoluteRoot, absolutePath));
+  return { absolutePath, relativePath: normalized };
+}
+
+export function listRepoTree(repoRootPath: string, relativePath = '', changedFiles: ChangedFileSummary[] = listChangedFiles(repoRootPath)): ReviewDirectoryEntry[] {
+  const { absolutePath, relativePath: normalizedPath } = resolveRepoPath(repoRootPath, relativePath);
+  const changedPaths = changedFiles.map((file) => file.path);
+
+  const entries = readdirSync(absolutePath, { withFileTypes: true })
+    .filter((entry) => entry.name !== '.git')
+    .map((entry) => {
+      const entryPath = normalizedPath ? `${normalizedPath}/${entry.name}` : entry.name;
+      return {
+        path: slashPath(entryPath),
+        name: entry.name,
+        kind: entry.isDirectory() ? 'dir' as const : 'file' as const,
+        changed: changedPaths.some((changedPath) => changedPath === entryPath || changedPath.startsWith(`${entryPath}/`)),
+      };
+    });
+
+  entries.sort((a, b) => {
+    if (a.kind !== b.kind) return a.kind === 'dir' ? -1 : 1;
+    return a.name.localeCompare(b.name);
+  });
+
+  return entries;
+}
+
+export function getUnifiedDiff(repoRootPath: string, relativePath: string, status?: GitFileStatus): string {
+  const effectiveStatus = status ?? listChangedFiles(repoRootPath).find((file) => file.path === relativePath)?.status;
+  if (effectiveStatus === '??') {
+    const { absolutePath } = resolveRepoPath(repoRootPath, relativePath);
+    return runGit(['diff', '--no-index', '--', '/dev/null', absolutePath], repoRootPath, true).stdout;
+  }
+  return runGit(['diff', '--find-renames', 'HEAD', '--', relativePath], repoRootPath, true).stdout;
+}
+
+export function getFileToken(repoRootPath: string, relativePath: string): FileTokenInfo {
+  const { absolutePath } = resolveRepoPath(repoRootPath, relativePath);
+  const buffer = readFileSync(absolutePath);
+  return { token: buildToken(buffer), size: buffer.byteLength };
+}
+
+export function readTextFile(repoRootPath: string, relativePath: string): {
+  content: string;
+  token: string;
+  size: number;
+  editable: boolean;
+  reason?: 'binary' | 'too_large';
+} {
+  const { absolutePath } = resolveRepoPath(repoRootPath, relativePath);
+  const buffer = readFileSync(absolutePath);
+  const token = buildToken(buffer);
+
+  if (buffer.byteLength > MAX_EDITABLE_FILE_BYTES) {
+    return {
+      content: '',
+      token,
+      size: buffer.byteLength,
+      editable: false,
+      reason: 'too_large',
+    };
+  }
+
+  if (isProbablyBinary(buffer)) {
+    return {
+      content: '',
+      token,
+      size: buffer.byteLength,
+      editable: false,
+      reason: 'binary',
+    };
+  }
+
+  return {
+    content: buffer.toString('utf-8'),
+    token,
+    size: buffer.byteLength,
+    editable: true,
+  };
+}
+
+export function saveTextFile(repoRootPath: string, relativePath: string, content: string, token: string): { token: string; size: number } {
+  const { absolutePath } = resolveRepoPath(repoRootPath, relativePath);
+  const current = readFileSync(absolutePath);
+  const currentToken = buildToken(current);
+  if (currentToken !== token) {
+    throw new Error('File changed on disk');
+  }
+
+  writeFileSync(absolutePath, content, 'utf-8');
+  const next = readFileSync(absolutePath);
+  return { token: buildToken(next), size: next.byteLength };
+}
+
+export function restoreTrackedFile(repoRootPath: string, relativePath: string): void {
+  runGit(['checkout', '--', relativePath], repoRootPath);
+}
+
+export function pathExists(repoRootPath: string, relativePath: string): boolean {
+  try {
+    const { absolutePath } = resolveRepoPath(repoRootPath, relativePath);
+    return existsSync(absolutePath);
+  } catch {
+    return false;
+  }
+}
+
+export function isDirectory(repoRootPath: string, relativePath: string): boolean {
+  const { absolutePath } = resolveRepoPath(repoRootPath, relativePath);
+  return statSync(absolutePath).isDirectory();
 }

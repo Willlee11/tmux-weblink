@@ -32,19 +32,30 @@ function extDrawerCSS(): string {
     transform: translateX(100%); transition: transform 0.25s ease;
   }
   .ext-drawer.open { transform: translateX(0); }
+  .ext-panel {
+    position: fixed; right: 0; top: 0; height: 100%; width: min(960px, calc(100vw - 48px)); z-index: 1001;
+    background: var(--panel-bg); border-left: 1px solid var(--panel-border);
+    display: flex; flex-direction: column;
+    transform: translateX(100%); transition: transform 0.25s ease;
+  }
+  .ext-panel.open { transform: translateX(0); }
   ${drawerResizeCSS()}
-  .ext-drawer .drawer-header {
+  .ext-drawer .drawer-header,
+  .ext-panel .drawer-header {
     display: flex; justify-content: space-between; align-items: center;
     padding: 10px 16px; border-bottom: 1px solid var(--panel-border);
     font-size: 12px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase;
     color: var(--panel-accent); font-family: 'JetBrains Mono', monospace; flex-shrink: 0;
   }
-  .ext-drawer .drawer-header button {
+  .ext-drawer .drawer-header button,
+  .ext-panel .drawer-header button {
     background: none; border: none; color: var(--panel-muted); cursor: pointer;
     font-size: 18px; line-height: 1; padding: 2px 6px; border-radius: 4px; transition: color 0.15s;
   }
-  .ext-drawer .drawer-header button:hover { color: var(--panel-accent); }
+  .ext-drawer .drawer-header button:hover,
+  .ext-panel .drawer-header button:hover { color: var(--panel-accent); }
   .ext-drawer iframe { flex: 1; border: none; width: 100%; height: 0; }
+  .ext-panel iframe { flex: 1; border: none; width: 100%; height: 100%; }
   header .ext-btn {
     display: flex; align-items: center; gap: 4px;
     background: none; border: none; color: var(--panel-muted); cursor: pointer;
@@ -67,32 +78,74 @@ function extDrawerHTML(manifest: ExtManifest): string {
 </div>`;
 }
 
+function extPanelHTML(manifest: ExtManifest): string {
+	const id = manifest.id;
+	const panel = manifest.panel;
+	if (!panel) return '';
+	const title = panel.title ?? manifest.name;
+	return `
+<div id="ext-${id}-panel-backdrop" class="ext-backdrop"></div>
+<div id="ext-${id}-panel" class="ext-panel resizable-drawer">
+  ${drawerResizeHandleHTML()}
+  <div class="drawer-header">
+    <span>${escapeHtml(manifest.icon)} ${escapeHtml(title)}</span>
+    <button id="ext-${id}-panel-close">&times;</button>
+  </div>
+  <iframe id="ext-${id}-panel-frame" src="/ext/${id}/ui/${escapeAttr(panel.entry)}"></iframe>
+</div>`;
+}
+
 function extDrawerScript(manifest: ExtManifest, sessionName: string): string {
 	const id      = manifest.id;
 	const cfgJson = JSON.stringify(manifest.config);
+  const panelEntry = manifest.panel?.entry ?? null;
+  const panelWidth = manifest.panel?.defaultWidth ?? 960;
 	return `
 ${drawerResizeScript(`ext-${id}-drawer`, `tmux-web:drawer-width:ext:${id}`, 360)}
+${panelEntry ? drawerResizeScript(`ext-${id}-panel`, `tmux-web:panel-width:ext:${id}`, panelWidth) : ''}
 (function() {
   const backdrop = document.getElementById('ext-${id}-backdrop');
   const drawer   = document.getElementById('ext-${id}-drawer');
   const frame    = document.getElementById('ext-${id}-frame');
   const toggle   = document.getElementById('ext-${id}-toggle');
   const close    = document.getElementById('ext-${id}-close');
+  const panelBackdrop = document.getElementById('ext-${id}-panel-backdrop');
+  const panel = document.getElementById('ext-${id}-panel');
+  const panelFrame = document.getElementById('ext-${id}-panel-frame');
+  const panelClose = document.getElementById('ext-${id}-panel-close');
 
-  function notifyFrame(type) {
-    if (frame.contentWindow) frame.contentWindow.postMessage({ type }, '*');
+  function notifyFrame(targetFrame, type) {
+    if (targetFrame && targetFrame.contentWindow) {
+      targetFrame.contentWindow.postMessage({ type }, '*');
+    }
   }
 
   function openDrawer() {
     drawer.classList.add('open');
     backdrop.classList.add('open');
-    sendMessages();
-    notifyFrame('ext:open');
+    sendMessages(frame);
+    notifyFrame(frame, 'ext:open');
   }
   function closeDrawer() {
     drawer.classList.remove('open');
     backdrop.classList.remove('open');
-    notifyFrame('ext:close');
+    notifyFrame(frame, 'ext:close');
+  }
+
+  function openPanel() {
+    if (!panel || !panelBackdrop || !panelFrame) return;
+    panel.classList.add('open');
+    panelBackdrop.classList.add('open');
+    closeDrawer();
+    sendMessages(panelFrame);
+    notifyFrame(panelFrame, 'ext:open');
+  }
+
+  function closePanel() {
+    if (!panel || !panelBackdrop || !panelFrame) return;
+    panel.classList.remove('open');
+    panelBackdrop.classList.remove('open');
+    notifyFrame(panelFrame, 'ext:close');
   }
 
   toggle.addEventListener('click', () => {
@@ -100,28 +153,48 @@ ${drawerResizeScript(`ext-${id}-drawer`, `tmux-web:drawer-width:ext:${id}`, 360)
   });
   close.addEventListener('click', closeDrawer);
   backdrop.addEventListener('click', closeDrawer);
+  if (panelClose) panelClose.addEventListener('click', closePanel);
+  if (panelBackdrop) panelBackdrop.addEventListener('click', closePanel);
 
   const cfg = ${cfgJson};
 
-  function sendMessages() {
-    frame.contentWindow.postMessage({ type: 'ext:context', context: { session: ${JSON.stringify(sessionName)}, host: location.origin } }, '*');
-    frame.contentWindow.postMessage({ type: 'ext:config',  config: cfg }, '*');
+  function sendMessages(targetFrame) {
+    if (!targetFrame || !targetFrame.contentWindow) return;
+    targetFrame.contentWindow.postMessage({ type: 'ext:context', context: { session: ${JSON.stringify(sessionName)}, host: location.origin } }, '*');
+    targetFrame.contentWindow.postMessage({ type: 'ext:config',  config: cfg }, '*');
   }
 
   // Defensive: if iframe already loaded (shouldn't happen), send immediately
   if (frame.contentDocument && frame.contentDocument.readyState === 'complete') {
-    sendMessages();
+    sendMessages(frame);
   } else {
-    frame.addEventListener('load', sendMessages, { once: true });
+    frame.addEventListener('load', () => sendMessages(frame), { once: true });
+  }
+
+  if (panelFrame) {
+    if (panelFrame.contentDocument && panelFrame.contentDocument.readyState === 'complete') {
+      sendMessages(panelFrame);
+    } else {
+      panelFrame.addEventListener('load', () => sendMessages(panelFrame), { once: true });
+    }
   }
 
   window.addEventListener('message', (e) => {
     if (e.data?.type === 'ext:resize' && e.source === frame.contentWindow) {
       frame.style.height = e.data.height + 'px';
     }
+    if (panelFrame && e.data?.type === 'ext:panel-open' && e.source === frame.contentWindow) {
+      openPanel();
+    }
+    if (panelFrame && e.data?.type === 'ext:panel-close' && e.source === panelFrame.contentWindow) {
+      closePanel();
+    }
     // ext:ready fires when the bridge initialises — send (or re-send) config
     if (e.data?.type === 'ext:ready' && e.source === frame.contentWindow) {
-      sendMessages();
+      sendMessages(frame);
+    }
+    if (panelFrame && e.data?.type === 'ext:ready' && e.source === panelFrame.contentWindow) {
+      sendMessages(panelFrame);
     }
   });
 }());`;
@@ -274,6 +347,7 @@ ${schedulerDrawerHTML(`Scheduler — ${sessionName}`)}
 ${windowsDrawerHTML(`Windows — ${sessionName}`)}
 ${sessionsDrawerHTML()}
 ${sidebarExts.map(e => extDrawerHTML(e)).join('\n')}
+${sidebarExts.map(e => extPanelHTML(e)).join('\n')}
 
 <script type="module">
 window.__TMUX_WEB_TERMINAL__ = ${JSON.stringify({

@@ -95,6 +95,7 @@ async function buildPaneCache(session: string, pane: ActivePaneInfo): Promise<St
     panePath,
     windowIndex: pane.windowIndex,
     branch,
+    headSha: gitStatus.headSha,
     kind,
     mainRepoPath,
     repoRoot: root,

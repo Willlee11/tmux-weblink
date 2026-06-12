@@ -6,6 +6,7 @@ extensions/*/data.json
 
 # Logs
 *.log
+.playwright*
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*

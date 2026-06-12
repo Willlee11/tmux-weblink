@@ -4,8 +4,14 @@
   "slot": "sidebar",
   "permissions": [],
   "views": [
-    { "entry": "index.html" }
+    { "entry": "index.html" },
+    { "entry": "review.html" }
   ],
+  "panel": {
+    "entry": "review.html",
+    "title": "Git Review",
+    "defaultWidth": 960
+  },
   "start": "node dist/backend/server.js",
   "config": {
     "pollIntervalMs": 10000

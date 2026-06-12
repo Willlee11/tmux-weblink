@@ -23,6 +23,7 @@ export interface PaneCache {
   panePath: string;
   windowIndex: number;
   branch: string;
+  headSha: string;
   kind: 'local' | 'worktree';
   mainRepoPath: string | null;
   repoRoot: string;
@@ -38,8 +39,22 @@ export interface PaneCache {
   branchChecks?: BranchChecks | null;
 }
 
+export interface ReviewContext {
+  contextId: string;
+  session: string;
+  paneId: string;
+  panePath: string;
+  windowIndex: number;
+  repoRoot: string;
+  branch: string;
+  headSha: string;
+  github: { nameWithOwner: string; org: string; repo: string };
+  createdAt: number;
+}
+
 interface Store {
   panes: Record<string, PaneCache>;
+  reviewContexts: Record<string, ReviewContext>;
 }
 
 export function cacheKey(session: string, paneId: string, panePath: string): string {
@@ -48,9 +63,13 @@ export function cacheKey(session: string, paneId: string, panePath: string): str
 
 async function readStore(): Promise<Store> {
   try {
-    return JSON.parse(await readFile(DATA_FILE, 'utf-8'));
+    const parsed = JSON.parse(await readFile(DATA_FILE, 'utf-8')) as Partial<Store>;
+    return {
+      panes: parsed.panes ?? {},
+      reviewContexts: parsed.reviewContexts ?? {},
+    };
   } catch {
-    return { panes: {} };
+    return { panes: {}, reviewContexts: {} };
   }
 }
 
@@ -67,5 +86,16 @@ export async function getCachedPane(key: string): Promise<PaneCache | null> {
 export async function setCachedPane(key: string, entry: PaneCache): Promise<void> {
   const store = await readStore();
   store.panes[key] = entry;
+  await saveStore(store);
+}
+
+export async function getReviewContext(session: string): Promise<ReviewContext | null> {
+  const store = await readStore();
+  return store.reviewContexts[session] ?? null;
+}
+
+export async function setReviewContext(session: string, context: ReviewContext): Promise<void> {
+  const store = await readStore();
+  store.reviewContexts[session] = context;
   await saveStore(store);
 }

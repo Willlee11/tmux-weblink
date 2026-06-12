@@ -9,4 +9,6 @@ export type ExtMessage =
   | { type: 'ext:ready' }
   | { type: 'ext:open' }
   | { type: 'ext:close' }
-  | { type: 'ext:resize';  height: number };
+  | { type: 'ext:resize';  height: number }
+  | { type: 'ext:panel-open' }
+  | { type: 'ext:panel-close' };

@@ -110,4 +110,14 @@ export class ExtBridge {
     const msg: ExtMessage = { type: 'ext:resize', height };
     window.parent.postMessage(msg, '*');
   }
+
+  openPanel(): void {
+    const msg: ExtMessage = { type: 'ext:panel-open' };
+    window.parent.postMessage(msg, '*');
+  }
+
+  closePanel(): void {
+    const msg: ExtMessage = { type: 'ext:panel-close' };
+    window.parent.postMessage(msg, '*');
+  }
 }

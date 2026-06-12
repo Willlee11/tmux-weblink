@@ -28,6 +28,7 @@ interface PaneData {
   panePath: string;
   windowIndex: number;
   branch: string;
+  headSha: string;
   kind: 'local' | 'worktree';
   mainRepoPath: string | null;
   repoRoot: string;
@@ -226,6 +227,8 @@ function renderPanel(data: PaneData) {
 
   const btn = document.getElementById('commit-push-btn') as HTMLButtonElement;
   btn.disabled = !data.dirty && data.ahead === 0;
+  const reviewBtn = document.getElementById('review-btn') as HTMLButtonElement;
+  reviewBtn.disabled = !data.repoRoot;
 
   renderPrSection(data);
 
@@ -355,6 +358,31 @@ async function submitCommitPush() {
   }
 }
 
+async function openReviewPanel() {
+  if (!_currentData) return;
+  const btn = document.getElementById('review-btn') as HTMLButtonElement;
+  btn.disabled = true;
+
+  try {
+    await ext.request('/review/context', {
+      method: 'POST',
+      body: {
+        session: _session,
+        paneId: _currentData.paneId,
+        panePath: _currentData.panePath,
+        windowIndex: _currentData.windowIndex,
+        repoRoot: _currentData.repoRoot,
+        github: _currentData.github,
+      },
+    });
+    ext.openPanel();
+  } catch (e) {
+    console.error('[git-workflow] failed to open review panel:', e);
+  } finally {
+    btn.disabled = false;
+  }
+}
+
 function wireUi() {
   document.getElementById('handoff-btn')?.addEventListener('click', () => {
     const sel = document.getElementById('branch-select') as HTMLSelectElement;
@@ -396,6 +424,7 @@ function wireUi() {
 
   document.getElementById('commit-cancel')?.addEventListener('click', () => closeModal('commit-modal'));
   document.getElementById('commit-submit')?.addEventListener('click', () => { void submitCommitPush(); });
+  document.getElementById('review-btn')?.addEventListener('click', () => { void openReviewPanel(); });
 
   document.getElementById('copy-main-btn')?.addEventListener('click', async () => {
     const path = _currentData?.mainRepoPath;

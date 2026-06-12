@@ -5,12 +5,14 @@ import { statusRouter } from './routes/status.js';
 import { handoffRouter } from './routes/handoff.js';
 import { commitPushRouter } from './routes/commit-push.js';
 import { sendKeysRouter } from './routes/send-keys.js';
+import { reviewRouter } from './routes/review.js';
 
 const app = new Hono();
 app.route('/', statusRouter);
 app.route('/', handoffRouter);
 app.route('/', commitPushRouter);
 app.route('/', sendKeysRouter);
+app.route('/', reviewRouter);
 
 const sockPath = process.env.EXT_SOCKET;
 
