@@ -76,6 +76,15 @@ export interface WindowHistoryRecord {
 	visitedAt: number;     // ms timestamp
 }
 
+export interface QuickCommandRecord {
+	id: string;
+	title: string;
+	command: string;
+	description?: string;
+	createdAt: number;
+	updatedAt: number;
+}
+
 export interface DbSchema {
 	notes: NoteRecord[];
 	scheduledTasks: StoredTask[];
@@ -86,6 +95,7 @@ export interface DbSchema {
 	windowLabels: WindowLabelRecord[];
 	sessionWindows: SessionWindowsRecord[];
 	windowHistory: WindowHistoryRecord[];
+	quickCommands: QuickCommandRecord[];
 }
 
 const dbDir = getDataRoot();
@@ -93,5 +103,5 @@ mkdirSync(dbDir, { recursive: true });
 
 export const db = new Low<DbSchema>(
 	new JSONFile<DbSchema>(join(dbDir, 'db.json')),
-	{ notes: [], scheduledTasks: [], triggeredTasks: [], sessionAccess: [], pinnedViews: [], watchedPanes: [], windowLabels: [], sessionWindows: [], windowHistory: [] },
+	{ notes: [], scheduledTasks: [], triggeredTasks: [], sessionAccess: [], pinnedViews: [], watchedPanes: [], windowLabels: [], sessionWindows: [], windowHistory: [], quickCommands: [] },
 );

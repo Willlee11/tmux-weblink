@@ -12,8 +12,15 @@ export type CommandbarAction = {
 	clickTargetId?: string;
 	/** Or navigate to this URL on select. Takes precedence over clickTargetId. */
 	href?: string;
-	/** Drill into an inline subview on Right Arrow (e.g. windows list). */
-	subView?: 'windows';
+	/** Drill into an inline subview on Right Arrow. */
+	subView?: 'windows' | 'quickCommands';
+};
+
+export type CommandbarQuickCommand = {
+	id: string;
+	title: string;
+	command: string;
+	description?: string;
 };
 
 export type CommandbarContext = {
@@ -92,6 +99,12 @@ export function commandbarCSS(): string {
     font: inherit;
   }
   .cmdbar-row-action .cmdbar-row-name { color: var(--panel-success); }
+  .cmdbar-row-subview .cmdbar-row-meta {
+    display: inline-flex; align-items: center; gap: 8px;
+  }
+  .cmdbar-row-chevron {
+    color: var(--panel-accent); font-size: 16px; line-height: 1;
+  }
   .cmdbar-row:hover,
   .cmdbar-row.active {
     border-color: rgba(125, 211, 252, 0.28); background: rgba(125, 211, 252, 0.08);
@@ -151,15 +164,18 @@ export function commandbarScript(
 	sessions: CommandbarSession[],
 	actions: CommandbarAction[] = [],
 	context: CommandbarContext = {},
+	quickCommands: CommandbarQuickCommand[] = [],
 ): string {
 	const sessionsJson = JSON.stringify(sessions).replace(/</g, '\\u003c');
 	const actionsJson = JSON.stringify(actions).replace(/</g, '\\u003c');
 	const sessionNameJson = JSON.stringify(context.sessionName ?? null).replace(/</g, '\\u003c');
+	const quickCommandsJson = JSON.stringify(quickCommands).replace(/</g, '\\u003c');
 	return `
 (function() {
   const initialSessions = ${sessionsJson};
   const actions = ${actionsJson}.map((action) => ({ ...action, kind: 'action' }));
   const sessionName = ${sessionNameJson};
+  const quickCommands = ${quickCommandsJson}.map((command) => ({ ...command, kind: 'quickCommand' }));
   let sessions = initialSessions;
   let visible = [];
   let activeIndex = 0;
@@ -169,6 +185,7 @@ export function commandbarScript(
 
   const ROOT_PLACEHOLDER = 'Filter tmux sessions';
   const WINDOWS_PLACEHOLDER = 'Filter windows';
+  const QUICK_COMMANDS_PLACEHOLDER = 'Filter quick commands';
 
   const openBtn = document.getElementById('cmdbar-open');
   const backdrop = document.getElementById('cmdbar-backdrop');
@@ -225,6 +242,9 @@ export function commandbarScript(
     if (view === 'windows') {
       input.placeholder = WINDOWS_PLACEHOLDER;
       hint.textContent = 'Enter switches · r renames · ← back · Esc closes';
+    } else if (view === 'quickCommands') {
+      input.placeholder = QUICK_COMMANDS_PLACEHOLDER;
+      hint.textContent = 'Enter pastes · ← back · Esc closes';
     } else {
       input.placeholder = ROOT_PLACEHOLDER;
       hint.textContent = 'Enter opens · Esc closes';
@@ -241,6 +261,10 @@ export function commandbarScript(
         void enterWindowsView();
         return;
       }
+      if (item.subView === 'quickCommands') {
+        enterQuickCommandsView();
+        return;
+      }
       setOpen(false);
       if (item.href) {
         window.location.href = item.href;
@@ -250,6 +274,10 @@ export function commandbarScript(
       return;
     }
     selectSession(item);
+  }
+
+  function quickCommandMeta(command) {
+    return command.description || command.command;
   }
 
   function renderRoot() {
@@ -272,9 +300,9 @@ export function commandbarScript(
     }
 
     list.innerHTML = visible.map((item, index) => (
-      '<button class="cmdbar-row' + (item.kind === 'action' ? ' cmdbar-row-action' : '') + (index === activeIndex ? ' active' : '') + '" data-index="' + index + '">' +
+      '<button class="cmdbar-row' + (item.kind === 'action' ? ' cmdbar-row-action' : '') + (item.kind === 'action' && item.subView ? ' cmdbar-row-subview' : '') + (index === activeIndex ? ' active' : '') + '" data-index="' + index + '">' +
         '<span class="cmdbar-row-name">' + escapeHtml(item.kind === 'action' ? item.label : item.name) + '</span>' +
-        '<span class="cmdbar-row-meta">' + escapeHtml(item.kind === 'action' ? item.meta : sessionMeta(item)) + '</span>' +
+        '<span class="cmdbar-row-meta">' + escapeHtml(item.kind === 'action' ? item.meta : sessionMeta(item)) + (item.kind === 'action' && item.subView ? '<span class="cmdbar-row-chevron" aria-hidden="true">&rsaquo;</span>' : '') + '</span>' +
       '</button>'
     )).join('');
   }
@@ -310,9 +338,41 @@ export function commandbarScript(
     }).join('');
   }
 
+  function renderQuickCommands() {
+    const query = input.value.trim().toLowerCase();
+    visible = query
+      ? quickCommands.filter((command) => (
+          command.title.toLowerCase().includes(query) ||
+          command.command.toLowerCase().includes(query) ||
+          (command.description || '').toLowerCase().includes(query)
+        ))
+      : quickCommands.slice();
+    activeIndex = Math.min(activeIndex, Math.max(0, visible.length - 1));
+    count.textContent = query
+      ? visible.length + ' command' + (visible.length === 1 ? '' : 's')
+      : 'Quick commands';
+
+    if (!visible.length) {
+      list.innerHTML = '<div class="cmdbar-empty">' + (
+        quickCommands.length
+          ? 'No quick commands found'
+          : 'No quick commands configured. <a href="/quick-commands">Configure them</a>'
+      ) + '</div>';
+      return;
+    }
+
+    list.innerHTML = visible.map((command, index) => (
+      '<button class="cmdbar-row' + (index === activeIndex ? ' active' : '') + '" data-index="' + index + '">' +
+        '<span class="cmdbar-row-name">' + escapeHtml(command.title) + '</span>' +
+        '<span class="cmdbar-row-meta">' + escapeHtml(quickCommandMeta(command)) + '</span>' +
+      '</button>'
+    )).join('');
+  }
+
   function render() {
     updateChrome();
     if (view === 'windows') renderWindows();
+    else if (view === 'quickCommands') renderQuickCommands();
     else renderRoot();
   }
 
@@ -337,12 +397,29 @@ export function commandbarScript(
     setTimeout(() => input.focus(), 0);
   }
 
-  function exitWindowsView() {
+  function enterQuickCommandsView() {
+    view = 'quickCommands';
+    input.value = '';
+    activeIndex = 0;
+    render();
+    setTimeout(() => input.focus(), 0);
+  }
+
+  function exitSubview() {
     view = 'root';
     input.value = '';
     activeIndex = 0;
     render();
     setTimeout(() => input.focus(), 0);
+  }
+
+  function selectQuickCommand(command) {
+    if (!command || typeof command.command !== 'string') return;
+    setOpen(false);
+    if (window.tmuxWeb && window.tmuxWeb.sendInput) {
+      window.tmuxWeb.sendInput(command.command);
+      if (window.tmuxWeb.focusTerminal) window.tmuxWeb.focusTerminal();
+    }
   }
 
   async function selectWindow(win) {
@@ -461,6 +538,7 @@ export function commandbarScript(
     const item = visible[Number(row.dataset.index)];
     if (!item) return;
     if (view === 'windows') void selectWindow(item);
+    else if (view === 'quickCommands') selectQuickCommand(item);
     else selectItem(item);
   });
   list.addEventListener('mousemove', (event) => {
@@ -483,14 +561,14 @@ export function commandbarScript(
 
     if (event.key === 'Escape') {
       event.preventDefault();
-      if (view === 'windows') exitWindowsView();
+      if (view !== 'root') exitSubview();
       else setOpen(false);
       return;
     }
     if (event.key === 'ArrowLeft') {
-      if (view === 'windows') {
+      if (view !== 'root') {
         event.preventDefault();
-        exitWindowsView();
+        exitSubview();
       }
       return;
     }
@@ -500,6 +578,9 @@ export function commandbarScript(
         if (item && item.kind === 'action' && item.subView === 'windows' && sessionName) {
           event.preventDefault();
           void enterWindowsView();
+        } else if (item && item.kind === 'action' && item.subView === 'quickCommands') {
+          event.preventDefault();
+          enterQuickCommandsView();
         }
       }
       return;
@@ -521,6 +602,7 @@ export function commandbarScript(
       const item = visible[activeIndex];
       if (!item) return;
       if (view === 'windows') void selectWindow(item);
+      else if (view === 'quickCommands') selectQuickCommand(item);
       else selectItem(item);
       return;
     }

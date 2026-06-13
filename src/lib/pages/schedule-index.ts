@@ -10,6 +10,12 @@ import {
 	newSessionModalHTML,
 	newSessionModalScript,
 } from '../shared-layout.js';
+import {
+	DELAY_INVALID_MESSAGE,
+	DELAY_MAX_MESSAGE,
+	MAX_SCHEDULE_MS,
+	scheduleDelayParseScript,
+} from '../schedule-delay.js';
 
 export interface ScheduleTaskView {
 	id: string;
@@ -98,7 +104,7 @@ export function renderScheduleIndex(
       <button class="reschedule-preset-btn" data-delay="1h">1h</button>
     </div>
     <div class="reschedule-input-row">
-      <input class="reschedule-input" type="text" placeholder="1h, 5m, 30s, 1m30s" autocomplete="off" />
+      <input class="reschedule-input" type="text" placeholder="1h, 5m, 70h, 30d" autocomplete="off" />
       <button class="reschedule-confirm-btn">Set</button>
       <span class="reschedule-error"></span>
     </div>
@@ -115,6 +121,9 @@ export function renderScheduleIndex(
 
 	const upcomingBody = sorted.length ? sections : '<p class="empty" id="empty-msg">No scheduled tasks.</p>';
 	const triggeredBody = renderTriggeredPanel(triggered, retentionDays);
+	const maxScheduleMs = MAX_SCHEDULE_MS;
+	const delayInvalidMessage = DELAY_INVALID_MESSAGE;
+	const delayMaxMessage = DELAY_MAX_MESSAGE;
 
 	const pageSpecificCSS = `
   .session-group { margin-bottom: 18px; }
@@ -261,6 +270,9 @@ ${newSessionModalScript()}
 </script>
 
 <script>
+const MAX_SCHEDULE_MS = ${maxScheduleMs};
+${scheduleDelayParseScript()}
+
 // ── Tabs ─────────────────────────────────────────────────────────────────
 function activateTab(name) {
   document.querySelectorAll('.page-tab').forEach((t) => t.classList.toggle('active', t.dataset.tab === name));
@@ -313,15 +325,6 @@ function refreshEmptyState() {
   }
 }
 
-function parseDelay(str) {
-  str = (str || '').trim().toLowerCase();
-  if (!str) return null;
-  const m = str.match(/^(?:(\\d+)h)?(?:(\\d+)m)?(?:(\\d+)s)?$/);
-  if (!m || (!m[1] && !m[2] && !m[3])) return null;
-  const ms = ((parseInt(m[1]||'0')*3600)+(parseInt(m[2]||'0')*60)+parseInt(m[3]||'0'))*1000;
-  return ms > 0 ? ms : null;
-}
-
 function openReschedule(id) {
   document.querySelectorAll('.reschedule-row.active').forEach((r) => {
     if (r.dataset.id !== id) closeReschedule(r.dataset.id);
@@ -353,7 +356,13 @@ async function submitReschedule(id, delayStr) {
   const delayMs = parseDelay(delayStr !== undefined ? delayStr : input.value);
   if (!delayMs) {
     input.classList.add('error');
-    errorEl.textContent = 'Use: 1h, 5m, 30s, 1m30s';
+    errorEl.textContent = ${JSON.stringify(delayInvalidMessage)};
+    input.focus();
+    return;
+  }
+  if (delayMs > MAX_SCHEDULE_MS) {
+    input.classList.add('error');
+    errorEl.textContent = ${JSON.stringify(delayMaxMessage)};
     input.focus();
     return;
   }

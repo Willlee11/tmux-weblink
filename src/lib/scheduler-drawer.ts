@@ -1,6 +1,12 @@
 import { closeOtherDrawersExcept, wrapDrawerScript } from './drawer-script.js';
 import { drawerResizeCSS, drawerResizeHandleHTML, drawerResizeScript } from './drawer-resize.js';
 import { escapeHtml } from './html.js';
+import {
+	DELAY_INVALID_MESSAGE,
+	DELAY_MAX_MESSAGE,
+	MAX_SCHEDULE_MS,
+	scheduleDelayParseScript,
+} from './schedule-delay.js';
 
 export function schedulerDrawerCSS(): string {
 	return `
@@ -138,7 +144,7 @@ export function schedulerDrawerHTML(title: string): string {
     <div class="sched-field-row">
       <label>Delay</label>
       <input id="sched-delay" class="sched-input" type="text"
-             placeholder="1h, 5m, 30s, 1m30s" autocomplete="off" />
+             placeholder="1h, 5m, 70h, 30d" autocomplete="off" />
     </div>
     <div class="sched-presets">
       <button class="sched-preset-btn" data-delay="1m">1m</button>
@@ -163,21 +169,18 @@ export function schedulerDrawerHTML(title: string): string {
 
 export function schedulerDrawerScript(session: string): string {
 	const sessionJs = JSON.stringify(session);
+	const maxScheduleMs = MAX_SCHEDULE_MS;
+	const delayInvalidMessage = DELAY_INVALID_MESSAGE;
+	const delayMaxMessage = DELAY_MAX_MESSAGE;
 	return wrapDrawerScript('scheduler', `
 const SCHED_SESSION = ${sessionJs};
+const MAX_SCHEDULE_MS = ${maxScheduleMs};
 ${drawerResizeScript('sched-drawer', 'tmux-web:drawer-width:scheduler', 400)}
 
 let schedCountdownInterval = null;
 let schedTickCount = 0;
 
-function parseDelay(str) {
-  str = (str || '').trim().toLowerCase();
-  if (!str) return null;
-  const m = str.match(/^(?:(\\d+)h)?(?:(\\d+)m)?(?:(\\d+)s)?$/);
-  if (!m || (!m[1] && !m[2] && !m[3])) return null;
-  const ms = ((parseInt(m[1] || '0') * 3600) + (parseInt(m[2] || '0') * 60) + parseInt(m[3] || '0')) * 1000;
-  return ms > 0 ? ms : null;
-}
+${scheduleDelayParseScript()}
 
 function formatCountdown(ms) {
   if (ms <= 0) return 'FIRING';
@@ -294,7 +297,12 @@ async function scheduleTask() {
   const delayMs = parseDelay(delayEl.value);
   if (!delayMs) {
     delayEl.classList.add('error');
-    errorEl.textContent = 'Use: 1h, 5m, 30s, 1m30s';
+    errorEl.textContent = ${JSON.stringify(delayInvalidMessage)};
+    return;
+  }
+  if (delayMs > MAX_SCHEDULE_MS) {
+    delayEl.classList.add('error');
+    errorEl.textContent = ${JSON.stringify(delayMaxMessage)};
     return;
   }
   const windowIndex = parseInt(winEl.value, 10);

@@ -14,6 +14,7 @@ import {
 	commandbarScript,
 	type CommandbarSession,
 	type CommandbarAction,
+	type CommandbarQuickCommand,
 } from '../commandbar.js';
 import { drawerResizeCSS, drawerResizeHandleHTML, drawerResizeScript } from '../drawer-resize.js';
 import type { TerminalBufferConfig } from '../terminal-config.js';
@@ -206,6 +207,7 @@ export function renderTerminal(
 	opts: {
 		commandbarEnabled?: boolean;
 		commandbarSessions?: CommandbarSession[];
+		quickCommands?: CommandbarQuickCommand[];
 		agentsEnabled?: boolean;
 		terminal?: TerminalBufferConfig;
 		theme: TmuxWebTheme;
@@ -213,7 +215,7 @@ export function renderTerminal(
 	},
 ): string {
 	const sidebarExts = extensions.filter(e => e.slot === 'sidebar');
-	const { commandbarEnabled = false, commandbarSessions = [], agentsEnabled = false, theme, renderer = 'xterm' } = opts;
+	const { commandbarEnabled = false, commandbarSessions = [], quickCommands = [], agentsEnabled = false, theme, renderer = 'xterm' } = opts;
 	const terminalCfg = opts.terminal ?? {
 		initialLines: 1000,
 		historyChunk: 500,
@@ -223,6 +225,7 @@ export function renderTerminal(
 	const scrollback = terminalCfg.initialLines + 2 * terminalCfg.historyChunk;
 	const commandbarActions: CommandbarAction[] = [
 		{ label: 'Switch window', meta: `Windows in ${sessionName}`, subView: 'windows' },
+		{ label: 'Quick Commands', meta: 'Paste configured command', subView: 'quickCommands' },
 		{ label: 'Send Command', meta: 'Send input to active window', clickTargetId: 'type-toggle' },
 		{ label: 'Open sessions sidebar', meta: 'Recent and pinned sessions', clickTargetId: 'sessions-toggle' },
 		{ label: 'Open notes', meta: `Notes for ${sessionName}`, clickTargetId: 'notes-toggle' },
@@ -389,7 +392,7 @@ ${sessionsDrawerScript(sessionName)}
 ${mobileToolbarScript(sessionName)}
 
 // ========== COMMANDBAR ==========
-${commandbarEnabled ? commandbarScript(commandbarSessions, commandbarActions, { sessionName }) : ''}
+${commandbarEnabled ? commandbarScript(commandbarSessions, commandbarActions, { sessionName }, quickCommands) : ''}
 
 // ========== NOTES ==========
 // (notes and scheduler scripts already included above — extensions below)

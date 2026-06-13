@@ -1,11 +1,12 @@
 import { execFileSync } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import type { DbSchema, StoredTask, TriggeredTaskRecord } from './db.js';
+import { ARM_SCAN_INTERVAL_MS, isValidDelayMs, MAX_TIMER_MS } from './schedule-delay.js';
 
 const DEFAULT_HISTORY_RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
 
 export interface ScheduledTask extends StoredTask {
-	timeoutHandle: ReturnType<typeof setTimeout>;
+	timeoutHandle: ReturnType<typeof setTimeout> | null;
 }
 
 export interface ScheduleTaskInput {
@@ -24,6 +25,9 @@ export interface SchedulerDeps {
 	now?: () => number;
 	setTimer?: typeof setTimeout;
 	clearTimer?: typeof clearTimeout;
+	setInterval?: typeof setInterval;
+	clearInterval?: typeof clearInterval;
+	armScanIntervalMs?: number;
 	createId?: () => string;
 	sendKeys?: (sessionName: string, windowIndex: number, text: string) => void;
 	onError?: (err: unknown) => void;
@@ -41,7 +45,7 @@ export function sendTmuxKeys(sessionName: string, windowIndex: number, text: str
 export function isValidRescheduleInput(input: unknown): input is { delayMs: number } {
 	if (!input || typeof input !== 'object') return false;
 	const body = input as Record<string, unknown>;
-	return typeof body.delayMs === 'number' && body.delayMs >= 1 && body.delayMs <= 86_400_000;
+	return typeof body.delayMs === 'number' && isValidDelayMs(body.delayMs);
 }
 
 export function isValidScheduleInput(input: unknown): input is ScheduleTaskInput {
@@ -51,7 +55,7 @@ export function isValidScheduleInput(input: unknown): input is ScheduleTaskInput
 		typeof body.sessionName === 'string' && body.sessionName.length > 0 &&
 		typeof body.windowIndex === 'number' && Number.isInteger(body.windowIndex) && body.windowIndex >= 0 &&
 		typeof body.text === 'string' && body.text.length > 0 && body.text.length <= 4096 &&
-		typeof body.delayMs === 'number' && body.delayMs >= 1 && body.delayMs <= 86_400_000
+		typeof body.delayMs === 'number' && isValidDelayMs(body.delayMs)
 	);
 }
 
@@ -60,16 +64,23 @@ export class SchedulerService {
 	private readonly now: () => number;
 	private readonly setTimer: typeof setTimeout;
 	private readonly clearTimer: typeof clearTimeout;
+	private readonly setIntervalFn: typeof setInterval;
+	private readonly clearIntervalFn: typeof clearInterval;
+	private readonly armScanIntervalMs: number;
 	private readonly createId: () => string;
 	private readonly sendKeys: (sessionName: string, windowIndex: number, text: string) => void;
 	private readonly onError: (err: unknown) => void;
 	private readonly onMissedTask: (task: StoredTask) => void;
 	private readonly historyRetentionMs: number;
+	private scanIntervalHandle: ReturnType<typeof setInterval> | null = null;
 
 	constructor(private readonly deps: SchedulerDeps) {
 		this.now = deps.now ?? Date.now;
 		this.setTimer = deps.setTimer ?? setTimeout;
 		this.clearTimer = deps.clearTimer ?? clearTimeout;
+		this.setIntervalFn = deps.setInterval ?? setInterval;
+		this.clearIntervalFn = deps.clearInterval ?? clearInterval;
+		this.armScanIntervalMs = deps.armScanIntervalMs ?? ARM_SCAN_INTERVAL_MS;
 		this.createId = deps.createId ?? randomUUID;
 		this.sendKeys = deps.sendKeys ?? sendTmuxKeys;
 		this.onError = deps.onError ?? ((err) => console.error(err));
@@ -104,7 +115,7 @@ export class SchedulerService {
 				this.onMissedTask(task);
 				this.record({ ...task, triggeredAt: now, status: 'missed' });
 			} else {
-				this.scheduleExisting(task, task.fireAt - now);
+				this.registerTask(task);
 			}
 		}
 
@@ -122,6 +133,9 @@ export class SchedulerService {
 		if (missed.length || prunedHistory) {
 			await this.deps.db.write();
 		}
+
+		this.scanPending();
+		this.startScanLoop();
 	}
 
 	list(sessionName?: string): ScheduleTaskView[] {
@@ -151,28 +165,30 @@ export class SchedulerService {
 			createdAt,
 		};
 
-		this.scheduleExisting(task, input.delayMs);
+		this.registerTask(task);
 		this.deps.db.data.scheduledTasks.push(task);
 		await this.deps.db.write();
+		this.tryArm(task.id);
 		return task;
 	}
 
 	async reschedule(id: string, delayMs: number): Promise<StoredTask | null> {
 		const task = this.scheduledTasks.get(id);
 		if (!task) return null;
-		this.clearTimer(task.timeoutHandle);
+		this.disarmTask(id);
 		const updatedTask: StoredTask = { ...task, fireAt: this.now() + delayMs };
-		this.scheduleExisting(updatedTask, delayMs);
+		this.registerTask(updatedTask);
 		const idx = this.deps.db.data.scheduledTasks.findIndex((t) => t.id === id);
 		if (idx >= 0) this.deps.db.data.scheduledTasks[idx] = updatedTask;
 		await this.deps.db.write();
+		this.tryArm(id);
 		return updatedTask;
 	}
 
 	async delete(id: string): Promise<boolean> {
 		const task = this.scheduledTasks.get(id);
 		if (!task) return false;
-		this.clearTimer(task.timeoutHandle);
+		this.disarmTask(id);
 		this.scheduledTasks.delete(id);
 		this.deps.db.data.scheduledTasks = this.deps.db.data.scheduledTasks.filter((t) => t.id !== id);
 		await this.deps.db.write();
@@ -180,26 +196,106 @@ export class SchedulerService {
 	}
 
 	cleanup(): void {
+		if (this.scanIntervalHandle != null) {
+			try { this.clearIntervalFn(this.scanIntervalHandle); } catch {}
+			this.scanIntervalHandle = null;
+		}
 		for (const task of this.scheduledTasks.values()) {
-			try { this.clearTimer(task.timeoutHandle); } catch {}
+			if (task.timeoutHandle != null) {
+				try { this.clearTimer(task.timeoutHandle); } catch {}
+			}
 		}
 		this.scheduledTasks.clear();
 	}
 
-	private scheduleExisting(task: StoredTask, delayMs: number): void {
-		const timeoutHandle = this.setTimer(() => this.fireTask(task), delayMs);
+	/** Visible for tests that need to trigger a scan without waiting for the interval. */
+	scanPending(): void {
+		for (const task of [...this.scheduledTasks.values()]) {
+			const remaining = task.fireAt - this.now();
+			if (remaining <= 0) {
+				if (task.timeoutHandle != null) this.disarmTask(task.id);
+				this.fireTask(task);
+				continue;
+			}
+			if (remaining <= MAX_TIMER_MS && task.timeoutHandle == null) {
+				this.armTask(task);
+			}
+		}
+	}
+
+	private registerTask(task: StoredTask): void {
+		this.scheduledTasks.set(task.id, { ...task, timeoutHandle: null });
+	}
+
+	private disarmTask(id: string): void {
+		const task = this.scheduledTasks.get(id);
+		if (!task) return;
+		if (task.timeoutHandle != null) {
+			this.clearTimer(task.timeoutHandle);
+			task.timeoutHandle = null;
+		}
+	}
+
+	private tryArm(id: string): void {
+		const task = this.scheduledTasks.get(id);
+		if (!task) return;
+		const remaining = task.fireAt - this.now();
+		if (remaining <= 0) {
+			this.fireTask(task);
+			return;
+		}
+		if (remaining <= MAX_TIMER_MS && task.timeoutHandle == null) {
+			this.armTask(task);
+		}
+	}
+
+	private armTask(task: StoredTask): void {
+		const remaining = task.fireAt - this.now();
+		if (remaining <= 0) {
+			this.fireTask(task);
+			return;
+		}
+		this.disarmTask(task.id);
+		const delay = Math.min(remaining, MAX_TIMER_MS);
+		const timeoutHandle = this.setTimer(() => this.onTimer(task.id), delay);
 		this.scheduledTasks.set(task.id, { ...task, timeoutHandle });
 	}
 
+	private onTimer(id: string): void {
+		const task = this.scheduledTasks.get(id);
+		if (!task) return;
+		task.timeoutHandle = null;
+		if (task.fireAt <= this.now()) {
+			this.fireTask(task);
+			return;
+		}
+		this.armTask(task);
+	}
+
+	private startScanLoop(): void {
+		if (this.scanIntervalHandle != null) return;
+		this.scanIntervalHandle = this.setIntervalFn(() => this.scanPending(), this.armScanIntervalMs);
+	}
+
 	private fireTask(task: StoredTask): void {
+		if (!this.scheduledTasks.has(task.id)) return;
+		this.disarmTask(task.id);
 		const triggeredAt = this.now();
+		const recordBase = {
+			id: task.id,
+			sessionName: task.sessionName,
+			windowIndex: task.windowIndex,
+			text: task.text,
+			fireAt: task.fireAt,
+			createdAt: task.createdAt,
+		};
 		try {
 			this.sendKeys(task.sessionName, task.windowIndex, task.text);
-			this.record({ ...task, triggeredAt, status: 'ok' });
+			this.record({ ...recordBase, triggeredAt, status: 'ok' });
 		} catch (err: any) {
 			const message = String(err?.message ?? err);
 			this.onError(`[scheduler] send-keys to ${task.sessionName}:${task.windowIndex} failed: ${message}`);
-			this.record({ ...task, triggeredAt, status: 'error', error: message });
+			this.record({ ...recordBase, triggeredAt, status: 'error', error: message });
 		}
 		this.scheduledTasks.delete(task.id);
 		this.deps.db.data.scheduledTasks = this.deps.db.data.scheduledTasks.filter((t) => t.id !== task.id);

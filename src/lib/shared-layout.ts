@@ -1,6 +1,6 @@
 import { commandbarButtonHTML } from './commandbar.js';
 
-export type ActivePage = 'home' | 'notes' | 'schedule' | 'agents' | 'history';
+export type ActivePage = 'home' | 'notes' | 'schedule' | 'agents' | 'history' | 'quickCommands';
 
 /** Base CSS for the fixed header, two-column layout, sidebar, and new-session modal. */
 export function sharedLayoutCSS(extraCSS = ''): string {
@@ -170,6 +170,7 @@ export function sharedSidebar(opts: {
 	const scheduleIcon = '<path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67V7z"/>';
 	const agentsIcon = '<path d="M12 2a5 5 0 1 0 0 10A5 5 0 0 0 12 2zm0 12c-5.33 0-8 2.67-8 4v2h16v-2c0-1.33-2.67-4-8-4z"/>';
 	const historyIcon = '<path d="M13 3a9 9 0 0 0-9 9H1l3.89 3.89.07.14L9 12H6a7 7 0 1 1 7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42A8.97 8.97 0 0 0 13 21a9 9 0 0 0 0-18zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8H12z"/>';
+	const quickCommandsIcon = '<path d="M13 3 4 14h7l-1 7 9-11h-7l1-7z"/>';
 	const refreshIcon = '<path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/>';
 
 	return `<aside class="action-sidebar">
@@ -183,6 +184,7 @@ export function sharedSidebar(opts: {
       ${btn('notes', '/notes', notesIcon, 'All Notes')}
       ${btn('schedule', '/schedule', scheduleIcon, 'Scheduled')}
       ${btn('history', '/history', historyIcon, 'History')}
+      ${btn('quickCommands', '/quick-commands', quickCommandsIcon, 'Quick Commands')}
       ${agentsEnabled ? btn('agents', '/agents', agentsIcon, 'All Agents') : ''}
       <hr class="sidebar-divider">
       <a href="${refreshHref}" class="sidebar-btn">

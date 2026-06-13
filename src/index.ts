@@ -25,12 +25,13 @@ try {
 	}
 } catch {}
 import { listSessions } from "./sessions.js";
-import { renderLanding, renderTerminal, renderNotesIndex, renderNotesPage, renderSettings, renderThemeSettings, renderScheduleIndex, renderAgentsIndex, renderHistoryIndex } from "./frontend.js";
+import { renderLanding, renderTerminal, renderNotesIndex, renderNotesPage, renderSettings, renderThemeSettings, renderScheduleIndex, renderAgentsIndex, renderHistoryIndex, renderQuickCommandsPage } from "./frontend.js";
 import { db } from "./lib/db.js";
 import { recordSessionAccess, getSessionAccessMap } from "./lib/session-access.js";
 import { listWindowHistory, clearWindowHistory } from "./lib/window-history.js";
 import { loadExtensions, spawnExtensionBackend, registerExtensionRoutes } from "./lib/ext-loader.js";
 import { SchedulerService, isValidScheduleInput, isValidRescheduleInput } from "./lib/scheduler.js";
+import { getScheduleDelayError } from "./lib/schedule-delay.js";
 import { handleClientMessage } from "./lib/ws-message.js";
 import { loadDotEnv } from "./lib/load-env.js";
 import { cmdAdd, cmdRemove, cmdList, cmdSetup, cmdTheme, printUsage, printVersion } from "./lib/cli.js";
@@ -44,6 +45,7 @@ import { listWindowLabels, setWindowLabel } from "./lib/window-labels.js";
 import { captureAndStoreWindows, getStoredWindows } from "./lib/session-windows.js";
 import { acquireControlClient, killAllControlClients } from "./lib/tmux-control.js";
 import { buildSidebarSessions } from "./lib/sessions-sidebar.js";
+import { createQuickCommand, deleteQuickCommand, listQuickCommands, updateQuickCommand } from "./lib/quick-commands.js";
 import {
 	getSessionPaneTarget,
 	capturePaneTail,
@@ -178,6 +180,7 @@ db.data.sessionAccess ??= [];
 db.data.pinnedViews ??= [];
 db.data.watchedPanes ??= [];
 db.data.triggeredTasks ??= [];
+db.data.quickCommands ??= [];
 
 const settings = await readSettings();
 const activeTheme = await readActiveTheme();
@@ -310,6 +313,7 @@ app.get("/s/:session", async (c) => {
 	return c.html(renderTerminal(session, extensions, {
 		commandbarEnabled,
 		commandbarSessions,
+		quickCommands: commandbarEnabled ? listQuickCommands() : [],
 		agentsEnabled,
 		terminal: terminalBufferConfig,
 		theme: activeTheme,
@@ -346,8 +350,49 @@ app.get("/history", (c) => {
 	return c.html(renderHistoryIndex(listWindowHistory(), activeTheme, commandbarEnabled, commandbarSessions, agentsEnabled, liveSessionNames));
 });
 
+app.get("/quick-commands", (c) => {
+	const commandbarSessions = commandbarEnabled ? buildCommandbarSessions(listSessions(), getSessionAccessMap()) : [];
+	return c.html(renderQuickCommandsPage(listQuickCommands(), activeTheme, commandbarEnabled, commandbarSessions, agentsEnabled));
+});
+
 app.post("/api/history/clear", async (c) => {
 	await clearWindowHistory();
+	return c.json({ ok: true });
+});
+
+app.get("/api/quick-commands", (c) => {
+	return c.json(listQuickCommands());
+});
+
+app.post("/api/quick-commands", async (c) => {
+	let body: Record<string, unknown>;
+	try {
+		body = await c.req.json();
+	} catch {
+		return c.json({ error: "invalid json" }, 400);
+	}
+
+	const result = await createQuickCommand(body);
+	if ("error" in result) return c.json({ error: result.error }, 400);
+	return c.json(result, 201);
+});
+
+app.patch("/api/quick-commands/:id", async (c) => {
+	let body: Record<string, unknown>;
+	try {
+		body = await c.req.json();
+	} catch {
+		return c.json({ error: "invalid json" }, 400);
+	}
+
+	const result = await updateQuickCommand(c.req.param("id"), body);
+	if ("error" in result) return c.json({ error: result.error }, result.status as 400 | 404);
+	return c.json(result);
+});
+
+app.delete("/api/quick-commands/:id", async (c) => {
+	const deleted = await deleteQuickCommand(c.req.param("id"));
+	if (!deleted) return c.json({ error: "not found" }, 404);
 	return c.json({ ok: true });
 });
 
@@ -748,6 +793,8 @@ app.get("/api/schedule", (c) => {
 app.post("/api/schedule", async (c) => {
 	let body: unknown;
 	try { body = await c.req.json(); } catch { return c.json({ error: "invalid json" }, 400); }
+	const delayError = getScheduleDelayError(body);
+	if (delayError) return c.json({ error: delayError }, 400);
 	if (!isValidScheduleInput(body)) return c.json({ error: "invalid body" }, 400);
 	const task = await scheduler.create(body);
 	return c.json({ id: task.id, fireAt: task.fireAt });
@@ -762,6 +809,8 @@ app.delete("/api/schedule/:id", async (c) => {
 app.patch("/api/schedule/:id", async (c) => {
 	let body: unknown;
 	try { body = await c.req.json(); } catch { return c.json({ error: "invalid json" }, 400); }
+	const delayError = getScheduleDelayError(body);
+	if (delayError) return c.json({ error: delayError }, 400);
 	if (!isValidRescheduleInput(body)) return c.json({ error: "invalid body" }, 400);
 	const updated = await scheduler.reschedule(c.req.param("id"), (body as { delayMs: number }).delayMs);
 	if (!updated) return c.json({ error: "not found" }, 404);
