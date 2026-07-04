@@ -68,6 +68,9 @@ type TerminalPageConfig = {
 };
 
 type ServerMessage =
+	| { type: 'auth.required'; setupMode: boolean }
+	| { type: 'auth.ok'; setupMode: boolean; token?: string }
+	| { type: 'auth.failed'; message: string; retryAfterMs?: number; permanentLock?: boolean }
 	| { type: 'snapshot'; data: string; lines: number }
 	| { type: 'data'; data: string }
 	| { type: 'history'; data: string; before: number; lines: number }
@@ -433,6 +436,48 @@ function handleServerMessage(raw: string) {
 		return;
 	}
 
+	if (msg.type === 'auth.required') {
+		const token = localStorage.getItem('tmux-web-token');
+		if (token) {
+			sendJSON({ type: 'auth.token', token });
+		} else {
+			// No token available — redirect to login and preserve return URL.
+			location.href = '/login?returnTo=' + encodeURIComponent(location.pathname + location.search);
+		}
+		return;
+	}
+
+	if (msg.type === 'auth.ok') {
+		if (msg.token) {
+			localStorage.setItem('tmux-web-token', msg.token);
+		}
+		setConnected(true);
+		reconnectDelay = 1000;
+		fitTerminal();
+		sendJSON({ type: 'resize', cols: term.cols, rows: term.rows });
+		scheduleFit();
+		return;
+	}
+
+	if (msg.type === 'auth.failed') {
+		setConnected(false);
+		if (msg.permanentLock || (msg.retryAfterMs && msg.retryAfterMs > 60_000)) {
+			localStorage.removeItem('tmux-web-token');
+			location.href = '/login?error=' + encodeURIComponent(msg.message);
+			return;
+		}
+		// Show a transient notice in the terminal container.
+		const notice = document.createElement('div');
+		notice.textContent = 'Auth failed: ' + msg.message;
+		notice.style.cssText =
+			'position:fixed;top:12px;right:12px;z-index:2000;background:rgba(0,0,0,0.85);' +
+			'color:#f87171;font:12px/1.4 "JetBrains Mono",monospace;padding:8px 12px;' +
+			'border:1px solid rgba(248,113,113,0.4);border-radius:6px;';
+		document.body.appendChild(notice);
+		setTimeout(() => notice.remove(), 4000);
+		return;
+	}
+
 	if (msg.type === 'snapshot' && typeof msg.data === 'string') {
 		historyParts = [msg.data];
 		liveSuffix = '';
@@ -538,7 +583,12 @@ function sendJSON(obj: unknown) {
 }
 
 function connect() {
-	ws = new WebSocket(wsUrl);
+	let url = wsUrl;
+	const token = localStorage.getItem('tmux-web-token');
+	if (token) {
+		url += (url.includes('?') ? '&' : '?') + 'token=' + encodeURIComponent(token);
+	}
+	ws = new WebSocket(url);
 	ws.onopen = () => {
 		phase = 'connecting';
 		serverHistoryLoaded = 0;
@@ -546,11 +596,8 @@ function connect() {
 		historyParts = [];
 		liveSuffix = '';
 		term.reset();
-		setConnected(true);
 		reconnectDelay = 1000;
-		fitTerminal();
-		sendJSON({ type: 'resize', cols: term.cols, rows: term.rows });
-		scheduleFit();
+		// Auth is handled by the server; auth.required or auth.ok will arrive next.
 	};
 	ws.onmessage = (event) => {
 		if (typeof event.data === 'string') handleServerMessage(event.data);
@@ -605,7 +652,10 @@ async function uploadImageBlob(blob: Blob): Promise<string> {
 	const fd = new FormData();
 	const filename = blob instanceof File && blob.name ? blob.name : 'upload';
 	fd.append('file', blob, filename);
-	const res = await fetch(uploadUrl, { method: 'POST', body: fd });
+	const token = localStorage.getItem('tmux-web-token');
+	const headers: Record<string, string> = {};
+	if (token) headers['Authorization'] = 'Bearer ' + token;
+	const res = await fetch(uploadUrl, { method: 'POST', body: fd, headers });
 	if (!res.ok) {
 		let err = 'upload failed';
 		try {

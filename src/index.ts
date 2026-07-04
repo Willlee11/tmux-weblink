@@ -25,7 +25,11 @@ try {
 	}
 } catch {}
 import { listSessions } from "./sessions.js";
-import { renderLanding, renderTerminal, renderNotesIndex, renderNotesPage, renderSettings, renderThemeSettings, renderScheduleIndex, renderAgentsIndex, renderHistoryIndex, renderQuickCommandsPage } from "./frontend.js";
+import { renderLanding, renderTerminal, renderLoginPage, renderNotesIndex, renderNotesPage, renderSettings, renderThemeSettings, renderScheduleIndex, renderAgentsIndex, renderHistoryIndex, renderQuickCommandsPage } from "./frontend.js";
+import { loadSecurityConfig, saveSecurityConfig, type TmuxWebSecurityConfig, type SecurityConfig } from "./lib/security-config.js";
+import { hashPassword, verifyPassword, validatePassword, TokenStore, type StoredToken } from "./lib/auth.js";
+import { RateLimiter, type RateLimitResult } from "./lib/rateLimiter.js";
+import { audit } from "./lib/auditLog.js";
 import { db } from "./lib/db.js";
 import { recordSessionAccess, getSessionAccessMap } from "./lib/session-access.js";
 import { listWindowHistory, clearWindowHistory } from "./lib/window-history.js";
@@ -75,6 +79,128 @@ import {
 loadDotEnv();
 
 const terminalBufferConfig = readTerminalBufferConfig();
+const securityConfig = loadSecurityConfig();
+const tokenStore = new TokenStore();
+const rateLimiter = new RateLimiter();
+let settingUpPassword = false;
+
+const COOKIE_NAME = "tmux-web-token";
+const TOKEN_COOKIE_MAX_AGE_DAYS = 365;
+
+function isLocalhostIp(ip: string): boolean {
+	return ip === "127.0.0.1" || ip === "::1" || ip === "::ffff:127.0.0.1";
+}
+
+function resolveClientIp(c: import("hono").Context): string {
+	if (securityConfig.security.trustProxy) {
+		const fwd = (c.req.header("x-forwarded-for") || "").split(",")[0].trim();
+		if (fwd) return fwd;
+	}
+	return c.env?.incoming?.socket?.remoteAddress || "unknown";
+}
+
+function resolveClientIpFromReq(req: import("http").IncomingMessage): string {
+	if (securityConfig.security.trustProxy) {
+		const fwd = (req.headers["x-forwarded-for"] as string || "").split(",")[0].trim();
+		if (fwd) return fwd;
+	}
+	return req.socket.remoteAddress || "unknown";
+}
+
+function readBearerToken(c: import("hono").Context): string | null {
+	const auth = c.req.header("authorization");
+	if (auth?.startsWith("Bearer ")) return auth.slice(7);
+	const cookie = c.req.header("cookie");
+	if (!cookie) return null;
+	const match = cookie.match(new RegExp(`(?:^|;\\s*)${COOKIE_NAME}=([^;]+)`));
+	if (match) return decodeURIComponent(match[1]);
+	return null;
+}
+
+function readBearerTokenFromReq(req: import("http").IncomingMessage): string | null {
+	const auth = req.headers.authorization;
+	if (typeof auth === "string" && auth.startsWith("Bearer ")) return auth.slice(7);
+	const cookie = req.headers.cookie;
+	if (typeof cookie !== "string") return null;
+	const match = cookie.match(new RegExp(`(?:^|;\\s*)${COOKIE_NAME}=([^;]+)`));
+	if (match) return decodeURIComponent(match[1]);
+	return null;
+}
+
+function validateToken(c: import("hono").Context): StoredToken | null {
+	const plaintext = readBearerToken(c);
+	if (!plaintext) return null;
+	return tokenStore.validateToken(plaintext);
+}
+
+function validateTokenFromReq(req: import("http").IncomingMessage): StoredToken | null {
+	const plaintext = readBearerTokenFromReq(req);
+	if (!plaintext) return null;
+	return tokenStore.validateToken(plaintext);
+}
+
+function setAuthCookie(c: import("hono").Context, token: string): void {
+	const secure = c.req.header("x-forwarded-proto") === "https" || c.req.url.startsWith("https:");
+	c.header("Set-Cookie", `${COOKIE_NAME}=${encodeURIComponent(token)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${TOKEN_COOKIE_MAX_AGE_DAYS * 86400}${secure ? "; Secure" : ""}`);
+}
+
+function clearAuthCookie(c: import("hono").Context): void {
+	c.header("Set-Cookie", `${COOKIE_NAME}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0`);
+}
+
+function requireAuth(): import("hono").MiddlewareHandler {
+	return async (c, next) => {
+		const token = readBearerToken(c);
+		if (!token || !tokenStore.validateToken(token)) {
+			audit("http_unauthorized", { ip: resolveClientIp(c) });
+			return c.json({ error: "unauthorized" }, 401);
+		}
+		return next();
+	};
+}
+
+function redirectToLogin(c: import("hono").Context): Response {
+	const returnTo = encodeURIComponent(c.req.url);
+	return c.redirect(`/login?returnTo=${returnTo}`, 302);
+}
+
+function requireAuthOrRedirect(): import("hono").MiddlewareHandler {
+	return async (c, next) => {
+		const token = readBearerToken(c);
+		if (!token || !tokenStore.validateToken(token)) {
+			return redirectToLogin(c);
+		}
+		return next();
+	};
+}
+
+interface WsClient {
+	ws: WebSocket;
+	ip: string;
+	authenticated: boolean;
+	authTimeout: ReturnType<typeof setTimeout> | null;
+	sessionName?: string;
+}
+
+const wsClients = new Map<WebSocket, WsClient>();
+
+function countWsConnectionsByIp(ip: string): number {
+	let n = 0;
+	for (const c of wsClients.values()) {
+		if (c.ip === ip) n++;
+	}
+	return n;
+}
+
+function closeWs(ws: WebSocket, code: number, reason: string): void {
+	try { ws.close(code, reason); } catch {}
+}
+
+function sendWsAuth(ws: WebSocket, msg: { type: string; [key: string]: unknown }): void {
+	if (ws.readyState === WebSocket.OPEN) {
+		ws.send(JSON.stringify(msg));
+	}
+}
 type TerminalRenderer = "xterm" | "ghostty";
 
 // Resolve the terminal renderer with precedence: flag > env > setting > default.
@@ -150,11 +276,17 @@ const startupArgs = process.argv.slice(2);
 }
 
 type ClientMessage =
+	| { type: "auth"; password: string }
+	| { type: "auth.token"; token: string }
 	| { type: "input"; data: string }
 	| { type: "resize"; cols: number; rows: number }
 	| { type: "load_history"; before: number };
 
 type ServerMessage =
+	| { type: "auth.required"; setupMode: boolean }
+	| { type: "auth.ok"; setupMode: boolean; token?: string }
+	| { type: "auth.failed"; message: string; retryAfterMs?: number; permanentLock?: boolean }
+	| { type: "auth.failed"; message: string; retryAfterMs?: number; permanentLock?: boolean }
 	| { type: "snapshot"; data: string; lines: number }
 	| { type: "data"; data: string }
 	| { type: "history"; data: string; before: number; lines: number }
@@ -225,6 +357,23 @@ function recordActivePane(session: string): void {
 
 const app = new Hono();
 
+// Security headers for every response.
+app.use("*", async (c, next) => {
+	await next();
+	c.header("X-Content-Type-Options", "nosniff");
+	c.header("X-Frame-Options", "DENY");
+	c.header("Content-Security-Policy", [
+		"default-src 'self'",
+		"script-src 'self' 'unsafe-inline'",
+		"style-src 'self' 'unsafe-inline'",
+		"connect-src 'self' ws: wss: http: https:",
+		"img-src 'self' data:",
+		"font-src 'self'",
+		"worker-src 'self' blob:",
+	].join("; "));
+	c.header("Referrer-Policy", "strict-origin-when-cross-origin");
+});
+
 // CSRF defense for every state-changing request. The classic CSRF vector is a
 // cross-origin <form> POST auto-submitted by a page the user happens to be
 // visiting; here that is especially dangerous because POST /settings/plugins
@@ -288,9 +437,17 @@ const serveFavicon = (c: import("hono").Context) =>
 app.get("/favicon.svg", serveFavicon);
 app.get("/favicon.ico", serveFavicon);
 
-// ── Page routes ────────────────────────────────────────────────────────────
+// ── Public routes ──────────────────────────────────────────────────────────
 
-app.get("/", (c) => {
+app.get("/login", (c) => {
+	const setupMode = !securityConfig.passwordHash;
+	const error = c.req.query("error");
+	return c.html(renderLoginPage({ setupMode, error: error ? decodeURIComponent(error) : undefined, theme: activeTheme }));
+});
+
+// ── Page routes (require authentication) ────────────────────────────────────
+
+app.get("/", requireAuthOrRedirect(), (c) => {
 	const q = c.req.query("view");
 	const view = q === "recent" ? "recent"
 		: q === "default" ? "default"
@@ -301,7 +458,7 @@ app.get("/", (c) => {
 	return c.html(renderLanding(sessions, { view, accessMap, commandbarEnabled, commandbarSessions, agentsEnabled, theme: activeTheme }));
 });
 
-app.get("/s/:session", async (c) => {
+app.get("/s/:session", requireAuthOrRedirect(), async (c) => {
 	const session = decodeURIComponent(c.req.param("session"));
 	await recordSessionAccess(session);
 	// Focus event: snapshot this session's windows (+ worktree flags) to lowdb so
@@ -321,50 +478,50 @@ app.get("/s/:session", async (c) => {
 	}));
 });
 
-app.get("/notes", (c) => {
+app.get("/notes", requireAuthOrRedirect(), (c) => {
 	const commandbarSessions = commandbarEnabled ? buildCommandbarSessions(listSessions(), getSessionAccessMap()) : [];
 	return c.html(renderNotesIndex(db.data.notes, activeTheme, commandbarEnabled, commandbarSessions, agentsEnabled));
 });
 
-app.get("/notes/:session", (c) => {
+app.get("/notes/:session", requireAuthOrRedirect(), (c) => {
 	const session = decodeURIComponent(c.req.param("session"));
 	const commandbarSessions = commandbarEnabled ? buildCommandbarSessions(listSessions(), getSessionAccessMap()) : [];
 	return c.html(renderNotesPage(session, activeTheme, commandbarEnabled, commandbarSessions));
 });
 
-app.get("/schedule", (c) => {
+app.get("/schedule", requireAuthOrRedirect(), (c) => {
 	const commandbarSessions = commandbarEnabled ? buildCommandbarSessions(listSessions(), getSessionAccessMap()) : [];
 	return c.html(renderScheduleIndex(scheduler.list(), scheduler.listTriggered(), activeTheme, scheduleHistoryDays, commandbarEnabled, commandbarSessions, agentsEnabled));
 });
 
-app.get("/agents", (c) => {
+app.get("/agents", requireAuthOrRedirect(), (c) => {
 	if (!agentsEnabled) return c.redirect("/settings", 303);
 	const commandbarSessions = commandbarEnabled ? buildCommandbarSessions(listSessions(), getSessionAccessMap()) : [];
 	return c.html(renderAgentsIndex(activeTheme, commandbarEnabled, commandbarSessions));
 });
 
-app.get("/history", (c) => {
+app.get("/history", requireAuthOrRedirect(), (c) => {
 	const sessions = listSessions();
 	const commandbarSessions = commandbarEnabled ? buildCommandbarSessions(sessions, getSessionAccessMap()) : [];
 	const liveSessionNames = new Set(sessions.map((s) => s.name));
 	return c.html(renderHistoryIndex(listWindowHistory(), activeTheme, commandbarEnabled, commandbarSessions, agentsEnabled, liveSessionNames));
 });
 
-app.get("/quick-commands", (c) => {
+app.get("/quick-commands", requireAuthOrRedirect(), (c) => {
 	const commandbarSessions = commandbarEnabled ? buildCommandbarSessions(listSessions(), getSessionAccessMap()) : [];
 	return c.html(renderQuickCommandsPage(listQuickCommands(), activeTheme, commandbarEnabled, commandbarSessions, agentsEnabled));
 });
 
-app.post("/api/history/clear", async (c) => {
+app.post("/api/history/clear", requireAuth(), async (c) => {
 	await clearWindowHistory();
 	return c.json({ ok: true });
 });
 
-app.get("/api/quick-commands", (c) => {
+app.get("/api/quick-commands", requireAuth(), (c) => {
 	return c.json(listQuickCommands());
 });
 
-app.post("/api/quick-commands", async (c) => {
+app.post("/api/quick-commands", requireAuth(), async (c) => {
 	let body: Record<string, unknown>;
 	try {
 		body = await c.req.json();
@@ -377,7 +534,7 @@ app.post("/api/quick-commands", async (c) => {
 	return c.json(result, 201);
 });
 
-app.patch("/api/quick-commands/:id", async (c) => {
+app.patch("/api/quick-commands/:id", requireAuth(), async (c) => {
 	let body: Record<string, unknown>;
 	try {
 		body = await c.req.json();
@@ -390,13 +547,13 @@ app.patch("/api/quick-commands/:id", async (c) => {
 	return c.json(result);
 });
 
-app.delete("/api/quick-commands/:id", async (c) => {
+app.delete("/api/quick-commands/:id", requireAuth(), async (c) => {
 	const deleted = await deleteQuickCommand(c.req.param("id"));
 	if (!deleted) return c.json({ error: "not found" }, 404);
 	return c.json({ ok: true });
 });
 
-app.get("/api/agents", async (c) => {
+app.get("/api/agents", requireAuth(), async (c) => {
 	if (!agentsEnabled) return c.json({ error: "agents page disabled" }, 403);
 	// When the background watcher runs, serve its cache (no re-probe). Otherwise
 	// probe on demand for this request.
@@ -404,9 +561,115 @@ app.get("/api/agents", async (c) => {
 	return c.json(statuses);
 });
 
+// ── Auth API (password endpoint is public; token management requires auth) ───
+
+app.post("/api/auth/password", async (c) => {
+	const ip = resolveClientIp(c);
+	const rateResult = rateLimiter.check(ip);
+	if (!rateResult.allowed) {
+		audit("rate_limited", { ip, retryAfterMs: rateResult.retryAfterMs, permanentLock: rateResult.permanentLock });
+		if (rateResult.permanentLock) {
+			return c.json({ error: "Server locked after too many failed attempts", permanentLock: true }, 403);
+		}
+		return c.json({ error: "Too many attempts", retryAfterMs: rateResult.retryAfterMs }, 429);
+	}
+
+	let body: { password?: unknown };
+	try {
+		body = await c.req.json();
+	} catch {
+		return c.json({ error: "invalid json" }, 400);
+	}
+	const password = typeof body.password === "string" ? body.password : "";
+
+	if (!securityConfig.passwordHash) {
+		if (!securityConfig.security.allowRemoteSetup && !isLocalhostIp(ip)) {
+			audit("setup_rejected_remote", { ip });
+			return c.json({ error: "First-run setup must be performed from localhost" }, 403);
+		}
+		if (settingUpPassword) {
+			return c.json({ error: "Password setup in progress" }, 409);
+		}
+		const validationError = validatePassword(password);
+		if (validationError) {
+			return c.json({ error: validationError }, 400);
+		}
+		settingUpPassword = true;
+		try {
+			securityConfig.passwordHash = await hashPassword(password);
+			saveSecurityConfig(securityConfig);
+			audit("password_set", { ip });
+		} finally {
+			settingUpPassword = false;
+		}
+		const { plaintext } = tokenStore.createAccessToken("setup", securityConfig.security.tokenTtlDays);
+		setAuthCookie(c, plaintext);
+		return c.json({ ok: true, token: plaintext, setupMode: true });
+	}
+
+	const valid = await verifyPassword(password, securityConfig.passwordHash);
+	if (!valid) {
+		const rate = rateLimiter.recordFailure(ip);
+		audit("auth_failed", { ip, method: "password", failures: rate.failures, permanentLock: rate.permanentLock });
+		if (rate.permanentLock) {
+			tokenStore.revokeAll();
+			audit("permanent_lock", { ip, failures: rate.failures });
+			return c.json({ error: "Server locked after too many failed attempts", permanentLock: true }, 403);
+		}
+		if (!rate.allowed) {
+			return c.json({ error: "Too many attempts", retryAfterMs: rate.retryAfterMs }, 429);
+		}
+		return c.json({ error: "Incorrect password" }, 401);
+	}
+
+	rateLimiter.recordSuccess(ip);
+	const name = `browser-${ip}`;
+	const { plaintext } = tokenStore.createAccessToken(name, securityConfig.security.tokenTtlDays);
+	setAuthCookie(c, plaintext);
+	audit("auth_success", { ip, method: "password", tokenName: name });
+	return c.json({ ok: true, token: plaintext });
+});
+
+app.post("/api/auth/token", requireAuth(), async (c) => {
+	const ip = resolveClientIp(c);
+	let body: { name?: unknown; ttlDays?: unknown };
+	try {
+		body = await c.req.json();
+	} catch {
+		return c.json({ error: "invalid json" }, 400);
+	}
+	const name = typeof body.name === "string" ? body.name : `api-${ip}`;
+	const ttlDays = typeof body.ttlDays === "number" ? body.ttlDays : securityConfig.security.tokenTtlDays;
+	const { stored, plaintext } = tokenStore.createAccessToken(name, ttlDays);
+	audit("token_created", { ip, name: stored.name, tokenId: stored.id });
+	return c.json({ id: stored.id, name: stored.name, token: plaintext, expiresAt: stored.expiresAt });
+});
+
+app.get("/api/auth/tokens", requireAuth(), (c) => {
+	return c.json(tokenStore.list().map((t) => ({
+		id: t.id,
+		name: t.name,
+		createdAt: t.createdAt,
+		lastUsedAt: t.lastUsedAt,
+		expiresAt: t.expiresAt,
+	})));
+});
+
+app.delete("/api/auth/tokens/:id", requireAuth(), (c) => {
+	const revoked = tokenStore.revoke(c.req.param("id"));
+	if (!revoked) return c.json({ error: "not found" }, 404);
+	audit("token_revoked", { ip: resolveClientIp(c), tokenId: c.req.param("id") });
+	return c.json({ ok: true });
+});
+
+app.post("/api/auth/logout", requireAuth(), (c) => {
+	clearAuthCookie(c);
+	return c.json({ ok: true });
+});
+
 // ── Settings pages ───────────────────────────────────────────────────────────
 
-app.get("/settings", async (c) => {
+app.get("/settings", requireAuthOrRedirect(), async (c) => {
 	const current = await readSettings();
 	const savedRenderer = current.terminalRenderer ?? "xterm";
 	return c.html(renderSettings({
@@ -420,7 +683,7 @@ app.get("/settings", async (c) => {
 	}));
 });
 
-app.post("/settings", async (c) => {
+app.post("/settings", requireAuth(), async (c) => {
 	let body: Record<string, unknown>;
 	try { body = await c.req.parseBody(); } catch { return c.redirect("/settings?error=" + encodeURIComponent("invalid form body"), 303); }
 
@@ -443,7 +706,7 @@ app.post("/settings", async (c) => {
 	return c.redirect("/settings?saved=1", 303);
 });
 
-app.post("/settings/plugins", async (c) => {
+app.post("/settings/plugins", requireAuth(), async (c) => {
 	let body: Record<string, unknown>;
 	try { body = await c.req.parseBody(); } catch { return c.redirect("/settings?error=" + encodeURIComponent("invalid form body"), 303); }
 
@@ -463,14 +726,14 @@ app.post("/settings/plugins", async (c) => {
 	return c.redirect("/settings?saved=1", 303);
 });
 
-app.get("/settings/theme", (c) => {
+app.get("/settings/theme", requireAuthOrRedirect(), (c) => {
 	return c.html(renderThemeSettings({
 		theme: activeTheme,
 		saved: c.req.query("saved") === "1",
 	}));
 });
 
-app.post("/settings/theme", async (c) => {
+app.post("/settings/theme", requireAuth(), async (c) => {
 	let body: Record<string, unknown>;
 	try { body = await c.req.parseBody(); } catch { return c.redirect("/settings/theme?error=1", 303); }
 
@@ -482,12 +745,12 @@ app.post("/settings/theme", async (c) => {
 	return c.redirect("/settings/theme?saved=1", 303);
 });
 
-app.get("/api/sessions", (c) => {
+app.get("/api/sessions", requireAuth(), (c) => {
 	if (!commandbarEnabled) return c.json({ error: "commandbar disabled" }, 404);
 	return c.json(buildCommandbarSessions(listSessions(), getSessionAccessMap()));
 });
 
-app.post("/api/sessions/new", async (c) => {
+app.post("/api/sessions/new", requireAuth(), async (c) => {
 	let body: { name?: unknown; dir?: unknown };
 	try { body = await c.req.json(); } catch { return c.json({ error: "invalid json" }, 400); }
 	const name = typeof body.name === "string" ? body.name.trim() : "";
@@ -505,7 +768,7 @@ app.post("/api/sessions/new", async (c) => {
 	}
 });
 
-app.get("/api/fs/list", (c) => {
+app.get("/api/fs/list", requireAuth(), (c) => {
 	const home = process.env.HOME ?? "/";
 	let rawPath = c.req.query("path") ?? home;
 	if (rawPath.startsWith("~")) rawPath = home + rawPath.slice(1);
@@ -572,7 +835,7 @@ function parsePinnedViewBody(body: { sessionName?: unknown; windowIndex?: unknow
 	return { sessionName, windowIndex };
 }
 
-app.get("/api/sidebar/sessions", (c) => {
+app.get("/api/sidebar/sessions", requireAuth(), (c) => {
 	const currentSession = c.req.query("currentSession");
 	return c.json(sidebarSessionsPayload(
 		typeof currentSession === "string" && currentSession ? currentSession : undefined,
@@ -580,12 +843,12 @@ app.get("/api/sidebar/sessions", (c) => {
 });
 
 // Sidebar window list — served from lowdb (captured on focus); never spawns tmux.
-app.get("/api/sidebar/session-windows/:session", (c) => {
+app.get("/api/sidebar/session-windows/:session", requireAuth(), (c) => {
 	const session = decodeURIComponent(c.req.param("session"));
 	return c.json(getStoredWindows(session));
 });
 
-app.post("/api/pinned-views", async (c) => {
+app.post("/api/pinned-views", requireAuth(), async (c) => {
 	let body: { sessionName?: unknown; windowIndex?: unknown };
 	try {
 		body = await c.req.json();
@@ -600,7 +863,7 @@ app.post("/api/pinned-views", async (c) => {
 	return c.json(sidebarSessionsPayload());
 });
 
-app.delete("/api/pinned-views", async (c) => {
+app.delete("/api/pinned-views", requireAuth(), async (c) => {
 	let body: { sessionName?: unknown; windowIndex?: unknown };
 	try {
 		body = await c.req.json();
@@ -617,18 +880,18 @@ app.delete("/api/pinned-views", async (c) => {
 
 // ── Notes API ──────────────────────────────────────────────────────────────
 
-app.get("/api/notes", (c) => {
+app.get("/api/notes", requireAuth(), (c) => {
 	const sorted = [...db.data.notes].sort((a, b) => (b.updatedAt ?? 0) - (a.updatedAt ?? 0));
 	return c.json(sorted);
 });
 
-app.get("/api/notes/:scope", (c) => {
+app.get("/api/notes/:scope", requireAuth(), (c) => {
 	const scope = decodeURIComponent(c.req.param("scope"));
 	const note = db.data.notes.find((n) => n.scope === scope);
 	return note ? c.json(note) : c.json(null, 404);
 });
 
-app.put("/api/notes/:scope", async (c) => {
+app.put("/api/notes/:scope", requireAuth(), async (c) => {
 	const scope = decodeURIComponent(c.req.param("scope"));
 	let body: { content?: unknown };
 	try { body = await c.req.json(); } catch { return c.json({ error: "invalid json" }, 400); }
@@ -643,7 +906,7 @@ app.put("/api/notes/:scope", async (c) => {
 
 // ── Scheduler API ──────────────────────────────────────────────────────────
 
-app.post("/api/session/:session/upload", async (c) => {
+app.post("/api/session/:session/upload", requireAuth(), async (c) => {
 	const session = decodeURIComponent(c.req.param("session"));
 	const sessions = listSessions();
 	if (!sessions.some((s) => s.name === session)) {
@@ -676,7 +939,7 @@ app.post("/api/session/:session/upload", async (c) => {
 	}
 });
 
-app.get("/api/session/:session/windows", (c) => {
+app.get("/api/session/:session/windows", requireAuth(), (c) => {
 	const session = decodeURIComponent(c.req.param("session"));
 	const labels = new Map(listWindowLabels(session).map((l) => [l.windowIndex, l.label]));
 	const stored = new Map(getStoredWindows(session).map((w) => [w.index, w]));
@@ -688,7 +951,7 @@ app.get("/api/session/:session/windows", (c) => {
 	return c.json(windows);
 });
 
-app.post("/api/session/:session/window-label", async (c) => {
+app.post("/api/session/:session/window-label", requireAuth(), async (c) => {
 	const session = decodeURIComponent(c.req.param("session"));
 	let body: { windowIndex?: unknown; label?: unknown };
 	try {
@@ -705,7 +968,7 @@ app.post("/api/session/:session/window-label", async (c) => {
 	return c.json(labels);
 });
 
-app.post("/api/session/:session/select-window", async (c) => {
+app.post("/api/session/:session/select-window", requireAuth(), async (c) => {
 	const session = decodeURIComponent(c.req.param("session"));
 	let body: { windowIndex?: unknown };
 	try {
@@ -736,7 +999,7 @@ app.post("/api/session/:session/select-window", async (c) => {
 	}
 });
 
-app.post("/api/session/:session/rename-window", async (c) => {
+app.post("/api/session/:session/rename-window", requireAuth(), async (c) => {
 	const session = decodeURIComponent(c.req.param("session"));
 	let body: { windowIndex?: unknown; name?: unknown };
 	try {
@@ -770,7 +1033,7 @@ app.post("/api/session/:session/rename-window", async (c) => {
 	}
 });
 
-app.post("/api/session/:session/new-window", (c) => {
+app.post("/api/session/:session/new-window", requireAuth(), (c) => {
 	const session = decodeURIComponent(c.req.param("session"));
 	try {
 		newSessionWindow(session);
@@ -786,11 +1049,11 @@ app.post("/api/session/:session/new-window", (c) => {
 	}
 });
 
-app.get("/api/schedule", (c) => {
+app.get("/api/schedule", requireAuth(), (c) => {
 	return c.json(scheduler.list(c.req.query("session")));
 });
 
-app.post("/api/schedule", async (c) => {
+app.post("/api/schedule", requireAuth(), async (c) => {
 	let body: unknown;
 	try { body = await c.req.json(); } catch { return c.json({ error: "invalid json" }, 400); }
 	const delayError = getScheduleDelayError(body);
@@ -800,13 +1063,13 @@ app.post("/api/schedule", async (c) => {
 	return c.json({ id: task.id, fireAt: task.fireAt });
 });
 
-app.delete("/api/schedule/:id", async (c) => {
+app.delete("/api/schedule/:id", requireAuth(), async (c) => {
 	const deleted = await scheduler.delete(c.req.param("id"));
 	if (!deleted) return c.json({ error: "not found" }, 404);
 	return c.json({ ok: true });
 });
 
-app.patch("/api/schedule/:id", async (c) => {
+app.patch("/api/schedule/:id", requireAuth(), async (c) => {
 	let body: unknown;
 	try { body = await c.req.json(); } catch { return c.json({ error: "invalid json" }, 400); }
 	const delayError = getScheduleDelayError(body);
@@ -831,6 +1094,11 @@ if (agentsBackgroundWatch) startBackgroundWatch();
 
 const wss = new WebSocketServer({ noServer: true });
 
+function rejectUpgrade(socket: import("net").Socket, code: number, message: string): void {
+	socket.write(`HTTP/1.1 ${code} ${message}\r\n\r\n`);
+	socket.destroy();
+}
+
 server.on("upgrade", (req, socket, head) => {
 	const url = new URL(req.url || "/", `http://${req.headers.host}`);
 	const match = url.pathname.match(/^\/ws\/(.+)$/);
@@ -838,12 +1106,43 @@ server.on("upgrade", (req, socket, head) => {
 		socket.destroy();
 		return;
 	}
+
+	const ip = resolveClientIpFromReq(req);
+
+	// Origin allowlist — empty list means same-origin only.
+	const origin = req.headers.origin;
+	const allowed = securityConfig.security.allowedOrigins;
+	if (origin) {
+		const sameOrigin = origin === `http://${req.headers.host}` || origin === `https://${req.headers.host}`;
+		if (!sameOrigin && (allowed.length === 0 || !allowed.includes(origin))) {
+			audit("ws_rejected_origin", { ip, origin });
+			rejectUpgrade(socket, 403, "Origin not allowed");
+			return;
+		}
+	}
+
+	// Per-IP concurrent connection cap.
+	const liveFromIp = countWsConnectionsByIp(ip);
+	if (liveFromIp >= securityConfig.security.maxConnectionsPerIp) {
+		audit("ws_rejected_per_ip_cap", { ip, liveFromIp });
+		rejectUpgrade(socket, 429, "Too many connections");
+		return;
+	}
+
+	// Validate token from cookie or query param before completing upgrade.
+	const token = readBearerTokenFromReq(req) || url.searchParams.get("token") || "";
+	const storedToken = token ? tokenStore.validateToken(token) : null;
+
 	wss.handleUpgrade(req, socket, head, (ws) => {
-		wss.emit("connection", ws, req, decodeURIComponent(match[1]));
+		wss.emit("connection", ws, req, decodeURIComponent(match[1]), ip, storedToken);
 	});
 });
 
-wss.on("connection", (ws: WebSocket, _req: import("http").IncomingMessage, sessionName: string) => {
+wss.on("connection", (ws: WebSocket, _req: import("http").IncomingMessage, sessionName: string, ip: string, preflightToken: StoredToken | null) => {
+	const client: WsClient = { ws, ip, authenticated: false, authTimeout: null };
+	wsClients.set(ws, client);
+	audit("ws_connected", { ip });
+
 	let ptyProcess: pty.IPty | null = null;
 	const { initialLines, historyChunk, syncIdleMs, syncMaxMs } = terminalBufferConfig;
 
@@ -893,81 +1192,210 @@ wss.on("connection", (ws: WebSocket, _req: import("http").IncomingMessage, sessi
 		syncIdleTimer = setTimeout(finishSync, syncIdleMs);
 	};
 
-	try {
-		ptyProcess = pty.spawn("tmux", ["attach-session", "-t", sessionName], {
-			name: "xterm-256color",
-			cols: 80,
-			rows: 24,
-			cwd: process.env.HOME || "/",
-			env: process.env as Record<string, string>,
-		});
-	} catch (err: any) {
-		sendServerMessage(ws, {
-			type: "data",
-			data: `\r\n\x1b[31mFailed to attach to tmux session "${sessionName}": ${err.message}\x1b[0m\r\n`,
-		});
-		ws.close(1011, "pty spawn failed");
-		return;
-	}
-
-	activePtys.add(ptyProcess);
-
-	// Mirror tmux-side window switches (Ctrl+B n, other clients, scripts) back to
-	// this tab. One control client per session, shared across tabs, refcounted.
-	let lastActiveIndex = -1;
-	let lastWindowKey = "";
-	releaseControl = acquireControlClient(sessionName, ({ activeIndex, windows }) => {
-		sendServerMessage(ws, { type: "window_changed", activeIndex, windows });
-		// Only react to STRUCTURAL changes — the active window switched, or a
-		// window was added/removed. A pure %window-renamed leaves activeIndex and
-		// the index set untouched, so it's filtered out here (those fire often via
-		// tmux automatic-rename and never indicate a new agent location). On a real
-		// change, feed the agents watch-list (so a window reached only from the
-		// tmux side still gets probed) and request a throttled out-of-band probe.
-		const windowKey = windows.map((w) => w.index).join(",");
-		const structural = activeIndex !== lastActiveIndex || windowKey !== lastWindowKey;
-		lastActiveIndex = activeIndex;
-		lastWindowKey = windowKey;
-		if (structural) {
-			recordActivePane(sessionName);
-			requestProbe();
-		}
-	});
-
-	syncMaxTimer = setTimeout(finishSync, syncMaxMs);
-
-	ptyProcess.onData((data: string) => {
-		if (syncing) {
-			scheduleSyncEnd();
+	function startPty() {
+		try {
+			ptyProcess = pty.spawn("tmux", ["attach-session", "-t", sessionName], {
+				name: "xterm-256color",
+				cols: 80,
+				rows: 24,
+				cwd: process.env.HOME || "/",
+				env: process.env as Record<string, string>,
+			});
+		} catch (err: any) {
+			sendServerMessage(ws, {
+				type: "data",
+				data: `\r\n\x1b[31mFailed to attach to tmux session "${sessionName}": ${err.message}\x1b[0m\r\n`,
+			});
+			closeWs(ws, 1011, "pty spawn failed");
 			return;
 		}
-		sendServerMessage(ws, { type: "data", data });
-	});
 
-	ptyProcess.onExit(({ exitCode }) => {
-		clearSyncTimers();
-		if (ptyProcess) activePtys.delete(ptyProcess);
-		ptyProcess = null;
-		sendServerMessage(ws, {
-			type: "data",
-			data: `\r\n\x1b[2m--- tmux exited (code ${exitCode}) ---\x1b[0m\r\n`,
+		activePtys.add(ptyProcess);
+
+		// Mirror tmux-side window switches back to this tab.
+		let lastActiveIndex = -1;
+		let lastWindowKey = "";
+		releaseControl = acquireControlClient(sessionName, ({ activeIndex, windows }) => {
+			sendServerMessage(ws, { type: "window_changed", activeIndex, windows });
+			const windowKey = windows.map((w) => w.index).join(",");
+			const structural = activeIndex !== lastActiveIndex || windowKey !== lastWindowKey;
+			lastActiveIndex = activeIndex;
+			lastWindowKey = windowKey;
+			if (structural) {
+				recordActivePane(sessionName);
+				requestProbe();
+			}
 		});
-		ws.close(1000, "pty exited");
-	});
 
-	ws.on("message", (raw) => {
-		if (!ptyProcess) return;
+		syncMaxTimer = setTimeout(finishSync, syncMaxMs);
+
+		ptyProcess.onData((data: string) => {
+			if (syncing) {
+				scheduleSyncEnd();
+				return;
+			}
+			sendServerMessage(ws, { type: "data", data });
+		});
+
+		ptyProcess.onExit(({ exitCode }) => {
+			clearSyncTimers();
+			if (ptyProcess) activePtys.delete(ptyProcess);
+			ptyProcess = null;
+			sendServerMessage(ws, {
+				type: "data",
+				data: `\r\n\x1b[2m--- tmux exited (code ${exitCode}) ---\x1b[0m\r\n`,
+			});
+			closeWs(ws, 1000, "pty exited");
+		});
+	}
+
+	function completeAuth(method: "password" | "token", tokenName: string): void {
+		client.authenticated = true;
+		if (client.authTimeout) {
+			clearTimeout(client.authTimeout);
+			client.authTimeout = null;
+		}
+		audit("auth_success", { ip, method, tokenName });
+		sendServerMessage(ws, { type: "auth.ok", setupMode: !securityConfig.passwordHash });
+		startPty();
+	}
+
+	function sendAuthFailed(message: string, extra: { retryAfterMs?: number; permanentLock?: boolean } = {}): void {
+		sendServerMessage(ws, { type: "auth.failed", message, ...extra });
+	}
+
+	async function handleAuthMessage(data: string): Promise<boolean> {
+		let msg: ClientMessage;
+		try {
+			msg = JSON.parse(data);
+		} catch {
+			return false;
+		}
+
+		if (msg.type === "auth.token" && typeof msg.token === "string") {
+			const stored = tokenStore.validateToken(msg.token);
+			if (!stored) {
+				audit("token_auth_failed", { ip });
+				const rate = rateLimiter.recordFailure(ip);
+				if (rate.permanentLock) {
+					tokenStore.revokeAll();
+					audit("permanent_lock", { ip, failures: rate.failures });
+				}
+				sendAuthFailed("Invalid or expired token", { permanentLock: rate.permanentLock, retryAfterMs: rate.retryAfterMs });
+				return true;
+			}
+			tokenStore.touch(stored.tokenHash);
+			completeAuth("token", stored.name);
+			return true;
+		}
+
+		if (msg.type === "auth" && typeof msg.password === "string") {
+			const rateResult = rateLimiter.check(ip);
+			if (!rateResult.allowed) {
+				audit("rate_limited", { ip, retryAfterMs: rateResult.retryAfterMs, permanentLock: rateResult.permanentLock });
+				sendAuthFailed("Too many attempts", { permanentLock: rateResult.permanentLock, retryAfterMs: rateResult.retryAfterMs });
+				return true;
+			}
+
+			// Setup mode.
+			if (!securityConfig.passwordHash) {
+				if (!securityConfig.security.allowRemoteSetup && !isLocalhostIp(ip)) {
+					audit("setup_rejected_remote", { ip });
+					sendAuthFailed("First-run setup must be performed from localhost");
+					return true;
+				}
+				if (settingUpPassword) {
+					sendAuthFailed("Password setup in progress");
+					return true;
+				}
+				const validationError = validatePassword(msg.password);
+				if (validationError) {
+					sendAuthFailed(validationError);
+					return true;
+				}
+				settingUpPassword = true;
+				try {
+					securityConfig.passwordHash = await hashPassword(msg.password);
+					saveSecurityConfig(securityConfig);
+					audit("password_set", { ip });
+				} finally {
+					settingUpPassword = false;
+				}
+				const { stored, plaintext } = tokenStore.createAccessToken("setup", securityConfig.security.tokenTtlDays);
+				sendServerMessage(ws, { type: "auth.ok", setupMode: true, token: plaintext });
+				audit("token_created", { ip, name: stored.name, tokenId: stored.id });
+				audit("auth_success", { ip, method: "password", tokenName: stored.name });
+				startPty();
+				return true;
+			}
+
+			// Normal password verification.
+			if (!securityConfig.passwordHash) {
+				sendAuthFailed("Server not configured");
+				return true;
+			}
+			const valid = await verifyPassword(msg.password, securityConfig.passwordHash);
+			if (!valid) {
+				const rate = rateLimiter.recordFailure(ip);
+				audit("auth_failed", { ip, method: "password", failures: rate.failures, permanentLock: rate.permanentLock });
+				if (rate.permanentLock) {
+					tokenStore.revokeAll();
+					audit("permanent_lock", { ip, failures: rate.failures });
+				}
+				sendAuthFailed("Incorrect password", { permanentLock: rate.permanentLock, retryAfterMs: rate.retryAfterMs });
+				return true;
+			}
+
+			rateLimiter.recordSuccess(ip);
+			const name = `ws-${ip}`;
+			const { plaintext } = tokenStore.createAccessToken(name, securityConfig.security.tokenTtlDays);
+			completeAuth("password", name);
+			sendServerMessage(ws, { type: "auth.ok", setupMode: false, token: plaintext });
+			return true;
+		}
+
+		return false;
+	}
+
+	// Pre-flight token from cookie/query param allows immediate attachment.
+	if (preflightToken) {
+		tokenStore.touch(preflightToken.tokenHash);
+		completeAuth("token", preflightToken.name);
+	} else {
+		sendServerMessage(ws, { type: "auth.required", setupMode: !securityConfig.passwordHash });
+		client.authTimeout = setTimeout(() => {
+			if (!client.authenticated) {
+				audit("auth_timeout", { ip });
+				sendAuthFailed("Authentication timeout");
+				closeWs(ws, 4000, "Auth timeout");
+			}
+		}, securityConfig.security.authTimeoutMs);
+	}
+
+	ws.on("message", async (raw) => {
 		const data = typeof raw === "string" ? raw : raw.toString("utf-8");
 
-		// input/resize go through the shared helper (covered by ws-message tests).
-		// A resize arriving after the pty exits can throw on a closed fd — ignore it.
+		if (!client.authenticated) {
+			// Ignore oversized messages before auth.
+			if (data.length > 1_000_000) {
+				sendServerMessage(ws, { type: "auth.failed", message: "Message too large" });
+				return;
+			}
+			const handled = await handleAuthMessage(data);
+			if (!handled) {
+				sendAuthFailed("Authentication required");
+			}
+			return;
+		}
+
+		if (!ptyProcess) return;
+
 		try {
 			if (handleClientMessage(data, ptyProcess)) return;
 		} catch {
 			return;
 		}
 
-		// Anything the helper didn't handle: load_history is the only other type.
 		let msg: ClientMessage;
 		try {
 			msg = JSON.parse(data);
@@ -991,6 +1419,9 @@ wss.on("connection", (ws: WebSocket, _req: import("http").IncomingMessage, sessi
 	});
 
 	ws.on("close", () => {
+		if (client.authTimeout) clearTimeout(client.authTimeout);
+		wsClients.delete(ws);
+		audit("ws_disconnected", { ip });
 		clearSyncTimers();
 		if (releaseControl) {
 			releaseControl();
@@ -1004,6 +1435,8 @@ wss.on("connection", (ws: WebSocket, _req: import("http").IncomingMessage, sessi
 	});
 
 	ws.on("error", () => {
+		if (client.authTimeout) clearTimeout(client.authTimeout);
+		wsClients.delete(ws);
 		clearSyncTimers();
 		if (releaseControl) {
 			releaseControl();
@@ -1020,6 +1453,11 @@ wss.on("connection", (ws: WebSocket, _req: import("http").IncomingMessage, sessi
 function cleanup() {
 	scheduler.cleanup();
 	killAllControlClients();
+	for (const [ws, client] of wsClients) {
+		try { ws.close(1001, "Server shutting down"); } catch {}
+		if (client.authTimeout) clearTimeout(client.authTimeout);
+	}
+	wsClients.clear();
 	for (const p of activePtys) {
 		try { p.kill(); } catch {}
 	}
@@ -1027,8 +1465,14 @@ function cleanup() {
 	for (const child of extChildren) {
 		try { child.kill("SIGTERM"); } catch {}
 	}
+	rateLimiter.dispose();
 	process.exit(0);
 }
 
 process.on("SIGINT", cleanup);
 process.on("SIGTERM", cleanup);
+
+// Purge expired tokens hourly.
+setInterval(() => {
+	tokenStore.purgeExpired();
+}, 60 * 60 * 1000).unref();

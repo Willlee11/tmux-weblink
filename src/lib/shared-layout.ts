@@ -132,7 +132,23 @@ export function sharedHeader(opts: {
 	title?: string;
 }): string {
 	const { commandbarEnabled, title = 'TMUX Sessions' } = opts;
-	return `<header class="fixed-header">
+	return `<script>
+(function() {
+  const token = localStorage.getItem('tmux-web-token');
+  if (token) {
+    const orig = window.fetch;
+    window.fetch = function(input, init) {
+      init = init || {};
+      const headers = init.headers || {};
+      if (typeof headers === 'object' && !Array.isArray(headers) && !headers['Authorization'] && !headers['authorization']) {
+        init.headers = { ...headers, Authorization: 'Bearer ' + token };
+      }
+      return orig(input, init);
+    };
+  }
+})();
+</script>
+<header class="fixed-header">
   <h1>${title}</h1>
   <div class="header-actions">
     ${commandbarEnabled ? commandbarButtonHTML('Search') : ''}
