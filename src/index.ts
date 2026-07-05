@@ -1113,7 +1113,7 @@ app.patch("/api/schedule/:id", requireAuth(), async (c) => {
 
 // ── WebSocket server ───────────────────────────────────────────────────────
 
-const port = parseInt(process.env.PORT || "3000", 10);
+const port = parseInt(process.env.PORT || "21000", 10);
 
 const server = serve({ fetch: app.fetch, port }, (info) => {
 	console.log(`tmux-web running at http://localhost:${info.port}`);
