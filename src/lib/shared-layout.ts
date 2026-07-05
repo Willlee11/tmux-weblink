@@ -88,7 +88,7 @@ export function themeSwitcherScript(): string {
 export function sharedLayoutCSS(extraCSS = ''): string {
 	return `
   *, *::before, *::after { box-sizing: border-box; }
-  html, body { background: var(--page-bg); color: var(--page-fg); min-height: 100%; font-family: 'Inter', system-ui, -apple-system, sans-serif; margin: 0; padding: 0; }
+  html, body { background: var(--page-bg); color: var(--page-fg); min-height: 100%; font-family: var(--font-sans); margin: 0; padding: 0; }
 
   /* ── Fixed header ── */
   .fixed-header {
@@ -100,7 +100,7 @@ export function sharedLayoutCSS(extraCSS = ''): string {
     padding: 0 16px; height: 56px;
   }
   .fixed-header .brand {
-    font-size: 16px; font-weight: 600; letter-spacing: -0.01em; color: var(--page-fg);
+    font-size: var(--text-base); font-weight: 600; letter-spacing: -0.01em; color: var(--page-fg);
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
   .fixed-header .brand span { color: var(--panel-accent); font-weight: 500; }
@@ -110,7 +110,7 @@ export function sharedLayoutCSS(extraCSS = ''): string {
     background: none; border: none; color: var(--panel-muted); cursor: pointer;
     min-width: 44px; min-height: 44px; padding: 8px 12px; border-radius: 10px;
     transition: color 0.15s, background 0.15s;
-    font-size: 13px; text-decoration: none;
+    font-size: var(--text-sm); text-decoration: none;
   }
   .header-btn:hover, .icon-btn:hover { color: var(--panel-accent); background: color-mix(in srgb, var(--panel-accent) 8%, transparent); }
   .header-btn:focus-visible, .icon-btn:focus-visible { ${focusRing()} }
@@ -123,7 +123,7 @@ export function sharedLayoutCSS(extraCSS = ''): string {
     background: none; border: none; color: var(--panel-muted); cursor: pointer;
     min-width: 44px; min-height: 44px; padding: 8px 12px; border-radius: 10px;
     transition: color 0.15s, background 0.15s;
-    font-size: 13px; text-decoration: none; font-family: inherit;
+    font-size: var(--text-sm); text-decoration: none; font-family: inherit;
   }
   .theme-switcher-btn:hover { color: var(--panel-accent); background: color-mix(in srgb, var(--panel-accent) 8%, transparent); }
   .theme-switcher-btn:focus-visible { ${focusRing()} }
@@ -139,7 +139,7 @@ export function sharedLayoutCSS(extraCSS = ''): string {
   .theme-option {
     display: flex; align-items: center; gap: 10px; width: 100%;
     min-height: 44px; padding: 10px 12px; border-radius: 8px; border: none; background: none;
-    color: var(--page-fg); font-size: 14px; cursor: pointer; text-align: left; font-family: inherit;
+    color: var(--page-fg); font-size: var(--text-sm); cursor: pointer; text-align: left; font-family: inherit;
   }
   .theme-option:hover { background: color-mix(in srgb, var(--panel-accent) 8%, transparent); color: var(--panel-accent); }
   .theme-option:focus-visible { ${focusRing()} }
@@ -163,7 +163,7 @@ export function sharedLayoutCSS(extraCSS = ''): string {
     margin-right: 0; position: sticky; top: 80px;
   }
   .sidebar-label {
-    font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase;
+    font-size: var(--text-xs); letter-spacing: 0.08em; text-transform: uppercase;
     color: var(--panel-muted); margin: 0 0 12px 4px; font-weight: 500;
   }
   .sidebar-btn {
@@ -171,7 +171,7 @@ export function sharedLayoutCSS(extraCSS = ''): string {
     width: 100%; min-height: 44px;
     padding: 10px 14px; border: 1px solid transparent; border-radius: 12px;
     background: transparent; color: var(--page-fg); cursor: pointer;
-    font-size: 14px; font-family: inherit; text-decoration: none;
+    font-size: var(--text-sm); font-family: inherit; text-decoration: none;
     transition: background 0.15s, color 0.15s; margin-bottom: 4px;
     text-align: left;
   }
@@ -200,13 +200,13 @@ export function sharedLayoutCSS(extraCSS = ''): string {
     background: var(--panel-bg); border: 1px solid var(--panel-border);
     border-radius: 20px; padding: 24px; width: 100%; max-width: 440px;
   }
-  .modal-panel h2 { font-size: 20px; font-weight: 600; margin: 0 0 20px; color: var(--page-fg); }
+  .modal-panel h2 { font-size: var(--text-lg); font-weight: 600; margin: 0 0 20px; color: var(--page-fg); }
   .modal-field { margin-bottom: 18px; position: relative; }
-  .modal-field label { display: block; font-size: 13px; font-weight: 500; color: var(--page-fg); margin-bottom: 8px; }
+  .modal-field label { display: block; font-size: var(--text-sm); font-weight: 500; color: var(--page-fg); margin-bottom: 8px; }
   .modal-field input {
     width: 100%; padding: 13px 15px; background: var(--page-bg);
     border: 1px solid var(--panel-border); border-radius: 14px;
-    color: var(--page-fg); font-size: 15px; font-family: inherit;
+    color: var(--page-fg); font-size: var(--text-base); font-family: inherit;
     outline: none; transition: border-color 0.15s, box-shadow 0.15s;
   }
   .modal-field input:focus { border-color: var(--panel-accent); box-shadow: 0 0 0 4px color-mix(in srgb, var(--panel-accent) 8%, transparent); }
@@ -220,17 +220,17 @@ export function sharedLayoutCSS(extraCSS = ''): string {
   .modal-dropdown.open { display: block; }
   .modal-dropdown-item {
     display: flex; align-items: center;
-    min-height: 44px; padding: 10px 14px; font-size: 14px; color: var(--page-fg); cursor: pointer;
+    min-height: 44px; padding: 10px 14px; font-size: var(--text-sm); color: var(--page-fg); cursor: pointer;
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
   .modal-dropdown-item:hover, .modal-dropdown-item.active, .modal-dropdown-item:focus-visible {
     background: color-mix(in srgb, var(--panel-accent) 8%, transparent); color: var(--panel-accent);
   }
   .modal-dropdown-item:focus-visible { outline: none; box-shadow: inset 0 0 0 2px var(--panel-accent); }
-  .modal-error { font-size: 13px; color: #b91c1c; margin-bottom: 12px; display: none; }
+  .modal-error { font-size: var(--text-sm); color: #b91c1c; margin-bottom: 12px; display: none; }
   .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 8px; }
   .modal-btn {
-    min-height: 44px; padding: 10px 20px; border-radius: 12px; font-size: 14px; font-family: inherit;
+    min-height: 44px; padding: 10px 20px; border-radius: 12px; font-size: var(--text-sm); font-family: inherit;
     cursor: pointer; border: 1px solid var(--panel-border); background: var(--panel-bg);
     color: var(--page-fg); transition: opacity 0.15s;
   }

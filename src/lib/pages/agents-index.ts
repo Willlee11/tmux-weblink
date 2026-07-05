@@ -20,17 +20,17 @@ export function renderAgentsIndex(
 	const labels = JSON.stringify(AGENT_LABELS).replace(/</g, '\\u003c');
 
 	const pageSpecificCSS = `
-  .sub { font-size: 13px; color: var(--panel-muted); margin-bottom: 24px; line-height: 1.5; }
+  .sub { font-size: var(--text-sm); color: var(--panel-muted); margin-bottom: 24px; line-height: 1.5; }
   .agent {
     display: flex; align-items: center; gap: 12px; text-decoration: none;
     padding: 14px 16px; border: 1px solid var(--panel-border); border-radius: 12px;
     margin-bottom: 8px; background: var(--panel-bg); transition: border-color 0.15s, transform 0.1s;
   }
   .agent:hover { border-color: var(--panel-accent); transform: translateY(-1px); }
-  .agent .name { font-size: 14px; font-weight: 600; color: var(--page-fg); flex: 1; }
-  .agent .loc { font-size: 12px; color: var(--panel-muted); }
+  .agent .name { font-size: var(--text-sm); font-weight: 600; color: var(--page-fg); flex: 1; }
+  .agent .loc { font-size: var(--text-xs); color: var(--panel-muted); }
   .badge {
-    font-size: 10px; letter-spacing: 0.05em; text-transform: uppercase;
+    font-size: var(--text-xs); letter-spacing: 0.05em; text-transform: uppercase;
     padding: 4px 10px; border-radius: 10px; border: 1px solid var(--panel-border);
     flex-shrink: 0; min-width: 64px; text-align: center;
   }
@@ -41,7 +41,7 @@ export function renderAgentsIndex(
   .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; background: var(--panel-muted); }
   .dot.working { background: var(--panel-success); }
   .dot.blocked { background: #f0c674; }
-  .empty { font-size: 14px; color: var(--panel-muted); line-height: 1.6; margin-top: 20px; }
+  .empty { font-size: var(--text-sm); color: var(--panel-muted); line-height: 1.6; margin-top: 20px; }
   @media (max-width: 560px) {
     .agent { flex-wrap: wrap; gap: 8px; }
     .agent .loc { width: 100%; order: 3; }
@@ -55,7 +55,7 @@ export function renderAgentsIndex(
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-<title>Agents — tmux-web</title>
+<title>Agents - tmux-web</title>
 <style>
   ${cssVarsStyle(theme.shell)}
   ${sharedLayoutCSS(pageSpecificCSS)}
@@ -79,7 +79,7 @@ ${sharedHeader({ commandbarEnabled, title: 'Agents', themeTemplate: theme.templa
 
 ${newSessionModalHTML()}
 ${commandbarEnabled ? commandbarHTML() : ''}
-${notesDrawerHTML('Notes — Global')}
+${notesDrawerHTML('Notes - Global')}
 
 <script type="module">
 ${notesDrawerScript('__global__')}

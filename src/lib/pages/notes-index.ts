@@ -34,7 +34,7 @@ export function renderNotesIndex(
 		const isGlobal = n.scope === '__global__';
 		const label = isGlobal ? 'Global' : n.scope.replace(/^session:/, '');
 		const href = isGlobal ? '/notes/__global__' : '/notes/' + encodeURIComponent(n.scope.replace(/^session:/, ''));
-		const preview = escapeHtml((n.content || '').slice(0, 200).trim() || '—');
+		const preview = escapeHtml((n.content || '').slice(0, 200).trim() || 'No content');
 		const date = escapeHtml(formatDate(n.updatedAt));
 		return `<a class="note-card" href="${href}">
   <div class="label ${isGlobal ? 'global' : ''}">${escapeHtml(label)}</div>
@@ -55,21 +55,21 @@ export function renderNotesIndex(
   }
   .note-card:hover { border-color: var(--panel-accent); transform: translateY(-1px); box-shadow: 0 4px 20px color-mix(in srgb, var(--panel-accent) 8%, transparent); }
   .note-card .label {
-    font-size: 12px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase;
+    font-size: var(--text-xs); font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase;
     color: var(--panel-accent); margin-bottom: 6px;
   }
   .note-card .label.global { color: var(--panel-success); }
   .note-card .preview {
-    font-size: 13px; color: var(--panel-muted); line-height: 1.5;
+    font-size: var(--text-sm); color: var(--panel-muted); line-height: 1.5;
     white-space: pre-wrap; word-break: break-word;
     display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical;
     overflow: hidden;
   }
   .note-card .meta {
-    font-size: 12px; color: var(--panel-muted); margin-top: 10px;
+    font-size: var(--text-xs); color: var(--panel-muted); margin-top: 10px;
     display: flex; justify-content: space-between;
   }
-  .empty { font-size: 14px; color: var(--panel-muted); line-height: 1.6; margin-top: 20px; }
+  .empty { font-size: var(--text-sm); color: var(--panel-muted); line-height: 1.6; margin-top: 20px; }
   ${commandbarEnabled ? commandbarCSS() : ''}
   ${notesDrawerCSS()}`;
 
@@ -79,7 +79,7 @@ export function renderNotesIndex(
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-<title>Notes — tmux-web</title>
+<title>Notes - tmux-web</title>
 <style>
   ${cssVarsStyle(theme.shell)}
   ${sharedLayoutCSS(pageSpecificCSS)}
@@ -100,7 +100,7 @@ ${sharedHeader({ commandbarEnabled, title: 'All Notes', themeTemplate: theme.tem
 
 ${newSessionModalHTML()}
 ${commandbarEnabled ? commandbarHTML() : ''}
-${notesDrawerHTML('Notes — Global')}
+${notesDrawerHTML('Notes - Global')}
 
 <script type="module">
 ${notesDrawerScript('__global__')}

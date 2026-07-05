@@ -128,12 +128,12 @@ export function renderScheduleIndex(
 	const pageSpecificCSS = `
   .session-head {
     display: flex; align-items: center; gap: 8px; text-decoration: none;
-    font-size: 12px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase;
+    font-size: var(--text-xs); font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase;
     color: var(--panel-accent); margin-bottom: 8px;
   }
   .session-head:hover .sname { text-decoration: underline; }
   .session-head .scount {
-    font-size: 11px; color: var(--panel-success); border: 1px solid var(--panel-border);
+    font-size: var(--text-xs); color: var(--panel-success); border: 1px solid var(--panel-border);
     border-radius: 10px; padding: 2px 9px; text-transform: none; letter-spacing: 0;
   }
   .session-group { margin-bottom: 18px; }
@@ -144,21 +144,21 @@ export function renderScheduleIndex(
   }
   .task-row1 { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
   .task .cmd {
-    font-size: 13px; color: var(--page-fg);
+    font-size: var(--text-sm); color: var(--page-fg);
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   }
   .task .countdown {
-    font-size: 13px; font-weight: 600; color: var(--panel-success);
+    font-size: var(--text-sm); font-weight: 600; color: var(--panel-success);
     flex-shrink: 0; min-width: 56px; text-align: right;
   }
   .task .countdown.urgent { color: #f0c674; }
   .task .countdown.imminent { color: #cc6666; }
   .task-row2 { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
-  .task .meta { font-size: 12px; color: var(--panel-muted); }
+  .task .meta { font-size: var(--text-xs); color: var(--panel-muted); }
   .win-link { color: var(--panel-accent); text-decoration: none; }
   .win-link:hover { text-decoration: underline; }
   .cancel-btn {
-    font-size: 11px; color: var(--panel-muted); background: none;
+    font-size: var(--text-xs); color: var(--panel-muted); background: none;
     border: 1px solid var(--panel-border); padding: 6px 12px; border-radius: 6px;
     cursor: pointer; font-family: inherit; transition: all 0.15s;
     min-height: 32px;
@@ -166,7 +166,7 @@ export function renderScheduleIndex(
   .cancel-btn:hover { border-color: #cc6666; color: #cc6666; background: color-mix(in srgb, #cc6666 8%, transparent); }
   .cancel-btn:focus-visible { box-shadow: 0 0 0 2px #cc6666; outline: none; }
   .reschedule-btn {
-    font-size: 11px; color: var(--panel-muted); background: none;
+    font-size: var(--text-xs); color: var(--panel-muted); background: none;
     border: 1px solid var(--panel-border); padding: 6px 12px; border-radius: 6px;
     cursor: pointer; font-family: inherit; transition: all 0.15s; margin-right: 4px;
     min-height: 32px;
@@ -180,7 +180,7 @@ export function renderScheduleIndex(
   .reschedule-row.active { display: flex; }
   .reschedule-presets { display: flex; gap: 6px; }
   .reschedule-preset-btn {
-    font-size: 11px; color: var(--panel-muted); background: none;
+    font-size: var(--text-xs); color: var(--panel-muted); background: none;
     border: 1px solid var(--panel-border); padding: 6px 12px; border-radius: 6px;
     cursor: pointer; font-family: inherit; transition: all 0.15s;
     min-height: 32px;
@@ -190,13 +190,13 @@ export function renderScheduleIndex(
   .reschedule-input-row { display: flex; gap: 8px; align-items: center; }
   .reschedule-input {
     flex: 1; background: color-mix(in srgb, var(--page-bg) 70%, transparent); border: 1px solid var(--panel-border);
-    color: var(--page-fg); font-family: inherit; font-size: 12px;
+    color: var(--page-fg); font-family: inherit; font-size: var(--text-xs);
     padding: 6px 10px; border-radius: 6px; outline: none; transition: border-color 0.15s;
   }
   .reschedule-input:focus { border-color: var(--panel-accent); box-shadow: 0 0 0 4px color-mix(in srgb, var(--panel-accent) 8%, transparent); }
   .reschedule-input.error { border-color: #cc6666; }
   .reschedule-confirm-btn {
-    font-size: 12px; background: color-mix(in srgb, var(--panel-success) 12%, transparent);
+    font-size: var(--text-xs); background: color-mix(in srgb, var(--panel-success) 12%, transparent);
     border: 1px solid var(--panel-success); color: var(--panel-success);
     padding: 8px 16px; border-radius: 6px; cursor: pointer; font-family: inherit;
     min-height: 36px;
@@ -204,10 +204,10 @@ export function renderScheduleIndex(
   .reschedule-confirm-btn:hover { background: color-mix(in srgb, var(--panel-success) 22%, transparent); }
   .reschedule-confirm-btn:focus-visible { box-shadow: 0 0 0 2px var(--panel-success); outline: none; }
   .reschedule-confirm-btn:disabled { opacity: 0.4; cursor: not-allowed; }
-  .reschedule-error { font-size: 11px; color: #cc6666; }
+  .reschedule-error { font-size: var(--text-xs); color: #cc6666; }
   .page-tab-bar { display: flex; gap: 4px; border-bottom: 1px solid var(--panel-border); margin-bottom: 20px; }
   .page-tab {
-    font-size: 12px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase;
+    font-size: var(--text-xs); font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase;
     color: var(--panel-muted); background: none; border: none; cursor: pointer;
     padding: 10px 16px; font-family: inherit; border-bottom: 2px solid transparent;
     margin-bottom: -1px; transition: color 0.15s, border-color 0.15s;
@@ -219,19 +219,19 @@ export function renderScheduleIndex(
   .tab-panel { display: none; }
   .tab-panel.active { display: block; }
   .status-pill {
-    font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;
+    font-size: var(--text-xs); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;
     border: 1px solid var(--panel-border); border-radius: 10px; padding: 2px 10px; flex-shrink: 0;
   }
   .status-pill.status-ok { color: var(--panel-success); border-color: var(--panel-success); }
   .status-pill.status-error { color: #cc6666; border-color: #cc6666; }
   .status-pill.status-missed { color: var(--panel-muted); }
-  .trig-target { font-size: 12px; color: var(--panel-accent); text-decoration: none; }
+  .trig-target { font-size: var(--text-xs); color: var(--panel-accent); text-decoration: none; }
   .trig-target:hover { text-decoration: underline; }
   .trig-error {
-    font-size: 11px; color: #cc6666; white-space: pre-wrap; word-break: break-word;
+    font-size: var(--text-xs); color: #cc6666; white-space: pre-wrap; word-break: break-word;
     margin-top: 2px; padding-top: 6px; border-top: 1px solid var(--panel-border);
   }
-  .empty { font-size: 14px; color: var(--panel-muted); line-height: 1.6; margin-top: 20px; }
+  .empty { font-size: var(--text-sm); color: var(--panel-muted); line-height: 1.6; margin-top: 20px; }
   @media (max-width: 560px) {
     .task-row2 { flex-direction: column; align-items: flex-start; gap: 8px; }
     .reschedule-input-row { flex-direction: column; align-items: stretch; }
@@ -246,7 +246,7 @@ export function renderScheduleIndex(
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-<title>Scheduled tasks — tmux-web</title>
+<title>Scheduled tasks - tmux-web</title>
 <style>
   ${cssVarsStyle(theme.shell)}
   ${sharedLayoutCSS(pageSpecificCSS)}
@@ -276,7 +276,7 @@ ${sharedHeader({ commandbarEnabled, title: 'Scheduled', themeTemplate: theme.tem
 
 ${newSessionModalHTML()}
 ${commandbarEnabled ? commandbarHTML() : ''}
-${notesDrawerHTML('Notes — Global')}
+${notesDrawerHTML('Notes - Global')}
 
 <script type="module">
 ${notesDrawerScript('__global__')}

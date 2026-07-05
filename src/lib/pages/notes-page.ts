@@ -25,10 +25,10 @@ export function renderNotesPage(session: string, theme: TmuxWebTheme, commandbar
 <title>Notes - ${labelHtml} - tmux-web</title>
 <style>
   ${cssVarsStyle(theme.shell)}
-  html, body { background: var(--page-bg); color: var(--page-fg); min-height: 100%; font-family: 'JetBrains Mono', 'SF Mono', 'Menlo', monospace; }
+  html, body { background: var(--page-bg); color: var(--page-fg); min-height: 100%; font-family: var(--font-mono); }
   .container { max-width: 720px; margin: 40px auto; padding: 0 20px; }
   .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
-  .breadcrumb { font-size: 13px; color: var(--panel-muted); }
+  .breadcrumb { font-size: var(--text-sm); color: var(--panel-muted); }
   .breadcrumb a { color: var(--panel-muted); text-decoration: none; }
   .breadcrumb a:hover { color: var(--panel-accent); }
   .breadcrumb span { color: var(--panel-accent); font-weight: 500; }
@@ -37,9 +37,9 @@ export function renderNotesPage(session: string, theme: TmuxWebTheme, commandbar
     border-bottom: 1px solid var(--panel-border); flex-wrap: wrap;
   }
   .toolbar button {
-    font-size: 12px; color: var(--panel-muted); background: none;
+    font-size: var(--text-xs); color: var(--panel-muted); background: none;
     border: 1px solid var(--panel-border); padding: 8px 14px; border-radius: 8px;
-    cursor: pointer; font-family: 'JetBrains Mono', monospace; transition: all 0.15s;
+    cursor: pointer; font-family: var(--font-mono); transition: all 0.15s;
     min-height: 36px;
   }
   .toolbar button:hover { border-color: var(--panel-accent); color: var(--panel-accent); background: color-mix(in srgb, var(--panel-accent) 8%, transparent); }
@@ -47,13 +47,13 @@ export function renderNotesPage(session: string, theme: TmuxWebTheme, commandbar
   .toolbar button:disabled { opacity: 0.4; cursor: not-allowed; }
   .toolbar button.flash { color: var(--panel-success); border-color: var(--panel-success); }
   .toolbar .badge {
-    font-size: 10px; color: var(--panel-success); letter-spacing: 0.1em; text-transform: uppercase;
+    font-size: var(--text-xs); color: var(--panel-success); letter-spacing: 0.1em; text-transform: uppercase;
     opacity: 0; transition: opacity 0.15s; margin-left: auto;
   }
   .toolbar .badge.show { opacity: 1; }
   #notes-editor {
     min-height: 400px; padding: 16px; outline: none;
-    font-size: 14px; line-height: 1.7; font-family: 'JetBrains Mono', monospace;
+    font-size: var(--text-sm); line-height: 1.7; font-family: var(--font-mono);
     white-space: pre-wrap; word-break: break-word; color: var(--page-fg);
     border: 1px solid transparent; border-radius: 8px;
     transition: border-color 0.15s, background 0.15s;

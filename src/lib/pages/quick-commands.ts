@@ -49,10 +49,10 @@ export function renderQuickCommandsPage(
 
 	const pageSpecificCSS = `
   .intro {
-    margin: 0 0 18px; color: var(--panel-muted); font-size: 13px; line-height: 1.6;
+    margin: 0 0 18px; color: var(--panel-muted); font-size: var(--text-sm); line-height: 1.6;
   }
   .quick-section-title {
-    color: var(--panel-accent); font-size: 12px; letter-spacing: 0.08em;
+    color: var(--panel-accent); font-size: var(--text-xs); letter-spacing: 0.08em;
     margin: 24px 0 10px; text-transform: uppercase;
   }
   .quick-card {
@@ -73,15 +73,15 @@ export function renderQuickCommandsPage(
     display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;
   }
   .quick-title {
-    color: var(--page-fg); font-size: 15px; font-weight: 600; margin-bottom: 4px;
+    color: var(--page-fg); font-size: var(--text-base); font-weight: 600; margin-bottom: 4px;
   }
   .quick-meta {
-    color: var(--panel-muted); font-size: 12px; line-height: 1.5;
+    color: var(--panel-muted); font-size: var(--text-xs); line-height: 1.5;
   }
   .quick-command-preview {
     margin: 0; padding: 10px 12px; border: 1px solid color-mix(in srgb, var(--panel-accent) 15%, transparent);
     border-radius: 8px; background: color-mix(in srgb, var(--page-bg) 60%, transparent);
-    color: var(--panel-accent); font-size: 12px; line-height: 1.5;
+    color: var(--panel-accent); font-size: var(--text-xs); line-height: 1.5;
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   }
   .quick-icon-actions {
@@ -107,12 +107,12 @@ export function renderQuickCommandsPage(
     display: flex; flex-direction: column; gap: 6px;
   }
   .quick-form label span {
-    color: var(--panel-muted); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--panel-muted); font-size: var(--text-xs); letter-spacing: 0.08em; text-transform: uppercase;
   }
   .quick-form input,
   .quick-form textarea {
     width: 100%; border: 1px solid var(--panel-border); border-radius: 8px;
-    background: var(--page-bg); color: var(--page-fg); font: inherit; font-size: 13px;
+    background: var(--page-bg); color: var(--page-fg); font: inherit; font-size: var(--text-sm);
     padding: 10px 12px; outline: none; transition: border-color 0.15s, box-shadow 0.15s;
   }
   .quick-form textarea {
@@ -128,7 +128,7 @@ export function renderQuickCommandsPage(
   .quick-save,
   .quick-cancel {
     border: 1px solid var(--panel-border); border-radius: 8px;
-    background: none; color: var(--page-fg); font: inherit; font-size: 13px;
+    background: none; color: var(--page-fg); font: inherit; font-size: var(--text-sm);
     padding: 10px 16px; cursor: pointer; transition: border-color 0.15s, color 0.15s, background 0.15s;
     min-height: 44px;
   }
@@ -161,16 +161,16 @@ export function renderQuickCommandsPage(
     margin-bottom: 18px;
   }
   .quick-drawer-header h2 {
-    margin: 0 0 6px; color: var(--panel-accent); font-size: 14px;
+    margin: 0 0 6px; color: var(--panel-accent); font-size: var(--text-sm);
     letter-spacing: 0.08em; text-transform: uppercase;
   }
   .quick-drawer-header p {
-    margin: 0; color: var(--panel-muted); font-size: 12px; line-height: 1.5;
+    margin: 0; color: var(--panel-muted); font-size: var(--text-xs); line-height: 1.5;
   }
   .quick-drawer-close {
     display: flex; align-items: center; justify-content: center;
     background: none; border: none; color: var(--panel-muted); cursor: pointer;
-    font-size: 24px; line-height: 1; min-width: 44px; min-height: 44px; padding: 8px; border-radius: 8px;
+    font-size: var(--text-xl); line-height: 1; min-width: 44px; min-height: 44px; padding: 8px; border-radius: 8px;
     transition: color 0.15s, background 0.15s;
   }
   .quick-drawer-close:hover { color: var(--panel-accent); background: color-mix(in srgb, var(--panel-accent) 8%, transparent); }
@@ -179,10 +179,10 @@ export function renderQuickCommandsPage(
     display: flex; flex-direction: column; gap: 12px;
   }
   .quick-error {
-    display: none; margin: 0 0 12px; color: #fc8181; font-size: 12px;
+    display: none; margin: 0 0 12px; color: #fc8181; font-size: var(--text-xs);
   }
   .quick-error.open { display: block; }
-  .empty { font-size: 14px; color: var(--panel-muted); line-height: 1.6; margin: 0 0 16px; }
+  .empty { font-size: var(--text-sm); color: var(--panel-muted); line-height: 1.6; margin: 0 0 16px; }
   @media (max-width: 560px) {
     .quick-card-head { flex-wrap: wrap; }
     .quick-icon-actions { width: 100%; justify-content: flex-end; }
@@ -195,7 +195,7 @@ export function renderQuickCommandsPage(
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-<title>Quick Commands — tmux-web</title>
+<title>Quick Commands - tmux-web</title>
 <style>
   ${cssVarsStyle(theme.shell)}
   ${sharedLayoutCSS(pageSpecificCSS)}

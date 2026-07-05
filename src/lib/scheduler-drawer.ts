@@ -29,13 +29,13 @@ export function schedulerDrawerCSS(): string {
   }
   .sched-field-row { display: flex; gap: 8px; align-items: center; }
   .sched-field-row label {
-    font-size: 10px; color: var(--panel-muted); text-transform: uppercase;
-    letter-spacing: 0.08em; font-family: 'JetBrains Mono', monospace;
+    font-size: var(--text-xs); color: var(--panel-muted); text-transform: uppercase;
+    letter-spacing: 0.08em; font-family: var(--font-mono);
     width: 56px; flex-shrink: 0;
   }
   .sched-input {
     flex: 1; background: color-mix(in srgb, var(--page-bg) 70%, transparent); border: 1px solid var(--panel-border);
-    color: var(--page-fg); font-family: 'JetBrains Mono', monospace; font-size: 12px;
+    color: var(--page-fg); font-family: var(--font-mono); font-size: var(--text-xs);
     padding: 5px 9px; border-radius: 6px; outline: none; transition: border-color 0.15s;
   }
   .sched-input:focus { border-color: var(--panel-accent); }
@@ -43,9 +43,9 @@ export function schedulerDrawerCSS(): string {
   select.sched-input { cursor: pointer; }
   .sched-presets { display: flex; gap: 6px; padding-left: 64px; }
   .sched-preset-btn {
-    font-size: 11px; color: var(--panel-muted); background: none;
+    font-size: var(--text-xs); color: var(--panel-muted); background: none;
     border: 1px solid var(--panel-border); padding: 6px 12px; border-radius: 6px;
-    cursor: pointer; font-family: 'JetBrains Mono', monospace; transition: all 0.15s;
+    cursor: pointer; font-family: var(--font-mono); transition: all 0.15s;
     min-height: 32px;
   }
   .sched-preset-btn:hover { border-color: var(--panel-accent); color: var(--panel-accent); background: color-mix(in srgb, var(--panel-accent) 8%, transparent); }
@@ -54,13 +54,13 @@ export function schedulerDrawerCSS(): string {
     display: flex; justify-content: space-between; align-items: center; gap: 8px;
   }
   .sched-error-msg {
-    font-size: 11px; color: #cc6666; font-family: 'JetBrains Mono', monospace; flex: 1;
+    font-size: var(--text-xs); color: #cc6666; font-family: var(--font-mono); flex: 1;
   }
   .sched-submit-btn {
-    font-size: 12px; background: color-mix(in srgb, var(--panel-success) 12%, transparent);
+    font-size: var(--text-xs); background: color-mix(in srgb, var(--panel-success) 12%, transparent);
     border: 1px solid var(--panel-success); color: var(--panel-success);
     padding: 8px 18px; border-radius: 6px; cursor: pointer; flex-shrink: 0;
-    font-family: 'JetBrains Mono', monospace; transition: all 0.15s;
+    font-family: var(--font-mono); transition: all 0.15s;
     min-height: 44px;
   }
   .sched-submit-btn:hover { background: color-mix(in srgb, var(--panel-success) 22%, transparent); }
@@ -68,13 +68,13 @@ export function schedulerDrawerCSS(): string {
   .sched-submit-btn:disabled { opacity: 0.4; cursor: not-allowed; }
   .sched-tasks-section { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
   .sched-tasks-header {
-    padding: 8px 16px; font-size: 10px; color: var(--panel-muted);
-    text-transform: uppercase; letter-spacing: 0.1em; font-family: 'JetBrains Mono', monospace;
+    padding: 8px 16px; font-size: var(--text-xs); color: var(--panel-muted);
+    text-transform: uppercase; letter-spacing: 0.1em; font-family: var(--font-mono);
     border-bottom: 1px solid var(--panel-border); flex-shrink: 0;
     display: flex; justify-content: space-between; align-items: center;
   }
   .sched-task-count {
-    font-size: 10px; color: var(--panel-success); font-family: 'JetBrains Mono', monospace;
+    font-size: var(--text-xs); color: var(--panel-success); font-family: var(--font-mono);
   }
   .sched-task-list {
     flex: 1; overflow-y: auto;
@@ -94,34 +94,34 @@ export function schedulerDrawerCSS(): string {
   .sched-task-item:last-child { border-bottom: none; }
   .sched-task-row1 { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
   .sched-task-cmd {
-    font-size: 12px; color: var(--panel-accent); font-family: 'JetBrains Mono', monospace;
+    font-size: var(--text-xs); color: var(--panel-accent); font-family: var(--font-mono);
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   }
   .sched-countdown {
-    font-size: 12px; color: var(--panel-success); font-family: 'JetBrains Mono', monospace;
+    font-size: var(--text-xs); color: var(--panel-success); font-family: var(--font-mono);
     font-weight: 600; flex-shrink: 0; min-width: 48px; text-align: right;
   }
   .sched-countdown.urgent { color: #f0c674; }
   .sched-countdown.imminent { color: #cc6666; }
   .sched-task-row2 { display: flex; justify-content: space-between; align-items: center; }
   .sched-task-meta {
-    font-size: 10px; color: var(--panel-muted); font-family: 'JetBrains Mono', monospace;
+    font-size: var(--text-xs); color: var(--panel-muted); font-family: var(--font-mono);
   }
   .sched-cancel-btn {
-    font-size: 11px; color: var(--panel-muted); background: none;
+    font-size: var(--text-xs); color: var(--panel-muted); background: none;
     border: 1px solid var(--panel-border); padding: 6px 10px; border-radius: 6px;
-    cursor: pointer; font-family: 'JetBrains Mono', monospace; transition: all 0.15s;
+    cursor: pointer; font-family: var(--font-mono); transition: all 0.15s;
     min-height: 32px;
   }
   .sched-cancel-btn:hover { border-color: #cc6666; color: #cc6666; background: color-mix(in srgb, #cc6666 8%, transparent); }
   .sched-cancel-btn:focus-visible { box-shadow: 0 0 0 2px #cc6666; outline: none; }
   .sched-empty {
-    padding: 32px 16px; text-align: center; font-size: 12px;
-    color: var(--panel-muted); font-family: 'JetBrains Mono', monospace;
+    padding: 32px 16px; text-align: center; font-size: var(--text-xs);
+    color: var(--panel-muted); font-family: var(--font-mono);
   }
   #sched-drawer .drawer-header button {
     background: none; border: none; color: var(--panel-muted); cursor: pointer;
-    font-size: 18px; line-height: 1; min-width: 44px; min-height: 44px; padding: 8px; border-radius: 8px; transition: color 0.15s, background 0.15s;
+    font-size: var(--text-lg); line-height: 1; min-width: 44px; min-height: 44px; padding: 8px; border-radius: 8px; transition: color 0.15s, background 0.15s;
   }
   #sched-drawer .drawer-header button:hover { color: var(--panel-accent); background: color-mix(in srgb, var(--panel-accent) 8%, transparent); }
   #sched-drawer .drawer-header button:focus-visible { box-shadow: 0 0 0 2px var(--panel-accent); outline: none; }

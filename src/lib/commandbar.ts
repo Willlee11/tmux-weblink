@@ -50,7 +50,7 @@ export function commandbarCSS(): string {
     display: inline-flex; align-items: center; justify-content: center;
     background: none; color: var(--panel-muted);
     border: none; padding: 0;
-    cursor: pointer; font-family: 'JetBrains Mono', 'SF Mono', 'Menlo', monospace;
+    cursor: pointer; font-family: var(--font-mono);
     line-height: 1;
     transition: color 0.15s;
     min-width: 44px; min-height: 44px;
@@ -62,7 +62,7 @@ export function commandbarCSS(): string {
   .cmdbar-btn:focus-visible { box-shadow: 0 0 0 2px var(--panel-accent); border-radius: 6px; }
   .cmdbar-shortcut {
     color: inherit; border: 1px solid rgba(148, 163, 184, 0.22);
-    border-radius: 4px; padding: 2px 4px; font-size: 10px;
+    border-radius: 4px; padding: 2px 4px; font-size: var(--text-xs);
   }
   .cmdbar-backdrop {
     position: fixed; inset: 0; z-index: 1400; background: rgba(2, 6, 12, 0.62);
@@ -78,7 +78,7 @@ export function commandbarCSS(): string {
     border: 1px solid rgba(125, 211, 252, 0.22); border-radius: 8px;
     box-shadow: 0 24px 80px rgba(0,0,0,0.5);
     overflow: hidden; transition: opacity 0.14s ease, transform 0.14s ease;
-    font-family: 'JetBrains Mono', 'SF Mono', 'Menlo', monospace;
+    font-family: var(--font-mono);
   }
   .cmdbar-panel.open { opacity: 1; pointer-events: auto; transform: translate(-50%, 0) scale(1); }
   .cmdbar-search {
@@ -88,7 +88,7 @@ export function commandbarCSS(): string {
   .cmdbar-search svg { width: 16px; height: 16px; fill: var(--panel-muted); flex: 0 0 auto; }
   .cmdbar-search input {
     width: 100%; min-width: 0; border: 0; outline: 0; background: transparent;
-    color: var(--page-fg); font: inherit; font-size: 14px;
+    color: var(--page-fg); font: inherit; font-size: var(--text-sm);
   }
   .cmdbar-search input::placeholder { color: var(--panel-muted); }
   .cmdbar-list {
@@ -106,7 +106,7 @@ export function commandbarCSS(): string {
     display: inline-flex; align-items: center; gap: 8px;
   }
   .cmdbar-row-chevron {
-    color: var(--panel-accent); font-size: 16px; line-height: 1;
+    color: var(--panel-accent); font-size: var(--text-base); line-height: 1;
   }
   .cmdbar-row:hover,
   .cmdbar-row.active {
@@ -114,25 +114,25 @@ export function commandbarCSS(): string {
   }
   .cmdbar-row-name {
     min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-    color: var(--panel-accent); font-size: 13px;
+    color: var(--panel-accent); font-size: var(--text-sm);
   }
   .cmdbar-row-meta {
-    flex: 0 0 auto; color: var(--panel-muted); font-size: 11px; text-align: right;
+    flex: 0 0 auto; color: var(--panel-muted); font-size: var(--text-xs); text-align: right;
   }
   .cmdbar-row-meta-current { color: var(--panel-success); text-transform: uppercase; letter-spacing: 0.06em; }
   .cmdbar-rename-input {
     width: 100%; min-width: 0; border: 1px solid rgba(125, 211, 252, 0.35);
     border-radius: 4px; padding: 4px 6px; background: rgba(0, 0, 0, 0.25);
-    color: var(--page-fg); font: inherit; font-size: 13px; outline: none;
+    color: var(--page-fg); font: inherit; font-size: var(--text-sm); outline: none;
   }
   .cmdbar-rename-input:focus { border-color: var(--panel-accent); }
   .cmdbar-empty {
-    padding: 28px 16px; text-align: center; color: var(--panel-muted); font-size: 12px;
+    padding: 28px 16px; text-align: center; color: var(--panel-muted); font-size: var(--text-xs);
   }
   .cmdbar-footer {
     display: flex; justify-content: space-between; gap: 12px;
     padding: 8px 12px; border-top: 1px solid var(--panel-border);
-    color: var(--panel-muted); font-size: 10px;
+    color: var(--panel-muted); font-size: var(--text-xs);
   }
   @media (max-width: 560px) {
     .cmdbar-panel { top: 54px; width: calc(100vw - 16px); max-height: calc(100vh - 70px); }

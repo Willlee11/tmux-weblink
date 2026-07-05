@@ -121,17 +121,17 @@ export function renderLanding(
     box-shadow: 0 4px 20px color-mix(in srgb, var(--panel-accent) 8%, transparent);
     transform: translateY(-1px);
   }
-  .session-row .name { font-size: 16px; font-weight: 500; color: var(--page-fg); }
-  .session-row .meta { font-size: 13px; color: var(--panel-muted); text-align: right; margin-top: 4px; }
-  .empty { font-size: 14px; color: var(--panel-muted); line-height: 1.7; margin-top: 12px; }
-  .empty code { background: color-mix(in srgb, var(--panel-accent) 8%, transparent); padding: 3px 7px; border-radius: 6px; font-size: 12px; }
+  .session-row .name { font-size: var(--text-base); font-weight: 500; color: var(--page-fg); }
+  .session-row .meta { font-size: var(--text-sm); color: var(--panel-muted); text-align: right; margin-top: 4px; }
+  .empty { font-size: var(--text-sm); color: var(--panel-muted); line-height: 1.7; margin-top: 12px; }
+  .empty code { background: color-mix(in srgb, var(--panel-accent) 8%, transparent); padding: 3px 7px; border-radius: 6px; font-size: var(--text-xs) }
   .empty strong { color: var(--panel-accent); font-weight: 500; }
   .view-tabs {
     display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 24px;
   }
   .view-tabs .tab {
     display: inline-flex; align-items: center;
-    font-size: 13px; color: var(--panel-muted); text-decoration: none;
+    font-size: var(--text-sm); color: var(--panel-muted); text-decoration: none;
     min-height: 44px; padding: 8px 16px; border-radius: 999px;
     transition: color 0.15s, background 0.15s;
   }
@@ -176,7 +176,7 @@ ${sharedHeader({ commandbarEnabled, title: 'TMUX Sessions', themeTemplate: theme
 
 ${newSessionModalHTML()}
 ${commandbarEnabled ? commandbarHTML() : ''}
-${notesDrawerHTML('Notes — Global')}
+${notesDrawerHTML('Notes - Global')}
 
 <script type="module">
 ${notesDrawerScript('__global__')}

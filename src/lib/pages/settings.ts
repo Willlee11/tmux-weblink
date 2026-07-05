@@ -19,67 +19,67 @@ function pageHead(title: string, theme: TmuxWebTheme): string {
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-<title>${escapeHtml(title)} — tmux-web</title>
+<title>${escapeHtml(title)} - tmux-web</title>
 <style>
   ${cssVarsStyle(theme.shell)}
-  html, body { background: var(--page-bg); color: var(--page-fg); min-height: 100%; font-family: 'Inter', system-ui, -apple-system, sans-serif; }
+  html, body { background: var(--page-bg); color: var(--page-fg); min-height: 100%; font-family: var(--font-sans); }
   .container { max-width: 680px; margin: 80px auto; padding: 0 24px; }
   .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 28px; }
-  h1 { font-size: 26px; font-weight: 600; letter-spacing: -0.02em; color: var(--page-fg); }
+  h1 { font-size: var(--text-xl); font-weight: 600; letter-spacing: -0.02em; color: var(--page-fg); }
   .back-link {
-    font-size: 13px; color: var(--panel-muted); text-decoration: none;
+    font-size: var(--text-sm); color: var(--panel-muted); text-decoration: none;
     border: 1px solid var(--panel-border); padding: 8px 16px; border-radius: 10px; transition: all 0.15s;
   }
   .back-link:hover { border-color: var(--panel-accent); color: var(--panel-accent); background: color-mix(in srgb, var(--panel-accent) 8%, transparent); }
   .restart-note {
-    font-size: 13px; line-height: 1.6; color: var(--panel-muted);
+    font-size: var(--text-sm); line-height: 1.6; color: var(--panel-muted);
     border: 1px dashed var(--panel-border); border-radius: 12px;
     padding: 12px 16px; margin-bottom: 24px;
   }
   .restart-note strong { color: var(--panel-accent); }
   .saved-flash {
-    font-size: 13px; color: var(--panel-success);
+    font-size: var(--text-sm); color: var(--panel-success);
     border: 1px solid var(--panel-success); border-radius: 12px;
     padding: 12px 16px; margin-bottom: 16px;
   }
   .error-flash {
-    font-size: 13px; color: var(--page-fg); white-space: pre-wrap; word-break: break-word;
+    font-size: var(--text-sm); color: var(--page-fg); white-space: pre-wrap; word-break: break-word;
     border: 1px solid #e06c75; border-radius: 12px;
     padding: 12px 16px; margin-bottom: 16px; background: color-mix(in srgb, #e06c75 8%, var(--panel-bg));
   }
   .section { border: 1px solid var(--panel-border); border-radius: 16px; background: var(--panel-bg); padding: 20px; margin-bottom: 16px; }
-  .section h2 { font-size: 14px; font-weight: 600; color: var(--page-fg); margin-bottom: 4px; }
-  .section .desc { font-size: 13px; color: var(--panel-muted); line-height: 1.6; margin-bottom: 16px; }
-  label.row { display: flex; align-items: center; gap: 10px; font-size: 14px; cursor: pointer; padding: 5px 0; }
+  .section h2 { font-size: var(--text-sm); font-weight: 600; color: var(--page-fg); margin-bottom: 4px; }
+  .section .desc { font-size: var(--text-sm); color: var(--panel-muted); line-height: 1.6; margin-bottom: 16px; }
+  label.row { display: flex; align-items: center; gap: 10px; font-size: var(--text-sm); cursor: pointer; padding: 5px 0; }
   label.row input { accent-color: var(--panel-success); }
   .radios { display: flex; flex-direction: column; gap: 6px; }
-  .override-note { font-size: 12px; color: var(--panel-muted); margin-top: 10px; }
+  .override-note { font-size: var(--text-xs); color: var(--panel-muted); margin-top: 10px; }
   .btn {
-    font-size: 14px; color: var(--page-fg); background: var(--panel-bg);
+    font-size: var(--text-sm); color: var(--page-fg); background: var(--panel-bg);
     border: 1px solid var(--panel-border); padding: 9px 18px; border-radius: 12px;
     cursor: pointer; transition: all 0.15s; font-family: inherit;
   }
   .btn:hover { border-color: var(--panel-accent); color: var(--panel-accent); }
   .btn.primary { border-color: var(--panel-success); color: var(--panel-success); }
   .btn.danger:hover { border-color: #e06c75; color: #e06c75; }
-  .plugin-row { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 8px 0; font-size: 14px; border-top: 1px solid var(--panel-border); }
+  .plugin-row { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 8px 0; font-size: var(--text-sm); border-top: 1px solid var(--panel-border); }
   .plugin-row:first-of-type { border-top: none; }
   .plugin-row .pkg { word-break: break-all; }
   .plugin-add { display: flex; gap: 10px; margin-top: 14px; }
   .plugin-add input[type=text] {
-    flex: 1; font-size: 14px; font-family: inherit; color: var(--page-fg);
+    flex: 1; font-size: var(--text-sm); font-family: inherit; color: var(--page-fg);
     background: var(--page-bg); border: 1px solid var(--panel-border);
     border-radius: 12px; padding: 9px 12px; outline: none; transition: border-color 0.15s, box-shadow 0.15s;
   }
   .plugin-add input[type=text]:focus { border-color: var(--panel-accent); box-shadow: 0 0 0 4px color-mix(in srgb, var(--panel-accent) 8%, transparent); }
   .num-input {
-    width: 100px; font-size: 14px; font-family: inherit; color: var(--page-fg);
+    width: 100px; font-size: var(--text-sm); font-family: inherit; color: var(--page-fg);
     background: var(--page-bg); border: 1px solid var(--panel-border);
     border-radius: 12px; padding: 9px 12px; outline: none; transition: border-color 0.15s, box-shadow 0.15s;
   }
   .num-input:focus { border-color: var(--panel-accent); box-shadow: 0 0 0 4px color-mix(in srgb, var(--panel-accent) 8%, transparent); }
-  .suggest { font-size: 13px; color: var(--panel-muted); margin-top: 10px; }
-  .suggest button { background: none; border: none; color: var(--panel-accent); cursor: pointer; font: inherit; font-size: 13px; padding: 0; text-decoration: underline; }
+  .suggest { font-size: var(--text-sm); color: var(--panel-muted); margin-top: 10px; }
+  .suggest button { background: none; border: none; color: var(--panel-accent); cursor: pointer; font: inherit; font-size: var(--text-sm); padding: 0; text-decoration: underline; }
   .theme-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
   .theme-card {
     border: 1px solid var(--panel-border); border-radius: 14px; padding: 16px;
@@ -87,12 +87,12 @@ function pageHead(title: string, theme: TmuxWebTheme): string {
   }
   .theme-card:hover { border-color: var(--panel-accent); transform: translateY(-1px); box-shadow: 0 4px 20px color-mix(in srgb, var(--panel-accent) 8%, transparent); }
   .theme-card.active { border-color: var(--panel-success); }
-  .theme-card .tname { font-size: 14px; font-weight: 600; color: var(--page-fg); display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+  .theme-card .tname { font-size: var(--text-sm); font-weight: 600; color: var(--page-fg); display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
   .theme-card .tname input { accent-color: var(--panel-success); }
   .swatches { display: flex; gap: 4px; flex-wrap: wrap; }
   .swatch { width: 18px; height: 18px; border-radius: 5px; border: 1px solid rgba(128,128,128,0.18); }
   .form-actions { margin-top: 12px; }
-  .config-paths { font-size: 12px; color: var(--panel-muted); line-height: 1.6; margin-top: 28px; }
+  .config-paths { font-size: var(--text-xs); color: var(--panel-muted); line-height: 1.6; margin-top: 28px; }
   .config-paths code { background: color-mix(in srgb, var(--panel-accent) 8%, transparent); padding: 3px 7px; border-radius: 6px; }
   .btn { min-height: 44px; }
   @media (max-width: 640px) {

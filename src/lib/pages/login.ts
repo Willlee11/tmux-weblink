@@ -26,7 +26,7 @@ export function renderLoginPage(opts: { setupMode: boolean; error?: string; them
     background: var(--page-bg);
     color: var(--page-fg);
     min-height: 100%;
-    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    font-family: var(--font-sans);
     margin: 0;
     padding: 0;
     display: flex;
@@ -42,7 +42,7 @@ export function renderLoginPage(opts: { setupMode: boolean; error?: string; them
     box-shadow: 0 4px 28px rgba(0,0,0,0.04);
   }
   .login-eyebrow {
-    font-size: 12px;
+    font-size: var(--text-xs);
     font-weight: 600;
     letter-spacing: 0.08em;
     text-transform: uppercase;
@@ -50,13 +50,13 @@ export function renderLoginPage(opts: { setupMode: boolean; error?: string; them
     margin: 0 0 14px;
   }
   .login-card h1 {
-    font-size: 30px;
+    font-size: var(--text-2xl);
     font-weight: 600;
     letter-spacing: -0.03em;
     margin: 0 0 12px;
   }
   .login-card p {
-    font-size: 15px;
+    font-size: var(--text-base);
     color: var(--panel-muted);
     margin: 0 0 32px;
     line-height: 1.6;
@@ -64,7 +64,7 @@ export function renderLoginPage(opts: { setupMode: boolean; error?: string; them
   .login-field { margin-bottom: 24px; }
   .login-field label {
     display: block;
-    font-size: 13px;
+    font-size: var(--text-sm);
     font-weight: 500;
     color: var(--page-fg);
     margin-bottom: 8px;
@@ -77,7 +77,7 @@ export function renderLoginPage(opts: { setupMode: boolean; error?: string; them
     border-radius: 14px;
     color: var(--page-fg);
     font: inherit;
-    font-size: 15px;
+    font-size: var(--text-base);
     outline: none;
     transition: border-color 0.15s, box-shadow 0.15s;
   }
@@ -93,13 +93,15 @@ export function renderLoginPage(opts: { setupMode: boolean; error?: string; them
     background: var(--panel-accent);
     color: #fff;
     font: inherit;
-    font-size: 15px;
+    font-size: var(--text-base);
     font-weight: 600;
     cursor: pointer;
     transition: opacity 0.15s, transform 0.1s;
+    min-height: 44px;
   }
   .login-btn:hover { opacity: 0.9; }
   .login-btn:active { transform: scale(0.995); }
+  .login-btn:focus-visible { box-shadow: 0 0 0 2px var(--panel-accent); outline: none; }
   .login-btn:disabled { opacity: 0.5; cursor: not-allowed; }
   .login-error {
     background: color-mix(in srgb, var(--panel-accent) 8%, #f87171);
@@ -107,13 +109,13 @@ export function renderLoginPage(opts: { setupMode: boolean; error?: string; them
     color: #b91c1c;
     padding: 12px 14px;
     border-radius: 12px;
-    font-size: 13px;
+    font-size: var(--text-sm);
     margin-bottom: 22px;
   }
   .login-footer {
     margin-top: 28px;
     text-align: center;
-    font-size: 13px;
+    font-size: var(--text-sm);
     color: var(--panel-muted);
   }
   .login-footer a { color: var(--panel-accent); font-weight: 500; }
@@ -131,7 +133,7 @@ export function renderLoginPage(opts: { setupMode: boolean; error?: string; them
   @keyframes spin { to { transform: rotate(360deg); } }
   @media (max-width: 480px) {
     .login-card { padding: 36px 24px; border-radius: 20px; }
-    .login-card h1 { font-size: 26px; }
+    .login-card h1 { font-size: var(--text-xl); }
   }
 </style>
 </head>

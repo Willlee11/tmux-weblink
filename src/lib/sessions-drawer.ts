@@ -22,12 +22,12 @@ export function sessionsDrawerCSS(): string {
   #sessions-drawer .drawer-header {
     display: flex; justify-content: space-between; align-items: center;
     padding: 10px 16px; border-bottom: 1px solid var(--panel-border);
-    font-size: 12px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase;
-    color: var(--panel-accent); font-family: 'JetBrains Mono', monospace; flex-shrink: 0;
+    font-size: var(--text-xs); font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase;
+    color: var(--panel-accent); font-family: var(--font-mono); flex-shrink: 0;
   }
   #sessions-drawer .drawer-header button {
     background: none; border: none; color: var(--panel-muted); cursor: pointer;
-    font-size: 18px; line-height: 1; min-width: 44px; min-height: 44px; padding: 8px; border-radius: 8px; transition: color 0.15s, background 0.15s;
+    font-size: var(--text-lg); line-height: 1; min-width: 44px; min-height: 44px; padding: 8px; border-radius: 8px; transition: color 0.15s, background 0.15s;
   }
   #sessions-drawer .drawer-header button:hover { color: var(--panel-accent); background: color-mix(in srgb, var(--panel-accent) 8%, transparent); }
   #sessions-drawer .drawer-header button:focus-visible { box-shadow: 0 0 0 2px var(--panel-accent); outline: none; }
@@ -36,9 +36,9 @@ export function sessionsDrawerCSS(): string {
     padding: 8px 16px; border-bottom: 1px solid var(--panel-border); flex-shrink: 0;
   }
   #sessions-pin-window {
-    font-size: 12px; color: var(--panel-muted); background: none;
+    font-size: var(--text-xs); color: var(--panel-muted); background: none;
     border: 1px solid var(--panel-border); padding: 8px 14px; border-radius: 6px;
-    cursor: pointer; font-family: 'JetBrains Mono', monospace; transition: all 0.15s;
+    cursor: pointer; font-family: var(--font-mono); transition: all 0.15s;
     min-height: 36px;
   }
   #sessions-pin-window:hover:not(:disabled) {
@@ -47,8 +47,8 @@ export function sessionsDrawerCSS(): string {
   #sessions-pin-window:disabled { opacity: 0.4; cursor: not-allowed; }
   #sessions-pin-window:focus-visible { box-shadow: 0 0 0 2px var(--panel-accent); outline: none; }
   #sessions-error {
-    padding: 8px 16px; font-size: 11px; color: #cc6666;
-    font-family: 'JetBrains Mono', monospace; flex-shrink: 0;
+    padding: 8px 16px; font-size: var(--text-xs); color: #cc6666;
+    font-family: var(--font-mono); flex-shrink: 0;
     border-bottom: 1px solid var(--panel-border);
     display: none;
   }
@@ -65,16 +65,16 @@ export function sessionsDrawerCSS(): string {
   }
   #sessions-list::-webkit-scrollbar-thumb:hover { background: var(--panel-muted); }
   .sessions-section-label {
-    padding: 8px 16px 4px; font-size: 10px; letter-spacing: 0.08em;
+    padding: 8px 16px 4px; font-size: var(--text-xs); letter-spacing: 0.08em;
     text-transform: uppercase; color: var(--panel-muted);
-    font-family: 'JetBrains Mono', monospace;
+    font-family: var(--font-mono);
   }
   .sessions-row {
     display: flex; align-items: center; gap: 8px;
     width: 100%; min-height: 44px; padding: 10px 12px 10px 16px;
     background: none; border: none; border-bottom: 1px solid var(--panel-border);
     color: var(--page-fg); cursor: pointer; text-align: left;
-    font-family: 'JetBrains Mono', monospace; transition: background 0.15s;
+    font-family: var(--font-mono); transition: background 0.15s;
   }
   .sessions-row:last-child { border-bottom: none; }
   .sessions-row:hover { background: color-mix(in srgb, var(--panel-accent) 8%, transparent); }
@@ -84,17 +84,17 @@ export function sessionsDrawerCSS(): string {
     flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px;
   }
   .sessions-row-name {
-    font-size: 13px; color: var(--panel-accent); overflow: hidden;
+    font-size: var(--text-sm); color: var(--panel-accent); overflow: hidden;
     text-overflow: ellipsis; white-space: nowrap;
   }
   .sessions-row-meta {
-    font-size: 10px; color: var(--panel-muted); overflow: hidden;
+    font-size: var(--text-xs); color: var(--panel-muted); overflow: hidden;
     text-overflow: ellipsis; white-space: nowrap;
   }
   .sessions-pin-btn {
     flex-shrink: 0; display: flex; align-items: center; justify-content: center;
     background: none; border: none; cursor: pointer; min-width: 36px; min-height: 36px;
-    color: var(--panel-muted); font-size: 16px; line-height: 1; padding: 4px;
+    color: var(--panel-muted); font-size: var(--text-base); line-height: 1; padding: 4px;
     border-radius: 6px; transition: color 0.15s, background 0.15s;
   }
   .sessions-pin-btn:hover { color: var(--panel-accent); background: color-mix(in srgb, var(--panel-accent) 8%, transparent); }
@@ -120,17 +120,17 @@ export function sessionsDrawerCSS(): string {
   .sessions-window-row {
     display: flex; align-items: center; gap: 8px;
     padding: 8px 12px 8px 40px; cursor: pointer; color: var(--page-fg);
-    font-family: 'JetBrains Mono', monospace;
+    font-family: var(--font-mono);
     border-bottom: 1px solid var(--panel-border);
     transition: background 0.15s;
   }
   .sessions-window-row:last-child { border-bottom: none; }
   .sessions-window-row:hover { background: color-mix(in srgb, var(--panel-accent) 8%, transparent); }
   .sessions-window-index {
-    font-size: 11px; color: var(--panel-muted); flex-shrink: 0; min-width: 18px;
+    font-size: var(--text-xs); color: var(--panel-muted); flex-shrink: 0; min-width: 18px;
   }
   .sessions-window-name {
-    flex: 1; min-width: 0; font-size: 12px;
+    flex: 1; min-width: 0; font-size: var(--text-xs);
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   }
   .sessions-window-wt {
@@ -138,8 +138,8 @@ export function sessionsDrawerCSS(): string {
     display: block;
   }
   .sessions-window-input {
-    flex: 1; min-width: 0; font-size: 12px;
-    font-family: 'JetBrains Mono', monospace;
+    flex: 1; min-width: 0; font-size: var(--text-xs);
+    font-family: var(--font-mono);
     background: var(--page-bg); color: var(--page-fg);
     border: 1px solid var(--panel-accent); border-radius: 4px; padding: 2px 6px;
   }
@@ -153,17 +153,17 @@ export function sessionsDrawerCSS(): string {
   .sessions-window-edit:focus-visible { box-shadow: 0 0 0 2px var(--panel-accent); outline: none; }
   .sessions-window-edit svg { width: 13px; height: 13px; fill: currentColor; display: block; }
   .sessions-windows-empty {
-    padding: 8px 12px 8px 40px; font-size: 11px; color: var(--panel-muted);
-    font-family: 'JetBrains Mono', monospace;
+    padding: 8px 12px 8px 40px; font-size: var(--text-xs); color: var(--panel-muted);
+    font-family: var(--font-mono);
   }
   .sessions-empty {
     padding: 16px; text-align: center; color: var(--panel-muted);
-    font-size: 12px; font-family: 'JetBrains Mono', monospace;
+    font-size: var(--text-xs); font-family: var(--font-mono);
   }
   @media (max-width: 560px) {
     #sessions-drawer { width: min(100vw - 16px, 400px); }
     .sessions-row { min-height: 48px; padding: 12px 12px 12px 16px; }
-    .sessions-row-name { font-size: 14px; }
+    .sessions-row-name { font-size: var(--text-sm); }
   }`;
 }
 

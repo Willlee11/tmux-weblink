@@ -67,7 +67,7 @@ export function renderHistoryIndex(
   .hist-toolbar { display: flex; justify-content: flex-end; margin-bottom: 12px; }
   .hist-toolbar button {
     background: none; border: 1px solid var(--panel-border); border-radius: 6px;
-    color: var(--panel-muted); font-family: inherit; font-size: 12px;
+    color: var(--panel-muted); font-family: inherit; font-size: var(--text-xs);
     padding: 8px 14px; cursor: pointer; transition: border-color 0.15s, color 0.15s, background 0.15s;
     min-height: 36px;
   }
@@ -83,16 +83,16 @@ export function renderHistoryIndex(
   .hist-row.dead { opacity: 0.5; cursor: default; }
   .hist-main { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
   .hist-window {
-    font-size: 14px; font-weight: 600; color: var(--page-fg);
+    font-size: var(--text-sm); font-weight: 600; color: var(--page-fg);
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   }
-  .hist-session { font-size: 12px; color: var(--panel-muted); letter-spacing: 0.03em; }
+  .hist-session { font-size: var(--text-xs); color: var(--panel-muted); letter-spacing: 0.03em; }
   .hist-gone {
-    color: #fc8181; text-transform: uppercase; font-size: 9px; letter-spacing: 0.08em;
+    color: #fc8181; text-transform: uppercase; font-size: var(--text-xs); letter-spacing: 0.08em;
     border: 1px solid currentColor; border-radius: 3px; padding: 0 4px; margin-left: 4px;
   }
-  .hist-time { font-size: 12px; color: var(--panel-muted); flex-shrink: 0; }
-  .empty { font-size: 14px; color: var(--panel-muted); line-height: 1.6; margin-top: 20px; }
+  .hist-time { font-size: var(--text-xs); color: var(--panel-muted); flex-shrink: 0; }
+  .empty { font-size: var(--text-sm); color: var(--panel-muted); line-height: 1.6; margin-top: 20px; }
   @media (max-width: 560px) {
     .hist-row { flex-direction: column; align-items: flex-start; gap: 8px; }
     .hist-time { align-self: flex-end; }
@@ -105,7 +105,7 @@ export function renderHistoryIndex(
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-<title>History — tmux-web</title>
+<title>History - tmux-web</title>
 <style>
   ${cssVarsStyle(theme.shell)}
   ${sharedLayoutCSS(pageSpecificCSS)}

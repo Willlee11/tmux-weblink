@@ -46,13 +46,13 @@ function extDrawerCSS(): string {
   .ext-panel .drawer-header {
     display: flex; justify-content: space-between; align-items: center;
     padding: 10px 16px; border-bottom: 1px solid var(--panel-border);
-    font-size: 12px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase;
-    color: var(--panel-accent); font-family: 'JetBrains Mono', monospace; flex-shrink: 0;
+    font-size: var(--text-xs); font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase;
+    color: var(--panel-accent); font-family: var(--font-mono); flex-shrink: 0;
   }
   .ext-drawer .drawer-header button,
   .ext-panel .drawer-header button {
     background: none; border: none; color: var(--panel-muted); cursor: pointer;
-    font-size: 18px; line-height: 1; padding: 2px 6px; border-radius: 4px; transition: color 0.15s;
+    font-size: var(--text-lg); line-height: 1; padding: 2px 6px; border-radius: 4px; transition: color 0.15s;
   }
   .ext-drawer .drawer-header button:hover,
   .ext-panel .drawer-header button:hover { color: var(--panel-accent); }
@@ -186,7 +186,7 @@ ${panelEntry ? drawerResizeScript(`ext-${id}-panel`, `tmux-web:panel-width:ext:$
     if (panelFrame && e.data?.type === 'ext:panel-close' && e.source === panelFrame.contentWindow) {
       closePanel();
     }
-    // ext:ready fires when the bridge initialises — send (or re-send) config
+    // ext:ready fires when the bridge initialises; send (or re-send) config
     if (e.data?.type === 'ext:ready' && e.source === frame.contentWindow) {
       sendMessages(frame);
     }
@@ -252,13 +252,13 @@ export function renderTerminal(
     min-height: 56px;
   }
   header .brand {
-    font-size: 16px; font-weight: 600; letter-spacing: -0.01em; color: var(--page-fg);
+    font-size: var(--text-base); font-weight: 600; letter-spacing: -0.01em; color: var(--page-fg);
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
   header .brand span { color: var(--panel-accent); font-weight: 500; }
   header .brand a { color: inherit; text-decoration: none; }
   header .session {
-    font-size: 13px;
+    font-size: var(--text-sm);
     color: var(--panel-muted);
     background: var(--page-bg);
     border: 1px solid var(--panel-border);
@@ -269,7 +269,7 @@ export function renderTerminal(
   }
   header .status {
     margin-left: auto;
-    font-size: 12px;
+    font-size: var(--text-xs);
     display: flex;
     align-items: center;
     gap: 8px;
@@ -301,7 +301,7 @@ export function renderTerminal(
     background: none; border: none; color: var(--panel-muted); cursor: pointer;
     min-width: 44px; min-height: 44px; padding: 8px; border-radius: 10px;
     transition: color 0.15s, background 0.15s;
-    font-size: 13px; text-decoration: none; font-family: inherit;
+    font-size: var(--text-sm); text-decoration: none; font-family: inherit;
   }
   .header-icon-btn:hover,
   header .notes-btn:hover,
@@ -339,7 +339,7 @@ export function renderTerminal(
   header .theme-option {
     display: flex; align-items: center; gap: 10px; width: 100%;
     min-height: 44px; padding: 10px 12px; border-radius: 8px; border: none; background: none;
-    color: var(--page-fg); font-size: 14px; cursor: pointer; text-align: left; font-family: inherit;
+    color: var(--page-fg); font-size: var(--text-sm); cursor: pointer; text-align: left; font-family: inherit;
   }
   header .theme-option:hover { background: color-mix(in srgb, var(--panel-accent) 8%, transparent); color: var(--panel-accent); }
   header .theme-option:focus-visible { box-shadow: 0 0 0 2px var(--panel-accent); outline: none; }
@@ -397,9 +397,9 @@ export function renderTerminal(
 <div id="terminal-container" class="terminal-pending"></div>
 ${mobileToolbarHTML()}
 ${commandbarEnabled ? commandbarHTML() : ''}
-${notesDrawerHTML(`Notes — ${sessionName}`)}
-${schedulerDrawerHTML(`Scheduler — ${sessionName}`)}
-${windowsDrawerHTML(`Windows — ${sessionName}`)}
+${notesDrawerHTML(`Notes - ${sessionName}`)}
+${schedulerDrawerHTML(`Scheduler - ${sessionName}`)}
+${windowsDrawerHTML(`Windows - ${sessionName}`)}
 ${sessionsDrawerHTML()}
 ${sidebarExts.map(e => extDrawerHTML(e)).join('\n')}
 ${sidebarExts.map(e => extPanelHTML(e)).join('\n')}
@@ -446,11 +446,11 @@ ${mobileToolbarScript(sessionName)}
 ${commandbarEnabled ? commandbarScript(commandbarSessions, commandbarActions, { sessionName }, quickCommands) : ''}
 
 // ========== NOTES ==========
-// (notes and scheduler scripts already included above — extensions below)
+// (notes and scheduler scripts already included above; extensions below)
 </script>
 
 ${sidebarExts.length > 0 ? `<script>
-// Extension bootstrap — plain script (not module) so it runs before the module
+// Extension bootstrap: plain script (not module) so it runs before the module
 // awaits terminal-client import, avoiding a race where iframes load during that await.
 ${sidebarExts.map(e => extDrawerScript(e, sessionName)).join('\n')}
 </script>` : ''}

@@ -22,12 +22,12 @@ export function notesDrawerCSS(): string {
   .drawer-header {
     display: flex; justify-content: space-between; align-items: center;
     padding: 10px 16px; border-bottom: 1px solid var(--panel-border);
-    font-size: 12px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase;
-    color: var(--panel-accent); font-family: 'JetBrains Mono', monospace; flex-shrink: 0;
+    font-size: var(--text-xs); font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase;
+    color: var(--panel-accent); font-family: var(--font-mono); flex-shrink: 0;
   }
   .drawer-header button {
     background: none; border: none; color: var(--panel-muted); cursor: pointer;
-    font-size: 18px; line-height: 1; min-width: 44px; min-height: 44px; padding: 8px; border-radius: 8px; transition: color 0.15s, background 0.15s;
+    font-size: var(--text-lg); line-height: 1; min-width: 44px; min-height: 44px; padding: 8px; border-radius: 8px; transition: color 0.15s, background 0.15s;
   }
   .drawer-header button:hover { color: var(--panel-accent); background: color-mix(in srgb, var(--panel-accent) 8%, transparent); }
   .drawer-header button:focus-visible { box-shadow: 0 0 0 2px var(--panel-accent); outline: none; }
@@ -37,15 +37,15 @@ export function notesDrawerCSS(): string {
     flex-shrink: 0; gap: 8px;
   }
   .drawer-toolbar .badge {
-    font-size: 10px; color: var(--panel-success); letter-spacing: 0.1em; text-transform: uppercase;
-    opacity: 0; transition: opacity 0.15s; font-family: 'JetBrains Mono', monospace;
+    font-size: var(--text-xs); color: var(--panel-success); letter-spacing: 0.1em; text-transform: uppercase;
+    opacity: 0; transition: opacity 0.15s; font-family: var(--font-mono);
   }
   .drawer-toolbar .badge.show { opacity: 1; }
   .drawer-toolbar .actions { display: flex; gap: 8px; align-items: center; }
   .drawer-toolbar button {
-    font-size: 11px; color: var(--panel-muted); background: none;
+    font-size: var(--text-xs); color: var(--panel-muted); background: none;
     border: 1px solid var(--panel-border); padding: 6px 12px; border-radius: 6px;
-    cursor: pointer; font-family: 'JetBrains Mono', monospace; transition: all 0.15s;
+    cursor: pointer; font-family: var(--font-mono); transition: all 0.15s;
     min-height: 36px;
   }
   .drawer-toolbar button:hover { border-color: var(--panel-accent); color: var(--panel-accent); }
@@ -54,7 +54,7 @@ export function notesDrawerCSS(): string {
   .drawer-toolbar button.flash { color: var(--panel-success); border-color: var(--panel-success); }
   #notes-editor {
     flex: 1; padding: 16px; outline: none; overflow-y: auto;
-    font-size: 13px; line-height: 1.7; font-family: 'JetBrains Mono', monospace;
+    font-size: var(--text-sm); line-height: 1.7; font-family: var(--font-mono);
     white-space: pre-wrap; word-break: break-word; color: var(--page-fg);
     scrollbar-width: thin;
     scrollbar-color: var(--panel-border) transparent;

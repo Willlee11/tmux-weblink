@@ -55,12 +55,12 @@ export function mobileToolbarCSS(): string {
   #type-modal.open { transform: translate(-50%, 0); }
   #type-modal .type-modal-header {
     display: flex; justify-content: space-between; align-items: center;
-    font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--panel-muted);
+    font-family: var(--font-mono); font-size: var(--text-xs); color: var(--panel-muted);
   }
   #type-modal #type-close {
     display: flex; align-items: center; justify-content: center;
     background: none; border: none; color: var(--panel-muted);
-    font-size: 22px; line-height: 1; cursor: pointer;
+    font-size: var(--text-xl); line-height: 1; cursor: pointer;
     min-width: 44px; min-height: 44px; padding: 8px; border-radius: 8px;
     transition: color 0.15s, background 0.15s;
   }
@@ -70,18 +70,18 @@ export function mobileToolbarCSS(): string {
     width: 100%; min-height: 96px; resize: vertical; box-sizing: border-box;
     background: var(--terminal-bg, rgba(0,0,0,0.28)); color: var(--page-fg);
     border: 1px solid var(--panel-border); border-radius: 6px; padding: 10px;
-    font-family: 'JetBrains Mono', monospace; font-size: 15px; line-height: 1.4;
+    font-family: var(--font-mono); font-size: var(--text-base); line-height: 1.4;
   }
   #type-input:focus { outline: none; border-color: var(--panel-accent); box-shadow: 0 0 0 4px color-mix(in srgb, var(--panel-accent) 8%, transparent); }
   #type-status {
-    min-height: 14px; font-size: 11px; color: var(--panel-muted);
-    font-family: 'JetBrains Mono', monospace;
+    min-height: 14px; font-size: var(--text-xs); color: var(--panel-muted);
+    font-family: var(--font-mono);
   }
   #type-status.error { color: #cc6666; }
   #type-modal .type-modal-footer { display: flex; gap: 8px; }
   #type-modal .type-modal-footer button {
     flex: 1; min-height: 44px; cursor: pointer; border-radius: 6px;
-    font-family: 'JetBrains Mono', monospace; font-size: 13px;
+    font-family: var(--font-mono); font-size: var(--text-sm);
     border: 1px solid var(--panel-border); background: none; color: var(--page-fg);
     transition: background 0.15s, color 0.15s;
   }
@@ -114,8 +114,8 @@ export function mobileToolbarCSS(): string {
     border: 1px solid transparent;
     border-radius: 5px;
     color: var(--panel-muted);
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 12px;
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
     line-height: 1;
     transition: background 0.15s, border-color 0.15s, color 0.15s;
   }

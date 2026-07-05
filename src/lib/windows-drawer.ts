@@ -18,8 +18,8 @@ export function windowsDrawerCSS(): string {
   #windows-drawer.open { transform: translateX(0); }
   ${drawerResizeCSS()}
   #windows-error {
-    padding: 8px 16px; font-size: 11px; color: #cc6666;
-    font-family: 'JetBrains Mono', monospace; flex-shrink: 0;
+    padding: 8px 16px; font-size: var(--text-xs); color: #cc6666;
+    font-family: var(--font-mono); flex-shrink: 0;
     border-bottom: 1px solid var(--panel-border);
     display: none;
   }
@@ -40,16 +40,16 @@ export function windowsDrawerCSS(): string {
     width: 100%; min-height: 48px; padding: 12px 16px;
     background: none; border: none; border-bottom: 1px solid var(--panel-border);
     color: var(--page-fg); cursor: pointer; text-align: left;
-    font-family: 'JetBrains Mono', monospace; transition: background 0.15s;
+    font-family: var(--font-mono); transition: background 0.15s;
   }
   .windows-row:last-child { border-bottom: none; }
   .windows-row:not(.is-active):hover { background: color-mix(in srgb, var(--panel-accent) 8%, transparent); }
   .windows-row.is-active { cursor: default; opacity: 0.85; }
   .windows-row-index {
-    font-size: 12px; color: var(--panel-muted); flex-shrink: 0; min-width: 24px;
+    font-size: var(--text-xs); color: var(--panel-muted); flex-shrink: 0; min-width: 24px;
   }
   .windows-row-name {
-    flex: 1; min-width: 0; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    flex: 1; min-width: 0; font-size: var(--text-sm); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   }
   .windows-row-edit {
     flex-shrink: 0; display: flex; align-items: center; justify-content: center;
@@ -62,37 +62,37 @@ export function windowsDrawerCSS(): string {
   .windows-row-edit:focus-visible { box-shadow: 0 0 0 2px var(--panel-accent); outline: none; }
   .windows-row-edit svg { width: 16px; height: 16px; fill: currentColor; display: block; }
   .windows-row-input {
-    flex: 1; min-width: 0; font-family: 'JetBrains Mono', monospace; font-size: 14px;
+    flex: 1; min-width: 0; font-family: var(--font-mono); font-size: var(--text-sm);
     background: var(--page-bg); color: var(--page-fg);
     border: 1px solid var(--panel-accent); border-radius: 4px;
     padding: 4px 8px; outline: none;
   }
   .windows-row-badge {
-    font-size: 10px; color: var(--panel-success); text-transform: uppercase;
+    font-size: var(--text-xs); color: var(--panel-success); text-transform: uppercase;
     letter-spacing: 0.08em; flex-shrink: 0;
   }
   .windows-empty {
     padding: 24px 16px; text-align: center; color: var(--panel-muted);
-    font-size: 12px; font-family: 'JetBrains Mono', monospace;
+    font-size: var(--text-xs); font-family: var(--font-mono);
   }
   #windows-new-btn {
     display: flex; align-items: center; justify-content: center; gap: 4px;
     background: none; border: none; color: var(--panel-muted); cursor: pointer;
-    min-width: 44px; min-height: 44px; padding: 8px; border-radius: 8px; font-size: 20px; line-height: 1;
+    min-width: 44px; min-height: 44px; padding: 8px; border-radius: 8px; font-size: var(--text-lg); line-height: 1;
     transition: color 0.15s, background 0.15s;
   }
   #windows-new-btn:hover { color: var(--panel-accent); background: color-mix(in srgb, var(--panel-accent) 8%, transparent); }
   #windows-new-btn:focus-visible { box-shadow: 0 0 0 2px var(--panel-accent); outline: none; }
   #windows-drawer .drawer-header button {
     background: none; border: none; color: var(--panel-muted); cursor: pointer;
-    font-size: 18px; line-height: 1; min-width: 44px; min-height: 44px; padding: 8px; border-radius: 8px; transition: color 0.15s, background 0.15s;
+    font-size: var(--text-lg); line-height: 1; min-width: 44px; min-height: 44px; padding: 8px; border-radius: 8px; transition: color 0.15s, background 0.15s;
   }
   #windows-drawer .drawer-header button:hover { color: var(--panel-accent); background: color-mix(in srgb, var(--panel-accent) 8%, transparent); }
   #windows-drawer .drawer-header button:focus-visible { box-shadow: 0 0 0 2px var(--panel-accent); outline: none; }
   @media (max-width: 560px) {
     #windows-drawer { width: min(100vw - 16px, 400px); }
     .windows-row { min-height: 52px; padding: 14px 16px; }
-    .windows-row-name { font-size: 15px; }
+    .windows-row-name { font-size: var(--text-base); }
     .windows-row-edit { opacity: 0.6; }
   }`;
 }
