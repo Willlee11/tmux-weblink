@@ -17,13 +17,6 @@ export function windowsDrawerCSS(): string {
   }
   #windows-drawer.open { transform: translateX(0); }
   ${drawerResizeCSS()}
-  header .windows-btn {
-    display: flex; align-items: center; gap: 4px;
-    background: none; border: none; color: var(--panel-muted); cursor: pointer;
-    padding: 2px 6px; border-radius: 4px; transition: color 0.15s;
-  }
-  header .windows-btn:hover { color: var(--panel-accent); }
-  header .windows-btn svg { width: 15px; height: 15px; fill: currentColor; }
   #windows-error {
     padding: 8px 16px; font-size: 11px; color: #cc6666;
     font-family: 'JetBrains Mono', monospace; flex-shrink: 0;
@@ -45,12 +38,12 @@ export function windowsDrawerCSS(): string {
   .windows-row {
     display: flex; align-items: center; gap: 10px;
     width: 100%; min-height: 48px; padding: 12px 16px;
-    background: none; border: none; border-bottom: 1px solid rgba(36, 50, 65, 0.5);
+    background: none; border: none; border-bottom: 1px solid var(--panel-border);
     color: var(--page-fg); cursor: pointer; text-align: left;
     font-family: 'JetBrains Mono', monospace; transition: background 0.15s;
   }
   .windows-row:last-child { border-bottom: none; }
-  .windows-row:not(.is-active):hover { background: rgba(125, 211, 252, 0.06); }
+  .windows-row:not(.is-active):hover { background: color-mix(in srgb, var(--panel-accent) 8%, transparent); }
   .windows-row.is-active { cursor: default; opacity: 0.85; }
   .windows-row-index {
     font-size: 12px; color: var(--panel-muted); flex-shrink: 0; min-width: 24px;
@@ -60,13 +53,14 @@ export function windowsDrawerCSS(): string {
   }
   .windows-row-edit {
     flex-shrink: 0; display: flex; align-items: center; justify-content: center;
-    background: none; border: none; padding: 4px; border-radius: 4px;
+    background: none; border: none; min-width: 36px; min-height: 36px; padding: 4px; border-radius: 6px;
     color: var(--panel-muted); cursor: pointer; opacity: 0;
-    transition: opacity 0.15s, color 0.15s;
+    transition: opacity 0.15s, color 0.15s, background 0.15s;
   }
   .windows-row:hover .windows-row-edit, .windows-row-edit:focus-visible { opacity: 1; }
-  .windows-row-edit:hover { color: var(--panel-accent); }
-  .windows-row-edit svg { width: 14px; height: 14px; fill: currentColor; display: block; }
+  .windows-row-edit:hover { color: var(--panel-accent); background: color-mix(in srgb, var(--panel-accent) 8%, transparent); }
+  .windows-row-edit:focus-visible { box-shadow: 0 0 0 2px var(--panel-accent); outline: none; }
+  .windows-row-edit svg { width: 16px; height: 16px; fill: currentColor; display: block; }
   .windows-row-input {
     flex: 1; min-width: 0; font-family: 'JetBrains Mono', monospace; font-size: 14px;
     background: var(--page-bg); color: var(--page-fg);
@@ -82,12 +76,19 @@ export function windowsDrawerCSS(): string {
     font-size: 12px; font-family: 'JetBrains Mono', monospace;
   }
   #windows-new-btn {
-    display: flex; align-items: center; gap: 4px;
+    display: flex; align-items: center; justify-content: center; gap: 4px;
     background: none; border: none; color: var(--panel-muted); cursor: pointer;
-    padding: 2px 8px; border-radius: 4px; font-size: 18px; line-height: 1;
-    transition: color 0.15s;
+    min-width: 44px; min-height: 44px; padding: 8px; border-radius: 8px; font-size: 20px; line-height: 1;
+    transition: color 0.15s, background 0.15s;
   }
-  #windows-new-btn:hover { color: var(--panel-accent); }
+  #windows-new-btn:hover { color: var(--panel-accent); background: color-mix(in srgb, var(--panel-accent) 8%, transparent); }
+  #windows-new-btn:focus-visible { box-shadow: 0 0 0 2px var(--panel-accent); outline: none; }
+  #windows-drawer .drawer-header button {
+    background: none; border: none; color: var(--panel-muted); cursor: pointer;
+    font-size: 18px; line-height: 1; min-width: 44px; min-height: 44px; padding: 8px; border-radius: 8px; transition: color 0.15s, background 0.15s;
+  }
+  #windows-drawer .drawer-header button:hover { color: var(--panel-accent); background: color-mix(in srgb, var(--panel-accent) 8%, transparent); }
+  #windows-drawer .drawer-header button:focus-visible { box-shadow: 0 0 0 2px var(--panel-accent); outline: none; }
   @media (max-width: 560px) {
     #windows-drawer { width: min(100vw - 16px, 400px); }
     .windows-row { min-height: 52px; padding: 14px 16px; }

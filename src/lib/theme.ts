@@ -3,7 +3,7 @@ import { vscodeTheme } from './themes/vscode.js';
 
 export function cssVarsStyle(shell: ShellTheme = vscodeTheme.shell): string {
 	return `
-  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap');
   :root {
     --page-bg: ${shell.pageBg};
     --page-fg: ${shell.pageFg};

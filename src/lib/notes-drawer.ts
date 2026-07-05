@@ -27,9 +27,10 @@ export function notesDrawerCSS(): string {
   }
   .drawer-header button {
     background: none; border: none; color: var(--panel-muted); cursor: pointer;
-    font-size: 18px; line-height: 1; padding: 2px 6px; border-radius: 4px; transition: color 0.15s;
+    font-size: 18px; line-height: 1; min-width: 44px; min-height: 44px; padding: 8px; border-radius: 8px; transition: color 0.15s, background 0.15s;
   }
-  .drawer-header button:hover { color: var(--panel-accent); }
+  .drawer-header button:hover { color: var(--panel-accent); background: color-mix(in srgb, var(--panel-accent) 8%, transparent); }
+  .drawer-header button:focus-visible { box-shadow: 0 0 0 2px var(--panel-accent); outline: none; }
   .drawer-toolbar {
     display: flex; align-items: center; justify-content: space-between;
     padding: 8px 16px; border-bottom: 1px solid var(--panel-border);
@@ -43,10 +44,12 @@ export function notesDrawerCSS(): string {
   .drawer-toolbar .actions { display: flex; gap: 8px; align-items: center; }
   .drawer-toolbar button {
     font-size: 11px; color: var(--panel-muted); background: none;
-    border: 1px solid var(--panel-border); padding: 4px 10px; border-radius: 6px;
+    border: 1px solid var(--panel-border); padding: 6px 12px; border-radius: 6px;
     cursor: pointer; font-family: 'JetBrains Mono', monospace; transition: all 0.15s;
+    min-height: 36px;
   }
   .drawer-toolbar button:hover { border-color: var(--panel-accent); color: var(--panel-accent); }
+  .drawer-toolbar button:focus-visible { box-shadow: 0 0 0 2px var(--panel-accent); outline: none; }
   .drawer-toolbar button:disabled { opacity: 0.4; cursor: not-allowed; }
   .drawer-toolbar button.flash { color: var(--panel-success); border-color: var(--panel-success); }
   #notes-editor {
@@ -66,11 +69,15 @@ export function notesDrawerCSS(): string {
     content: "Double-click to add notes..."; color: var(--panel-muted); pointer-events: none;
   }
   #notes-editor[contenteditable="true"] {
-    border: 1px solid rgba(125, 211, 252, 0.25);
-    background: rgba(0, 0, 0, 0.2); border-radius: 4px; margin: 8px;
+    border: 1px solid color-mix(in srgb, var(--panel-accent) 30%, transparent);
+    background: color-mix(in srgb, var(--page-bg) 70%, transparent);
+    border-radius: 8px; margin: 8px;
   }
-  #notes-editor a { color: #7aa6da; text-decoration: none; }
-  #notes-editor a:hover { text-decoration: underline; }`;
+  #notes-editor a { color: var(--panel-accent); text-decoration: none; }
+  #notes-editor a:hover { text-decoration: underline; }
+  @media (max-width: 560px) {
+    #notes-drawer { width: min(100vw - 16px, 400px); }
+  }`;
 }
 
 export function notesDrawerHTML(title: string): string {

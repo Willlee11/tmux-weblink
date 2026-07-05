@@ -21,7 +21,6 @@ function pageHead(title: string, theme: TmuxWebTheme): string {
 <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 <title>${escapeHtml(title)} — tmux-web</title>
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
   ${cssVarsStyle(theme.shell)}
   html, body { background: var(--page-bg); color: var(--page-fg); min-height: 100%; font-family: 'Inter', system-ui, -apple-system, sans-serif; }
   .container { max-width: 680px; margin: 80px auto; padding: 0 24px; }
@@ -95,6 +94,13 @@ function pageHead(title: string, theme: TmuxWebTheme): string {
   .form-actions { margin-top: 12px; }
   .config-paths { font-size: 12px; color: var(--panel-muted); line-height: 1.6; margin-top: 28px; }
   .config-paths code { background: color-mix(in srgb, var(--panel-accent) 8%, transparent); padding: 3px 7px; border-radius: 6px; }
+  .btn { min-height: 44px; }
+  @media (max-width: 640px) {
+    .container { margin: 24px auto; padding: 0 16px; }
+    .page-header { flex-direction: column; align-items: flex-start; gap: 12px; }
+    .theme-grid { grid-template-columns: 1fr; }
+    .num-input { width: 100%; }
+  }
 </style>
 </head>`;
 }

@@ -23,13 +23,6 @@ export function schedulerDrawerCSS(): string {
   }
   #sched-drawer.open { transform: translateX(0); }
   ${drawerResizeCSS()}
-  header .sched-btn {
-    display: flex; align-items: center; gap: 4px;
-    background: none; border: none; color: var(--panel-muted); cursor: pointer;
-    padding: 2px 6px; border-radius: 4px; transition: color 0.15s;
-  }
-  header .sched-btn:hover { color: var(--panel-accent); }
-  header .sched-btn svg { width: 15px; height: 15px; fill: currentColor; }
   .sched-form-section {
     padding: 14px 16px; border-bottom: 1px solid var(--panel-border); flex-shrink: 0;
     display: flex; flex-direction: column; gap: 10px;
@@ -41,20 +34,22 @@ export function schedulerDrawerCSS(): string {
     width: 56px; flex-shrink: 0;
   }
   .sched-input {
-    flex: 1; background: rgba(0,0,0,0.3); border: 1px solid var(--panel-border);
+    flex: 1; background: color-mix(in srgb, var(--page-bg) 70%, transparent); border: 1px solid var(--panel-border);
     color: var(--page-fg); font-family: 'JetBrains Mono', monospace; font-size: 12px;
     padding: 5px 9px; border-radius: 6px; outline: none; transition: border-color 0.15s;
   }
-  .sched-input:focus { border-color: rgba(125, 211, 252, 0.4); }
+  .sched-input:focus { border-color: var(--panel-accent); }
   .sched-input.error { border-color: #cc6666; }
   select.sched-input { cursor: pointer; }
   .sched-presets { display: flex; gap: 6px; padding-left: 64px; }
   .sched-preset-btn {
     font-size: 11px; color: var(--panel-muted); background: none;
-    border: 1px solid var(--panel-border); padding: 4px 10px; border-radius: 6px;
+    border: 1px solid var(--panel-border); padding: 6px 12px; border-radius: 6px;
     cursor: pointer; font-family: 'JetBrains Mono', monospace; transition: all 0.15s;
+    min-height: 32px;
   }
-  .sched-preset-btn:hover { border-color: var(--panel-accent); color: var(--panel-accent); }
+  .sched-preset-btn:hover { border-color: var(--panel-accent); color: var(--panel-accent); background: color-mix(in srgb, var(--panel-accent) 8%, transparent); }
+  .sched-preset-btn:focus-visible { box-shadow: 0 0 0 2px var(--panel-accent); outline: none; }
   .sched-bottom-row {
     display: flex; justify-content: space-between; align-items: center; gap: 8px;
   }
@@ -62,12 +57,14 @@ export function schedulerDrawerCSS(): string {
     font-size: 11px; color: #cc6666; font-family: 'JetBrains Mono', monospace; flex: 1;
   }
   .sched-submit-btn {
-    font-size: 11px; background: rgba(115, 201, 145, 0.12);
+    font-size: 12px; background: color-mix(in srgb, var(--panel-success) 12%, transparent);
     border: 1px solid var(--panel-success); color: var(--panel-success);
-    padding: 6px 18px; border-radius: 6px; cursor: pointer; flex-shrink: 0;
+    padding: 8px 18px; border-radius: 6px; cursor: pointer; flex-shrink: 0;
     font-family: 'JetBrains Mono', monospace; transition: all 0.15s;
+    min-height: 44px;
   }
-  .sched-submit-btn:hover { background: rgba(115, 201, 145, 0.22); }
+  .sched-submit-btn:hover { background: color-mix(in srgb, var(--panel-success) 22%, transparent); }
+  .sched-submit-btn:focus-visible { box-shadow: 0 0 0 2px var(--panel-success); outline: none; }
   .sched-submit-btn:disabled { opacity: 0.4; cursor: not-allowed; }
   .sched-tasks-section { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
   .sched-tasks-header {
@@ -91,7 +88,7 @@ export function schedulerDrawerCSS(): string {
   }
   .sched-task-list::-webkit-scrollbar-thumb:hover { background: var(--panel-muted); }
   .sched-task-item {
-    padding: 10px 16px; border-bottom: 1px solid rgba(36, 50, 65, 0.6);
+    padding: 10px 16px; border-bottom: 1px solid var(--panel-border);
     display: flex; flex-direction: column; gap: 4px;
   }
   .sched-task-item:last-child { border-bottom: none; }
@@ -111,14 +108,25 @@ export function schedulerDrawerCSS(): string {
     font-size: 10px; color: var(--panel-muted); font-family: 'JetBrains Mono', monospace;
   }
   .sched-cancel-btn {
-    font-size: 10px; color: var(--panel-muted); background: none;
-    border: 1px solid var(--panel-border); padding: 2px 8px; border-radius: 4px;
+    font-size: 11px; color: var(--panel-muted); background: none;
+    border: 1px solid var(--panel-border); padding: 6px 10px; border-radius: 6px;
     cursor: pointer; font-family: 'JetBrains Mono', monospace; transition: all 0.15s;
+    min-height: 32px;
   }
-  .sched-cancel-btn:hover { border-color: #cc6666; color: #cc6666; }
+  .sched-cancel-btn:hover { border-color: #cc6666; color: #cc6666; background: color-mix(in srgb, #cc6666 8%, transparent); }
+  .sched-cancel-btn:focus-visible { box-shadow: 0 0 0 2px #cc6666; outline: none; }
   .sched-empty {
     padding: 32px 16px; text-align: center; font-size: 12px;
     color: var(--panel-muted); font-family: 'JetBrains Mono', monospace;
+  }
+  #sched-drawer .drawer-header button {
+    background: none; border: none; color: var(--panel-muted); cursor: pointer;
+    font-size: 18px; line-height: 1; min-width: 44px; min-height: 44px; padding: 8px; border-radius: 8px; transition: color 0.15s, background 0.15s;
+  }
+  #sched-drawer .drawer-header button:hover { color: var(--panel-accent); background: color-mix(in srgb, var(--panel-accent) 8%, transparent); }
+  #sched-drawer .drawer-header button:focus-visible { box-shadow: 0 0 0 2px var(--panel-accent); outline: none; }
+  @media (max-width: 560px) {
+    #sched-drawer { width: min(100vw - 16px, 400px); }
   }`;
 }
 

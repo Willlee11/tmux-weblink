@@ -58,12 +58,7 @@ function extDrawerCSS(): string {
   .ext-panel .drawer-header button:hover { color: var(--panel-accent); }
   .ext-drawer iframe { flex: 1; border: none; width: 100%; height: 0; }
   .ext-panel iframe { flex: 1; border: none; width: 100%; height: 100%; }
-  header .ext-btn {
-    display: flex; align-items: center; gap: 4px;
-    background: none; border: none; color: var(--panel-muted); cursor: pointer;
-    padding: 2px 6px; border-radius: 4px; transition: color 0.15s; font-size: 13px;
-  }
-  header .ext-btn:hover { color: var(--panel-accent); }`;
+`;
 }
 
 function extDrawerHTML(manifest: ExtManifest): string {
@@ -247,17 +242,18 @@ export function renderTerminal(
   html, body { background: var(--page-bg); color: var(--page-fg); height: 100%; width: 100%; overflow: hidden; }
   body { display: flex; flex-direction: column; }
   header {
-    padding: 10px 18px;
+    padding: 8px 12px;
     background: var(--header-gradient);
     border-bottom: 1px solid var(--panel-border);
     display: flex;
     align-items: center;
-    gap: 14px;
+    gap: 8px;
     flex-shrink: 0;
-    min-height: 52px;
+    min-height: 56px;
   }
   header .brand {
     font-size: 16px; font-weight: 600; letter-spacing: -0.01em; color: var(--page-fg);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
   header .brand span { color: var(--panel-accent); font-weight: 500; }
   header .brand a { color: inherit; text-decoration: none; }
@@ -268,6 +264,8 @@ export function renderTerminal(
     border: 1px solid var(--panel-border);
     padding: 7px 14px;
     border-radius: 10px;
+    max-width: 200px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   }
   header .status {
     margin-left: auto;
@@ -277,7 +275,7 @@ export function renderTerminal(
     gap: 8px;
     color: var(--panel-muted);
   }
-  header .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--panel-muted); transition: background 0.2s; }
+  header .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--panel-muted); transition: background 0.2s; }
   header .dot.connected { background: var(--panel-success); }
   @media (max-width: 560px) { header .status #status-text { display: none; } }
   #terminal-container { flex: 1; width: 100%; min-height: 0; overflow: hidden; background: var(--terminal-bg); }
@@ -289,51 +287,73 @@ export function renderTerminal(
   #terminal-container.terminal-drag-over {
     outline: 2px dashed var(--panel-accent);
     outline-offset: -2px;
-    background: rgba(125, 211, 252, 0.06);
+    background: color-mix(in srgb, var(--panel-accent) 6%, transparent);
   }
+  .header-icon-btn,
   header .notes-btn,
   header .sched-btn,
   header .windows-btn,
   header .ext-btn,
-  header .sessions-btn {
-    display: flex; align-items: center; gap: 4px;
+  header .sessions-btn,
+  header .theme-switcher-btn,
+  header .cmdbar-btn {
+    display: flex; align-items: center; justify-content: center;
     background: none; border: none; color: var(--panel-muted); cursor: pointer;
-    padding: 8px; border-radius: 10px; transition: color 0.15s, background 0.15s;
+    min-width: 44px; min-height: 44px; padding: 8px; border-radius: 10px;
+    transition: color 0.15s, background 0.15s;
+    font-size: 13px; text-decoration: none; font-family: inherit;
   }
+  .header-icon-btn:hover,
   header .notes-btn:hover,
   header .sched-btn:hover,
   header .windows-btn:hover,
   header .ext-btn:hover,
-  header .sessions-btn:hover { color: var(--panel-accent); background: color-mix(in srgb, var(--panel-accent) 8%, transparent); }
+  header .sessions-btn:hover,
+  header .theme-switcher-btn:hover,
+  header .cmdbar-btn:hover { color: var(--panel-accent); background: color-mix(in srgb, var(--panel-accent) 8%, transparent); }
+  .header-icon-btn:focus-visible,
+  header .notes-btn:focus-visible,
+  header .sched-btn:focus-visible,
+  header .windows-btn:focus-visible,
+  header .ext-btn:focus-visible,
+  header .sessions-btn:focus-visible,
+  header .theme-switcher-btn:focus-visible,
+  header .cmdbar-btn:focus-visible { box-shadow: 0 0 0 2px var(--panel-accent); outline: none; }
+  .header-icon-btn svg,
   header .notes-btn svg,
   header .sched-btn svg,
   header .windows-btn svg,
-  header .sessions-btn svg { width: 17px; height: 17px; fill: currentColor; }
+  header .ext-btn svg,
+  header .sessions-btn svg,
+  header .theme-switcher-btn svg,
+  header .cmdbar-btn svg { width: 18px; height: 18px; fill: currentColor; flex-shrink: 0; }
   header .theme-switcher { position: relative; }
-  header .theme-switcher-btn {
-    display: flex; align-items: center; gap: 4px;
-    background: none; border: none; color: var(--panel-muted); cursor: pointer;
-    padding: 8px; border-radius: 10px; transition: color 0.15s, background 0.15s;
-    font-size: 13px;
-  }
-  header .theme-switcher-btn:hover { color: var(--panel-accent); background: color-mix(in srgb, var(--panel-accent) 8%, transparent); }
-  header .theme-switcher-btn svg { width: 17px; height: 17px; fill: currentColor; }
   header .theme-switcher-popover {
     position: absolute; top: calc(100% + 8px); right: 0;
-    min-width: 170px; background: var(--panel-bg); border: 1px solid var(--panel-border);
+    min-width: 180px; max-width: calc(100vw - 24px);
+    background: var(--panel-bg); border: 1px solid var(--panel-border);
     border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,0.12); padding: 6px;
     display: none; z-index: 300;
   }
   header .theme-switcher.open .theme-switcher-popover { display: block; }
   header .theme-option {
     display: flex; align-items: center; gap: 10px; width: 100%;
-    padding: 8px 10px; border-radius: 8px; border: none; background: none;
-    color: var(--page-fg); font-size: 13px; cursor: pointer; text-align: left; font-family: inherit;
+    min-height: 44px; padding: 10px 12px; border-radius: 8px; border: none; background: none;
+    color: var(--page-fg); font-size: 14px; cursor: pointer; text-align: left; font-family: inherit;
   }
   header .theme-option:hover { background: color-mix(in srgb, var(--panel-accent) 8%, transparent); color: var(--panel-accent); }
+  header .theme-option:focus-visible { box-shadow: 0 0 0 2px var(--panel-accent); outline: none; }
   header .theme-option.active { color: var(--panel-accent); font-weight: 500; }
-  header .theme-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
-  header .theme-check { width: 14px; height: 14px; margin-left: auto; color: var(--panel-accent); }
+  header .theme-dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
+  header .theme-check { width: 16px; height: 16px; margin-left: auto; color: var(--panel-accent); }
+  @media (max-width: 640px) {
+    header { gap: 4px; padding: 8px; }
+    header .session { display: none; }
+    header .brand span { display: none; }
+  }
+  @media (max-width: 380px) {
+    header .status { display: none; }
+  }
   ${commandbarEnabled ? commandbarCSS() : ''}
   ${notesDrawerCSS()}
   ${schedulerDrawerCSS()}
@@ -341,6 +361,14 @@ export function renderTerminal(
   ${sessionsDrawerCSS()}
   ${mobileToolbarCSS()}
   ${extDrawerCSS()}
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
 </style>
 </head>
 <body>

@@ -127,15 +127,20 @@ export function renderLanding(
   .empty code { background: color-mix(in srgb, var(--panel-accent) 8%, transparent); padding: 3px 7px; border-radius: 6px; font-size: 12px; }
   .empty strong { color: var(--panel-accent); font-weight: 500; }
   .view-tabs {
-    display: flex; gap: 8px; margin-bottom: 24px;
+    display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 24px;
   }
   .view-tabs .tab {
+    display: inline-flex; align-items: center;
     font-size: 13px; color: var(--panel-muted); text-decoration: none;
-    padding: 8px 14px; border-radius: 999px;
+    min-height: 44px; padding: 8px 16px; border-radius: 999px;
     transition: color 0.15s, background 0.15s;
   }
   .view-tabs .tab:hover { color: var(--panel-accent); background: color-mix(in srgb, var(--panel-accent) 8%, transparent); }
   .view-tabs .tab.active { color: #fff; background: var(--panel-accent); }
+  @media (max-width: 560px) {
+    .session-row { flex-direction: column; align-items: flex-start; gap: 6px; padding: 16px 18px; }
+    .session-row .meta { text-align: left; margin-top: 0; }
+  }
   ${commandbarEnabled ? commandbarCSS() : ''}
   ${notesDrawerCSS()}`;
 

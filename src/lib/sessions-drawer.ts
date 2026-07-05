@@ -19,13 +19,6 @@ export function sessionsDrawerCSS(): string {
     left: auto; right: -5px;
   }
   ${drawerResizeCSS()}
-  header .sessions-btn {
-    display: flex; align-items: center; gap: 4px;
-    background: none; border: none; color: var(--panel-muted); cursor: pointer;
-    padding: 2px 6px; border-radius: 4px; transition: color 0.15s;
-  }
-  header .sessions-btn:hover { color: var(--panel-accent); }
-  header .sessions-btn svg { width: 15px; height: 15px; fill: currentColor; }
   #sessions-drawer .drawer-header {
     display: flex; justify-content: space-between; align-items: center;
     padding: 10px 16px; border-bottom: 1px solid var(--panel-border);
@@ -34,22 +27,25 @@ export function sessionsDrawerCSS(): string {
   }
   #sessions-drawer .drawer-header button {
     background: none; border: none; color: var(--panel-muted); cursor: pointer;
-    font-size: 18px; line-height: 1; padding: 2px 6px; border-radius: 4px; transition: color 0.15s;
+    font-size: 18px; line-height: 1; min-width: 44px; min-height: 44px; padding: 8px; border-radius: 8px; transition: color 0.15s, background 0.15s;
   }
-  #sessions-drawer .drawer-header button:hover { color: var(--panel-accent); }
+  #sessions-drawer .drawer-header button:hover { color: var(--panel-accent); background: color-mix(in srgb, var(--panel-accent) 8%, transparent); }
+  #sessions-drawer .drawer-header button:focus-visible { box-shadow: 0 0 0 2px var(--panel-accent); outline: none; }
   #sessions-toolbar {
     display: flex; align-items: center; justify-content: flex-end;
     padding: 8px 16px; border-bottom: 1px solid var(--panel-border); flex-shrink: 0;
   }
   #sessions-pin-window {
-    font-size: 11px; color: var(--panel-muted); background: none;
-    border: 1px solid var(--panel-border); padding: 4px 10px; border-radius: 6px;
+    font-size: 12px; color: var(--panel-muted); background: none;
+    border: 1px solid var(--panel-border); padding: 8px 14px; border-radius: 6px;
     cursor: pointer; font-family: 'JetBrains Mono', monospace; transition: all 0.15s;
+    min-height: 36px;
   }
   #sessions-pin-window:hover:not(:disabled) {
-    border-color: var(--panel-accent); color: var(--panel-accent);
+    border-color: var(--panel-accent); color: var(--panel-accent); background: color-mix(in srgb, var(--panel-accent) 8%, transparent);
   }
   #sessions-pin-window:disabled { opacity: 0.4; cursor: not-allowed; }
+  #sessions-pin-window:focus-visible { box-shadow: 0 0 0 2px var(--panel-accent); outline: none; }
   #sessions-error {
     padding: 8px 16px; font-size: 11px; color: #cc6666;
     font-family: 'JetBrains Mono', monospace; flex-shrink: 0;
@@ -76,13 +72,13 @@ export function sessionsDrawerCSS(): string {
   .sessions-row {
     display: flex; align-items: center; gap: 8px;
     width: 100%; min-height: 44px; padding: 10px 12px 10px 16px;
-    background: none; border: none; border-bottom: 1px solid rgba(36, 50, 65, 0.5);
+    background: none; border: none; border-bottom: 1px solid var(--panel-border);
     color: var(--page-fg); cursor: pointer; text-align: left;
     font-family: 'JetBrains Mono', monospace; transition: background 0.15s;
   }
   .sessions-row:last-child { border-bottom: none; }
-  .sessions-row:hover { background: rgba(125, 211, 252, 0.06); }
-  .sessions-row.current { background: rgba(125, 211, 252, 0.08); }
+  .sessions-row:hover { background: color-mix(in srgb, var(--panel-accent) 8%, transparent); }
+  .sessions-row.current { background: color-mix(in srgb, var(--panel-accent) 10%, transparent); }
   .sessions-row.missing { opacity: 0.65; }
   .sessions-row-main {
     flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px;
@@ -96,37 +92,40 @@ export function sessionsDrawerCSS(): string {
     text-overflow: ellipsis; white-space: nowrap;
   }
   .sessions-pin-btn {
-    flex-shrink: 0; background: none; border: none; cursor: pointer;
-    color: var(--panel-muted); font-size: 14px; line-height: 1; padding: 4px;
-    border-radius: 4px; transition: color 0.15s;
+    flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+    background: none; border: none; cursor: pointer; min-width: 36px; min-height: 36px;
+    color: var(--panel-muted); font-size: 16px; line-height: 1; padding: 4px;
+    border-radius: 6px; transition: color 0.15s, background 0.15s;
   }
-  .sessions-pin-btn:hover { color: var(--panel-accent); }
+  .sessions-pin-btn:hover { color: var(--panel-accent); background: color-mix(in srgb, var(--panel-accent) 8%, transparent); }
+  .sessions-pin-btn:focus-visible { box-shadow: 0 0 0 2px var(--panel-accent); outline: none; }
   .sessions-pin-btn.pinned { color: #fbbf24; }
   .sessions-row-icon {
-    flex-shrink: 0; width: 16px; height: 16px; color: var(--panel-muted);
-    border: none; background: none; padding: 0; border-radius: 4px;
+    flex-shrink: 0; width: 32px; height: 32px; color: var(--panel-muted);
+    border: none; background: none; padding: 0; border-radius: 6px;
     display: flex; align-items: center; justify-content: center;
   }
   .sessions-row-icon svg { width: 16px; height: 16px; fill: currentColor; display: block; }
-  button.sessions-row-icon { cursor: pointer; transition: color 0.15s; }
-  button.sessions-row-icon:hover { color: var(--panel-accent); }
+  button.sessions-row-icon { cursor: pointer; transition: color 0.15s, background 0.15s; }
+  button.sessions-row-icon:hover { color: var(--panel-accent); background: color-mix(in srgb, var(--panel-accent) 8%, transparent); }
+  button.sessions-row-icon:focus-visible { box-shadow: 0 0 0 2px var(--panel-accent); outline: none; }
   button.sessions-row-icon.expanded { color: var(--panel-accent); }
   .sessions-item { display: flex; flex-direction: column; }
   .sessions-windows {
     display: none; flex-direction: column;
-    background: rgba(0, 0, 0, 0.15);
-    border-bottom: 1px solid rgba(36, 50, 65, 0.5);
+    background: color-mix(in srgb, var(--page-bg) 60%, transparent);
+    border-bottom: 1px solid var(--panel-border);
   }
   .sessions-windows.open { display: flex; }
   .sessions-window-row {
     display: flex; align-items: center; gap: 8px;
     padding: 8px 12px 8px 40px; cursor: pointer; color: var(--page-fg);
     font-family: 'JetBrains Mono', monospace;
-    border-bottom: 1px solid rgba(36, 50, 65, 0.3);
+    border-bottom: 1px solid var(--panel-border);
     transition: background 0.15s;
   }
   .sessions-window-row:last-child { border-bottom: none; }
-  .sessions-window-row:hover { background: rgba(125, 211, 252, 0.06); }
+  .sessions-window-row:hover { background: color-mix(in srgb, var(--panel-accent) 8%, transparent); }
   .sessions-window-index {
     font-size: 11px; color: var(--panel-muted); flex-shrink: 0; min-width: 18px;
   }
@@ -141,15 +140,17 @@ export function sessionsDrawerCSS(): string {
   .sessions-window-input {
     flex: 1; min-width: 0; font-size: 12px;
     font-family: 'JetBrains Mono', monospace;
-    background: var(--panel-bg); color: var(--page-fg);
+    background: var(--page-bg); color: var(--page-fg);
     border: 1px solid var(--panel-accent); border-radius: 4px; padding: 2px 6px;
   }
   .sessions-window-edit {
-    flex-shrink: 0; background: none; border: none; cursor: pointer;
-    color: var(--panel-muted); padding: 4px; border-radius: 4px;
-    display: flex; align-items: center; transition: color 0.15s;
+    flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+    background: none; border: none; cursor: pointer; min-width: 32px; min-height: 32px;
+    color: var(--panel-muted); padding: 4px; border-radius: 6px;
+    transition: color 0.15s, background 0.15s;
   }
-  .sessions-window-edit:hover { color: var(--panel-accent); }
+  .sessions-window-edit:hover { color: var(--panel-accent); background: color-mix(in srgb, var(--panel-accent) 8%, transparent); }
+  .sessions-window-edit:focus-visible { box-shadow: 0 0 0 2px var(--panel-accent); outline: none; }
   .sessions-window-edit svg { width: 13px; height: 13px; fill: currentColor; display: block; }
   .sessions-windows-empty {
     padding: 8px 12px 8px 40px; font-size: 11px; color: var(--panel-muted);

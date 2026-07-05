@@ -1,4 +1,5 @@
 import { commandbarButtonHTML } from './commandbar.js';
+import { escapeHtml } from './html.js';
 
 export type ActivePage = 'home' | 'notes' | 'schedule' | 'agents' | 'history' | 'quickCommands';
 
@@ -10,6 +11,78 @@ const THEME_OPTIONS: ThemeOption[] = [
 	{ id: 'warm-clay', name: 'Warm Clay', dot: '#b86b52' },
 	{ id: 'dark-cove', name: 'Dark Cove', dot: '#7aa2f7' },
 ];
+
+function focusRing(accent = 'var(--panel-accent)'): string {
+	return `box-shadow: 0 0 0 2px ${accent}; outline: none;`;
+}
+
+/** Reduced-motion helper: disables transform transitions. */
+function reducedMotion(extra = ''): string {
+	return `
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+    ${extra}
+  }`;
+}
+
+/** HTML for the theme switcher popover trigger (used in fixed header + terminal header). */
+export function themeSwitcherButtonHTML(currentTemplate: string = 'vscode'): string {
+	const current = THEME_OPTIONS.find((o) => o.id === currentTemplate) ?? THEME_OPTIONS[0];
+	const options = THEME_OPTIONS.map((o) => {
+		const active = o.id === currentTemplate;
+		return `<button type="button" class="theme-option${active ? ' active' : ''}" data-theme="${o.id}" role="menuitem">
+      <span class="theme-dot" style="background:${o.dot}"></span>
+      ${escapeHtml(o.name)}
+      ${active ? '<svg class="theme-check" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>' : ''}
+    </button>`;
+	}).join('\n');
+	return `<div class="theme-switcher" id="theme-switcher">
+    <button type="button" class="theme-switcher-btn" aria-label="Theme" aria-haspopup="true" aria-expanded="false">
+      <span class="theme-dot" style="background:${current.dot}"></span>
+      <span>${escapeHtml(current.name)}</span>
+    </button>
+    <div class="theme-switcher-popover" role="menu">
+      ${options}
+    </div>
+  </div>`;
+}
+
+/** Inline JS IIFE that opens the theme popover, POSTs a selection, and reloads. */
+export function themeSwitcherScript(): string {
+	return `(function() {
+  const switcher = document.getElementById('theme-switcher');
+  if (!switcher) return;
+  const btn = switcher.querySelector('.theme-switcher-btn');
+  const popover = switcher.querySelector('.theme-switcher-popover');
+  function close() { switcher.classList.remove('open'); btn.setAttribute('aria-expanded', 'false'); }
+  function open() { switcher.classList.add('open'); btn.setAttribute('aria-expanded', 'true'); }
+  btn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    switcher.classList.contains('open') ? close() : open();
+  });
+  popover.addEventListener('click', async (e) => {
+    const opt = e.target.closest('.theme-option');
+    if (!opt) return;
+    const theme = opt.dataset.theme;
+    try {
+      await fetch('/api/theme', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ theme }),
+      });
+      location.reload();
+    } catch {}
+  });
+  document.addEventListener('click', (e) => {
+    if (switcher.classList.contains('open') && !switcher.contains(e.target)) close();
+  });
+})();`;
+}
 
 /** Base CSS for the fixed header, two-column layout, sidebar, and new-session modal. */
 export function sharedLayoutCSS(extraCSS = ''): string {
@@ -24,63 +97,70 @@ export function sharedLayoutCSS(extraCSS = ''): string {
     backdrop-filter: blur(12px);
     border-bottom: 1px solid var(--panel-border);
     display: flex; justify-content: space-between; align-items: center;
-    padding: 0 24px; height: 64px;
+    padding: 0 16px; height: 56px;
   }
   .fixed-header .brand {
     font-size: 16px; font-weight: 600; letter-spacing: -0.01em; color: var(--page-fg);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
   .fixed-header .brand span { color: var(--panel-accent); font-weight: 500; }
-  .header-actions { display: flex; align-items: center; gap: 8px; }
+  .header-actions { display: flex; align-items: center; gap: 4px; }
   .header-btn, .icon-btn {
-    display: flex; align-items: center; gap: 6px;
+    display: flex; align-items: center; justify-content: center; gap: 6px;
     background: none; border: none; color: var(--panel-muted); cursor: pointer;
-    padding: 8px 12px; border-radius: 10px; transition: color 0.15s, background 0.15s;
+    min-width: 44px; min-height: 44px; padding: 8px 12px; border-radius: 10px;
+    transition: color 0.15s, background 0.15s;
     font-size: 13px; text-decoration: none;
   }
   .header-btn:hover, .icon-btn:hover { color: var(--panel-accent); background: color-mix(in srgb, var(--panel-accent) 8%, transparent); }
-  .header-btn svg, .icon-btn svg { width: 16px; height: 16px; fill: currentColor; flex-shrink: 0; }
+  .header-btn:focus-visible, .icon-btn:focus-visible { ${focusRing()} }
+  .header-btn svg, .icon-btn svg { width: 18px; height: 18px; fill: currentColor; flex-shrink: 0; }
 
   /* ── Theme switcher popover ── */
   .theme-switcher { position: relative; }
   .theme-switcher-btn {
-    display: flex; align-items: center; gap: 6px;
+    display: flex; align-items: center; justify-content: center; gap: 6px;
     background: none; border: none; color: var(--panel-muted); cursor: pointer;
-    padding: 8px 12px; border-radius: 10px; transition: color 0.15s, background 0.15s;
+    min-width: 44px; min-height: 44px; padding: 8px 12px; border-radius: 10px;
+    transition: color 0.15s, background 0.15s;
     font-size: 13px; text-decoration: none; font-family: inherit;
   }
   .theme-switcher-btn:hover { color: var(--panel-accent); background: color-mix(in srgb, var(--panel-accent) 8%, transparent); }
-  .theme-switcher-btn svg { width: 16px; height: 16px; fill: currentColor; flex-shrink: 0; }
+  .theme-switcher-btn:focus-visible { ${focusRing()} }
+  .theme-switcher-btn svg { width: 18px; height: 18px; fill: currentColor; flex-shrink: 0; }
   .theme-switcher-popover {
-    position: absolute; top: calc(100% + 8px); right: 0;
-    min-width: 170px; background: var(--panel-bg); border: 1px solid var(--panel-border);
+    position: absolute; top: calc(100% + 6px); right: 0;
+    min-width: 180px; max-width: calc(100vw - 24px);
+    background: var(--panel-bg); border: 1px solid var(--panel-border);
     border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,0.12); padding: 6px;
     display: none; z-index: 300;
   }
   .theme-switcher.open .theme-switcher-popover { display: block; }
   .theme-option {
     display: flex; align-items: center; gap: 10px; width: 100%;
-    padding: 8px 10px; border-radius: 8px; border: none; background: none;
-    color: var(--page-fg); font-size: 13px; cursor: pointer; text-align: left; font-family: inherit;
+    min-height: 44px; padding: 10px 12px; border-radius: 8px; border: none; background: none;
+    color: var(--page-fg); font-size: 14px; cursor: pointer; text-align: left; font-family: inherit;
   }
   .theme-option:hover { background: color-mix(in srgb, var(--panel-accent) 8%, transparent); color: var(--panel-accent); }
+  .theme-option:focus-visible { ${focusRing()} }
   .theme-option.active { color: var(--panel-accent); font-weight: 500; }
-  .theme-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
-  .theme-check { width: 14px; height: 14px; margin-left: auto; color: var(--panel-accent); }
+  .theme-dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
+  .theme-check { width: 16px; height: 16px; margin-left: auto; color: var(--panel-accent); }
 
   /* ── Page layout ── */
-  .page-wrap { padding-top: 64px; }
+  .page-wrap { padding-top: 56px; }
   .page-layout {
-    display: flex; gap: 40px; max-width: 1120px; margin: 0 auto; padding: 32px 24px;
+    display: flex; gap: 24px; max-width: 1120px; margin: 0 auto; padding: 24px 16px;
     align-items: flex-start;
   }
 
   /* ── Main content panel ── */
-  .main-panel { flex: 2; min-width: 0; }
+  .main-panel { flex: 1; min-width: 0; }
 
   /* ── Action sidebar ── */
   .action-sidebar {
-    flex: 1; max-width: 240px; min-width: 180px;
-    margin-right: 0; position: sticky; top: 88px;
+    flex: 0 0 220px; max-width: 220px; min-width: 180px;
+    margin-right: 0; position: sticky; top: 80px;
   }
   .sidebar-label {
     font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase;
@@ -88,39 +168,40 @@ export function sharedLayoutCSS(extraCSS = ''): string {
   }
   .sidebar-btn {
     display: flex; align-items: center; gap: 12px;
-    width: 100%;
-    padding: 11px 14px; border: 1px solid transparent; border-radius: 12px;
+    width: 100%; min-height: 44px;
+    padding: 10px 14px; border: 1px solid transparent; border-radius: 12px;
     background: transparent; color: var(--page-fg); cursor: pointer;
     font-size: 14px; font-family: inherit; text-decoration: none;
     transition: background 0.15s, color 0.15s; margin-bottom: 4px;
     text-align: left;
   }
   .sidebar-btn:hover { background: color-mix(in srgb, var(--panel-accent) 8%, transparent); color: var(--panel-accent); }
+  .sidebar-btn:focus-visible { ${focusRing()} }
   .sidebar-btn.primary {
     background: var(--panel-accent); border-color: var(--panel-accent); color: #fff;
-    font-weight: 500; margin-bottom: 16px;
+    font-weight: 500; margin-bottom: 16px; justify-content: center;
   }
   .sidebar-btn.primary:hover { opacity: 0.9; }
   .sidebar-btn.current {
     background: color-mix(in srgb, var(--panel-accent) 8%, transparent); color: var(--panel-accent);
     font-weight: 500; cursor: default; pointer-events: none;
   }
-  .sidebar-btn svg { width: 16px; height: 16px; fill: currentColor; flex-shrink: 0; }
+  .sidebar-btn svg { width: 18px; height: 18px; fill: currentColor; flex-shrink: 0; }
   .sidebar-divider { border: none; border-top: 1px solid var(--panel-border); margin: 14px 0; }
 
   /* ── New session modal ── */
   .modal-backdrop {
     display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.3);
     z-index: 500; align-items: center; justify-content: center;
+    padding: 16px;
   }
   .modal-backdrop.open { display: flex; }
   .modal-panel {
     background: var(--panel-bg); border: 1px solid var(--panel-border);
-    border-radius: 20px; padding: 32px; width: 100%; max-width: 440px;
-    margin: 0 16px;
+    border-radius: 20px; padding: 24px; width: 100%; max-width: 440px;
   }
-  .modal-panel h2 { font-size: 20px; font-weight: 600; margin: 0 0 24px; color: var(--page-fg); }
-  .modal-field { margin-bottom: 20px; position: relative; }
+  .modal-panel h2 { font-size: 20px; font-weight: 600; margin: 0 0 20px; color: var(--page-fg); }
+  .modal-field { margin-bottom: 18px; position: relative; }
   .modal-field label { display: block; font-size: 13px; font-weight: 500; color: var(--page-fg); margin-bottom: 8px; }
   .modal-field input {
     width: 100%; padding: 13px 15px; background: var(--page-bg);
@@ -138,20 +219,23 @@ export function sharedLayoutCSS(extraCSS = ''): string {
   }
   .modal-dropdown.open { display: block; }
   .modal-dropdown-item {
-    padding: 9px 14px; font-size: 13px; color: var(--page-fg); cursor: pointer;
+    display: flex; align-items: center;
+    min-height: 44px; padding: 10px 14px; font-size: 14px; color: var(--page-fg); cursor: pointer;
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
-  .modal-dropdown-item:hover, .modal-dropdown-item.active {
+  .modal-dropdown-item:hover, .modal-dropdown-item.active, .modal-dropdown-item:focus-visible {
     background: color-mix(in srgb, var(--panel-accent) 8%, transparent); color: var(--panel-accent);
   }
+  .modal-dropdown-item:focus-visible { outline: none; box-shadow: inset 0 0 0 2px var(--panel-accent); }
   .modal-error { font-size: 13px; color: #b91c1c; margin-bottom: 12px; display: none; }
   .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 8px; }
   .modal-btn {
-    padding: 11px 20px; border-radius: 12px; font-size: 14px; font-family: inherit;
+    min-height: 44px; padding: 10px 20px; border-radius: 12px; font-size: 14px; font-family: inherit;
     cursor: pointer; border: 1px solid var(--panel-border); background: var(--panel-bg);
     color: var(--page-fg); transition: opacity 0.15s;
   }
   .modal-btn:hover { opacity: 0.85; }
+  .modal-btn:focus-visible { ${focusRing()} }
   .modal-btn.confirm {
     background: var(--panel-accent); border-color: var(--panel-accent);
     color: #fff; font-weight: 500;
@@ -160,74 +244,18 @@ export function sharedLayoutCSS(extraCSS = ''): string {
 
   /* ── Mobile ── */
   @media (max-width: 767px) {
-    .page-layout { flex-direction: column; padding: 20px 16px; gap: 0; }
+    .page-layout { flex-direction: column; padding: 16px; gap: 0; }
     .action-sidebar { max-width: 100%; min-width: 0; width: 100%; margin-right: 0; position: static; order: -1; }
-    .fixed-header { padding: 0 16px; }
+    .sidebar-label { display: none; }
+    .sidebar-btn { justify-content: center; }
+    .fixed-header { padding: 0 12px; }
     .header-btn span,
     .theme-switcher-btn span { display: none; }
+    .header-btn, .theme-switcher-btn { padding: 8px; }
   }
 
+  ${reducedMotion()}
   ${extraCSS}`;
-}
-
-function themeSwitcherOptionsHTML(activeTemplate: string): string {
-	return THEME_OPTIONS.map((t) => {
-		const active = t.id === activeTemplate ? ' active' : '';
-		const check = t.id === activeTemplate
-			? '<svg class="theme-check" viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>'
-			: '<svg class="theme-check" viewBox="0 0 24 24"></svg>';
-		return `<button type="button" class="theme-option${active}" data-theme="${t.id}">
-	      <span class="theme-dot" style="background:${t.dot}"></span>
-	      <span>${t.name}</span>
-	      ${check}
-	    </button>`;
-	}).join('\n');
-}
-
-/** Standalone theme-switcher button + popover HTML. */
-export function themeSwitcherButtonHTML(activeTemplate: string): string {
-	return `<div class="theme-switcher" id="theme-switcher">
-  <button type="button" class="theme-switcher-btn" id="theme-switcher-btn" title="Switch theme">
-    <svg viewBox="0 0 24 24"><path d="M12 3c-4.97 0-9 4.03-9 9s4.03 9 9 9c.83 0 1.5-.67 1.5-1.5 0-.39-.15-.74-.39-1.01-.23-.26-.38-.61-.38-.99 0-.83.67-1.5 1.5-1.5H16c2.76 0 5-2.24 5-5 0-4.42-4.03-8-9-8zm-5.5 9c-.83 0-1.5-.67-1.5-1.5S5.67 9 6.5 9 8 9.67 8 10.5 7.33 12 6.5 12zm3-4C8.67 8 8 7.33 8 6.5S8.67 5 9.5 5s1.5.67 1.5 1.5S10.33 8 9.5 8zm5 0c-.83 0-1.5-.67-1.5-1.5S13.67 5 14.5 5s1.5.67 1.5 1.5S15.33 8 14.5 8zm3 4c-.83 0-1.5-.67-1.5-1.5S16.67 9 17.5 9s1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"/></svg>
-    <span>Theme</span>
-  </button>
-  <div class="theme-switcher-popover">
-    ${themeSwitcherOptionsHTML(activeTemplate)}
-  </div>
-</div>`;
-}
-
-/** Inline IIFE to power the theme switcher. */
-export function themeSwitcherScript(): string {
-	return `(function() {
-  const wrapper = document.getElementById('theme-switcher');
-  const btn = document.getElementById('theme-switcher-btn');
-  if (!wrapper || !btn) return;
-  function closeOnOutside(e) { if (!wrapper.contains(e.target)) wrapper.classList.remove('open'); }
-  btn.addEventListener('click', (e) => { e.stopPropagation(); wrapper.classList.toggle('open'); });
-  document.addEventListener('click', closeOnOutside);
-  wrapper.querySelectorAll('.theme-option').forEach((opt) => {
-    opt.addEventListener('click', async () => {
-      const template = opt.getAttribute('data-theme');
-      if (!template || opt.classList.contains('active')) {
-        wrapper.classList.remove('open');
-        return;
-      }
-      try {
-        const token = localStorage.getItem('tmux-web-token');
-        const headers = { 'Content-Type': 'application/json' };
-        if (token) headers['Authorization'] = 'Bearer ' + token;
-        const res = await fetch('/api/theme', {
-          method: 'POST',
-          headers,
-          body: JSON.stringify({ template }),
-        });
-        if (res.ok) location.reload();
-      } catch {}
-      wrapper.classList.remove('open');
-    });
-  });
-})();`;
 }
 
 /** Fixed header HTML. Title defaults to "TMUX Sessions". */

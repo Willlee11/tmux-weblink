@@ -27,9 +27,10 @@ export function mobileToolbarCSS(): string {
     display: flex; align-items: center; justify-content: center;
     flex: 1; min-height: 44px;
     background: none; border: none; color: var(--panel-muted);
-    cursor: pointer; border-radius: 6px; transition: color 0.15s, background 0.15s;
+    cursor: pointer; border-radius: 8px; transition: color 0.15s, background 0.15s;
   }
-  #mobile-toolbar button:hover { color: var(--panel-accent); }
+  #mobile-toolbar button:hover { color: var(--panel-accent); background: color-mix(in srgb, var(--panel-accent) 8%, transparent); }
+  #mobile-toolbar button:focus-visible { box-shadow: 0 0 0 2px var(--panel-accent); outline: none; }
   #mobile-toolbar button svg { width: 22px; height: 22px; fill: currentColor; }
   #mobile-toolbar button.listening {
     color: var(--panel-success);
@@ -57,16 +58,21 @@ export function mobileToolbarCSS(): string {
     font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--panel-muted);
   }
   #type-modal #type-close {
+    display: flex; align-items: center; justify-content: center;
     background: none; border: none; color: var(--panel-muted);
-    font-size: 20px; line-height: 1; cursor: pointer;
+    font-size: 22px; line-height: 1; cursor: pointer;
+    min-width: 44px; min-height: 44px; padding: 8px; border-radius: 8px;
+    transition: color 0.15s, background 0.15s;
   }
+  #type-modal #type-close:hover { color: var(--panel-accent); background: color-mix(in srgb, var(--panel-accent) 8%, transparent); }
+  #type-modal #type-close:focus-visible { box-shadow: 0 0 0 2px var(--panel-accent); outline: none; }
   #type-input {
     width: 100%; min-height: 96px; resize: vertical; box-sizing: border-box;
     background: var(--terminal-bg, rgba(0,0,0,0.28)); color: var(--page-fg);
     border: 1px solid var(--panel-border); border-radius: 6px; padding: 10px;
     font-family: 'JetBrains Mono', monospace; font-size: 15px; line-height: 1.4;
   }
-  #type-input:focus { outline: none; border-color: var(--panel-accent); }
+  #type-input:focus { outline: none; border-color: var(--panel-accent); box-shadow: 0 0 0 4px color-mix(in srgb, var(--panel-accent) 8%, transparent); }
   #type-status {
     min-height: 14px; font-size: 11px; color: var(--panel-muted);
     font-family: 'JetBrains Mono', monospace;
@@ -79,7 +85,8 @@ export function mobileToolbarCSS(): string {
     border: 1px solid var(--panel-border); background: none; color: var(--page-fg);
     transition: background 0.15s, color 0.15s;
   }
-  #type-modal .type-modal-footer button:hover { background: rgba(125, 211, 252, 0.08); }
+  #type-modal .type-modal-footer button:hover { background: color-mix(in srgb, var(--panel-accent) 8%, transparent); }
+  #type-modal .type-modal-footer button:focus-visible { box-shadow: 0 0 0 2px var(--panel-accent); outline: none; }
   .type-modal-modifiers {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -103,7 +110,7 @@ export function mobileToolbarCSS(): string {
     display: flex;
     align-items: center;
     justify-content: center;
-    min-height: 32px;
+    min-height: 36px;
     border: 1px solid transparent;
     border-radius: 5px;
     color: var(--panel-muted);
@@ -114,7 +121,7 @@ export function mobileToolbarCSS(): string {
   }
   .type-modal-modifiers label:hover .type-modal-modifier-label {
     color: var(--panel-accent);
-    background: rgba(125, 211, 252, 0.08);
+    background: color-mix(in srgb, var(--panel-accent) 8%, transparent);
   }
   .type-modal-modifiers input:focus-visible + .type-modal-modifier-label {
     outline: 1px solid var(--panel-accent);
@@ -122,11 +129,12 @@ export function mobileToolbarCSS(): string {
   }
   .type-modal-modifiers label:has(input:checked) .type-modal-modifier-label {
     border-color: var(--panel-accent);
-    background: rgba(125, 211, 252, 0.1);
+    background: color-mix(in srgb, var(--panel-accent) 10%, transparent);
     color: var(--panel-accent);
   }
   .type-modal-modifiers label:has(input[value="Ctrl"]:checked) .type-modal-modifier-label {
     border-color: var(--panel-success);
+    background: color-mix(in srgb, var(--panel-success) 10%, transparent);
     color: var(--panel-success);
   }
   #type-modal .type-modal-footer #type-send-enter {

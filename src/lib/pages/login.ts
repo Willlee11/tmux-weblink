@@ -21,7 +21,6 @@ export function renderLoginPage(opts: { setupMode: boolean; error?: string; them
 <title>${setupMode ? 'Set Password' : 'Sign In'} · tmux-weblink</title>
 <style>
   ${cssVarsStyle(theme.shell)}
-  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
   *, *::before, *::after { box-sizing: border-box; }
   html, body {
     background: var(--page-bg);

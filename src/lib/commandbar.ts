@@ -47,17 +47,19 @@ export function buildCommandbarSessions(
 export function commandbarCSS(): string {
 	return `
   .cmdbar-btn {
-    display: inline-flex; align-items: center;
+    display: inline-flex; align-items: center; justify-content: center;
     background: none; color: var(--panel-muted);
     border: none; padding: 0;
     cursor: pointer; font-family: 'JetBrains Mono', 'SF Mono', 'Menlo', monospace;
     line-height: 1;
     transition: color 0.15s;
+    min-width: 44px; min-height: 44px;
   }
   .cmdbar-btn:hover,
   .cmdbar-btn:focus-visible {
     color: var(--panel-accent); outline: none;
   }
+  .cmdbar-btn:focus-visible { box-shadow: 0 0 0 2px var(--panel-accent); border-radius: 6px; }
   .cmdbar-shortcut {
     color: inherit; border: 1px solid rgba(148, 163, 184, 0.22);
     border-radius: 4px; padding: 2px 4px; font-size: 10px;
@@ -94,10 +96,11 @@ export function commandbarCSS(): string {
   }
   .cmdbar-row {
     display: flex; justify-content: space-between; align-items: center; gap: 14px;
-    width: 100%; padding: 10px 12px; border: 1px solid transparent; border-radius: 6px;
+    width: 100%; min-height: 44px; padding: 10px 12px; border: 1px solid transparent; border-radius: 6px;
     background: transparent; color: var(--page-fg); cursor: pointer; text-align: left;
     font: inherit;
   }
+  .cmdbar-row:focus-visible { outline: none; box-shadow: inset 0 0 0 2px var(--panel-accent); }
   .cmdbar-row-action .cmdbar-row-name { color: var(--panel-success); }
   .cmdbar-row-subview .cmdbar-row-meta {
     display: inline-flex; align-items: center; gap: 8px;
@@ -107,7 +110,7 @@ export function commandbarCSS(): string {
   }
   .cmdbar-row:hover,
   .cmdbar-row.active {
-    border-color: rgba(125, 211, 252, 0.28); background: rgba(125, 211, 252, 0.08);
+    border-color: color-mix(in srgb, var(--panel-accent) 28%, transparent); background: color-mix(in srgb, var(--panel-accent) 8%, transparent);
   }
   .cmdbar-row-name {
     min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
@@ -135,6 +138,9 @@ export function commandbarCSS(): string {
     .cmdbar-panel { top: 54px; width: calc(100vw - 16px); max-height: calc(100vh - 70px); }
     .cmdbar-row { align-items: flex-start; flex-direction: column; gap: 4px; }
     .cmdbar-row-meta { text-align: left; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .cmdbar-backdrop, .cmdbar-panel { transition-duration: 0.01ms !important; }
   }`;
 }
 
