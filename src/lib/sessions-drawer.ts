@@ -1,5 +1,6 @@
 import { closeOtherDrawersExcept, wrapDrawerScript } from './drawer-script.js';
 import { drawerResizeCSS, drawerResizeHandleHTML, drawerResizeScriptLeft } from './drawer-resize.js';
+import { icon } from './icons.js';
 
 export function sessionsDrawerCSS(): string {
 	return `
@@ -39,7 +40,7 @@ export function sessionsDrawerCSS(): string {
     font-size: var(--text-xs); color: var(--panel-muted); background: none;
     border: 1px solid var(--panel-border); padding: 8px 14px; border-radius: 6px;
     cursor: pointer; font-family: var(--font-mono); transition: all 0.15s;
-    min-height: 36px;
+    min-height: 44px;
   }
   #sessions-pin-window:hover:not(:disabled) {
     border-color: var(--panel-accent); color: var(--panel-accent); background: color-mix(in srgb, var(--panel-accent) 8%, transparent);
@@ -93,7 +94,7 @@ export function sessionsDrawerCSS(): string {
   }
   .sessions-pin-btn {
     flex-shrink: 0; display: flex; align-items: center; justify-content: center;
-    background: none; border: none; cursor: pointer; min-width: 36px; min-height: 36px;
+    background: none; border: none; cursor: pointer; min-width: 44px; min-height: 44px;
     color: var(--panel-muted); font-size: var(--text-base); line-height: 1; padding: 4px;
     border-radius: 6px; transition: color 0.15s, background 0.15s;
   }
@@ -101,7 +102,7 @@ export function sessionsDrawerCSS(): string {
   .sessions-pin-btn:focus-visible { box-shadow: 0 0 0 2px var(--panel-accent); outline: none; }
   .sessions-pin-btn.pinned { color: #fbbf24; }
   .sessions-row-icon {
-    flex-shrink: 0; width: 32px; height: 32px; color: var(--panel-muted);
+    flex-shrink: 0; width: 44px; height: 44px; color: var(--panel-muted);
     border: none; background: none; padding: 0; border-radius: 6px;
     display: flex; align-items: center; justify-content: center;
   }
@@ -145,7 +146,7 @@ export function sessionsDrawerCSS(): string {
   }
   .sessions-window-edit {
     flex-shrink: 0; display: flex; align-items: center; justify-content: center;
-    background: none; border: none; cursor: pointer; min-width: 32px; min-height: 32px;
+    background: none; border: none; cursor: pointer; min-width: 44px; min-height: 44px;
     color: var(--panel-muted); padding: 4px; border-radius: 6px;
     transition: color 0.15s, background 0.15s;
   }
@@ -169,7 +170,7 @@ export function sessionsDrawerCSS(): string {
 
 export function sessionsDrawerButtonHTML(): string {
 	return `<button class="sessions-btn" id="sessions-toggle" title="Recent sessions" aria-label="Recent sessions">
-    <svg viewBox="0 0 24 24"><path d="M3 5h18v2H3V5zm0 6h12v2H3v-2zm0 6h18v2H3v-2z"/></svg>
+    ${icon('menu')}
   </button>`;
 }
 

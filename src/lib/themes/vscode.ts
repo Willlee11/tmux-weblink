@@ -9,7 +9,8 @@ export const vscodeTheme: TmuxWebTheme = {
 		panelBg: '#11161d',
 		panelBorder: '#243241',
 		panelMuted: '#8a97a6',
-		panelAccent: '#f3f7fb',
+		panelAccent: '#7dd3fc',
+		panelAccentOn: '#0d1117',
 		panelSuccess: '#73c991',
 		terminalBg: '#1e1e1e',
 		headerGradient:

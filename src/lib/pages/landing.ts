@@ -136,7 +136,7 @@ export function renderLanding(
     transition: color 0.15s, background 0.15s;
   }
   .view-tabs .tab:hover { color: var(--panel-accent); background: color-mix(in srgb, var(--panel-accent) 8%, transparent); }
-  .view-tabs .tab.active { color: #fff; background: var(--panel-accent); }
+  .view-tabs .tab.active { color: var(--panel-accent-on); background: var(--panel-accent); }
   @media (max-width: 560px) {
     .session-row { flex-direction: column; align-items: flex-start; gap: 6px; padding: 16px 18px; }
     .session-row .meta { text-align: left; margin-top: 0; }

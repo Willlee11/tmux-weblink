@@ -1,5 +1,6 @@
 import { commandbarButtonHTML } from './commandbar.js';
 import { escapeHtml } from './html.js';
+import { icon, iconPath } from './icons.js';
 
 export type ActivePage = 'home' | 'notes' | 'schedule' | 'agents' | 'history' | 'quickCommands';
 
@@ -38,7 +39,7 @@ export function themeSwitcherButtonHTML(currentTemplate: string = 'vscode'): str
 		return `<button type="button" class="theme-option${active ? ' active' : ''}" data-theme="${o.id}" role="menuitem">
       <span class="theme-dot" style="background:${o.dot}"></span>
       ${escapeHtml(o.name)}
-      ${active ? '<svg class="theme-check" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>' : ''}
+      ${active ? icon('check', 'class="theme-check" aria-hidden="true"') : ''}
     </button>`;
 	}).join('\n');
 	return `<div class="theme-switcher" id="theme-switcher">
@@ -73,7 +74,7 @@ export function themeSwitcherScript(): string {
       await fetch('/api/theme', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ theme }),
+        body: JSON.stringify({ template: theme }),
       });
       location.reload();
     } catch {}
@@ -178,7 +179,7 @@ export function sharedLayoutCSS(extraCSS = ''): string {
   .sidebar-btn:hover { background: color-mix(in srgb, var(--panel-accent) 8%, transparent); color: var(--panel-accent); }
   .sidebar-btn:focus-visible { ${focusRing()} }
   .sidebar-btn.primary {
-    background: var(--panel-accent); border-color: var(--panel-accent); color: #fff;
+    background: var(--panel-accent); border-color: var(--panel-accent); color: var(--panel-accent-on);
     font-weight: 500; margin-bottom: 16px; justify-content: center;
   }
   .sidebar-btn.primary:hover { opacity: 0.9; }
@@ -238,12 +239,12 @@ export function sharedLayoutCSS(extraCSS = ''): string {
   .modal-btn:focus-visible { ${focusRing()} }
   .modal-btn.confirm {
     background: var(--panel-accent); border-color: var(--panel-accent);
-    color: #fff; font-weight: 500;
+    color: var(--panel-accent-on); font-weight: 500;
   }
   .modal-btn.confirm:hover { opacity: 0.9; }
 
   /* ── Mobile ── */
-  @media (max-width: 767px) {
+  @media (max-width: 560px) {
     .page-layout { flex-direction: column; padding: 16px; gap: 0; }
     .action-sidebar { max-width: 100%; min-width: 0; width: 100%; margin-right: 0; position: static; order: -1; }
     .sidebar-label { display: none; }
@@ -285,13 +286,13 @@ export function sharedHeader(opts: {
   <div class="brand">tmux<span>-weblink</span></div>
   <div class="header-actions">
     ${commandbarEnabled ? commandbarButtonHTML('Search') : ''}
-    <button class="header-btn" id="notes-toggle" title="Global notes">
-      <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zm-1 2l5 5h-5V4zM6 20V4h5v7h7v9H6z"/></svg>
+    <button class="header-btn" id="notes-toggle" title="Global notes" aria-label="Global notes">
+      ${icon('notes')}
       <span>Notes</span>
     </button>
     ${themeSwitcherButtonHTML(themeTemplate)}
     <a class="header-btn" href="/settings" title="Settings">
-      <svg viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58a.49.49 0 0 0 .12-.61l-1.92-3.32a.488.488 0 0 0-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.484.484 0 0 0-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58a.49.49 0 0 0-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>
+      ${icon('settings')}
       <span>Settings</span>
     </a>
   </div>
@@ -307,27 +308,27 @@ export function sharedSidebar(opts: {
 }): string {
 	const { activePage, agentsEnabled, refreshHref } = opts;
 
-	function btn(page: ActivePage | null, href: string, icon: string, label: string, extra = '') {
+	function btn(page: ActivePage | null, href: string, iconPathString: string, label: string, extra = '') {
 		const isCurrent = page !== null && page === activePage;
 		const cls = isCurrent ? 'sidebar-btn current' : 'sidebar-btn';
 		return `<a href="${href}" class="${cls}"${extra}>
-        <svg viewBox="0 0 24 24">${icon}</svg>
+        <svg viewBox="0 0 24 24" fill="currentColor">${iconPathString}</svg>
         ${label}
       </a>`;
 	}
 
-	const sessionsIcon = '<path d="M4 6h16v2H4zm0 5h16v2H4zm0 5h16v2H4z"/>';
-	const notesIcon = '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zm-1 2l5 5h-5V4zM6 20V4h5v7h7v9H6z"/>';
-	const scheduleIcon = '<path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67V7z"/>';
-	const agentsIcon = '<path d="M12 2a5 5 0 1 0 0 10A5 5 0 0 0 12 2zm0 12c-5.33 0-8 2.67-8 4v2h16v-2c0-1.33-2.67-4-8-4z"/>';
-	const historyIcon = '<path d="M13 3a9 9 0 0 0-9 9H1l3.89 3.89.07.14L9 12H6a7 7 0 1 1 7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42A8.97 8.97 0 0 0 13 21a9 9 0 0 0 0-18zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8H12z"/>';
-	const quickCommandsIcon = '<path d="M13 3 4 14h7l-1 7 9-11h-7l1-7z"/>';
-	const refreshIcon = '<path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/>';
+	const sessionsIcon = iconPath('sessions');
+	const notesIcon = iconPath('notes');
+	const scheduleIcon = iconPath('schedule');
+	const agentsIcon = iconPath('agents');
+	const historyIcon = iconPath('history');
+	const quickCommandsIcon = iconPath('quick-commands');
+	const refreshIcon = iconPath('refresh');
 
 	return `<aside class="action-sidebar">
       <p class="sidebar-label">Actions</p>
       <button class="sidebar-btn primary" id="new-session-btn">
-        <svg viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+        ${icon('add')}
         New Session
       </button>
       <hr class="sidebar-divider">
@@ -339,7 +340,7 @@ export function sharedSidebar(opts: {
       ${agentsEnabled ? btn('agents', '/agents', agentsIcon, 'All Agents') : ''}
       <hr class="sidebar-divider">
       <a href="${refreshHref}" class="sidebar-btn">
-        <svg viewBox="0 0 24 24">${refreshIcon}</svg>
+        ${icon('refresh')}
         Refresh
       </a>
     </aside>`;

@@ -1,3 +1,5 @@
+import { icon } from './icons.js';
+
 /**
  * Mobile-only bottom toolbar for the terminal page.
  *
@@ -110,7 +112,7 @@ export function mobileToolbarCSS(): string {
     display: flex;
     align-items: center;
     justify-content: center;
-    min-height: 36px;
+    min-height: 44px;
     border: 1px solid transparent;
     border-radius: 5px;
     color: var(--panel-muted);
@@ -146,10 +148,10 @@ export function mobileToolbarHTML(): string {
 	return `
 <div id="mobile-toolbar">
   <button id="mic-toggle" type="button" title="Voice input" aria-label="Voice input">
-    <svg viewBox="0 0 24 24"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5-3c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/></svg>
+    ${icon('microphone')}
   </button>
   <button id="type-toggle" type="button" title="Type to send" aria-label="Type to send">
-    <svg viewBox="0 0 24 24"><path d="M20 5H4c-1.1 0-1.99.9-1.99 2L2 17c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm-9 3h2v2h-2V8zm0 3h2v2h-2v-2zM8 8h2v2H8V8zm0 3h2v2H8v-2zm-1 2H5v-2h2v2zm0-3H5V8h2v2zm9 7H8v-2h8v2zm0-4h-2v-2h2v2zm0-3h-2V8h2v2zm3 3h-2v-2h2v2zm0-3h-2V8h2v2z"/></svg>
+    ${icon('keyboard')}
   </button>
 </div>
 <div id="type-backdrop"></div>

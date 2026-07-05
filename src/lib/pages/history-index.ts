@@ -69,7 +69,7 @@ export function renderHistoryIndex(
     background: none; border: 1px solid var(--panel-border); border-radius: 6px;
     color: var(--panel-muted); font-family: inherit; font-size: var(--text-xs);
     padding: 8px 14px; cursor: pointer; transition: border-color 0.15s, color 0.15s, background 0.15s;
-    min-height: 36px;
+    min-height: 44px;
   }
   .hist-toolbar button:hover { border-color: #fc8181; color: #fc8181; background: color-mix(in srgb, #fc8181 8%, transparent); }
   .hist-toolbar button:focus-visible { box-shadow: 0 0 0 2px #fc8181; outline: none; }

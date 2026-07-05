@@ -40,7 +40,7 @@ export function renderNotesPage(session: string, theme: TmuxWebTheme, commandbar
     font-size: var(--text-xs); color: var(--panel-muted); background: none;
     border: 1px solid var(--panel-border); padding: 8px 14px; border-radius: 8px;
     cursor: pointer; font-family: var(--font-mono); transition: all 0.15s;
-    min-height: 36px;
+    min-height: 44px;
   }
   .toolbar button:hover { border-color: var(--panel-accent); color: var(--panel-accent); background: color-mix(in srgb, var(--panel-accent) 8%, transparent); }
   .toolbar button:focus-visible { box-shadow: 0 0 0 2px var(--panel-accent); outline: none; }

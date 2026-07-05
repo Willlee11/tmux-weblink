@@ -5,7 +5,7 @@ description: How to install, configure, and build tmux-web extensions.
 
 # Extensions
 
-tmux-web ships a small core. Anything beyond the terminal — GitHub Actions status, deploy panels, CI dashboards, etc. — lives in **extensions**: separate npm packages discovered at startup, run as isolated child processes, and rendered into the sidebar as iframes.
+tmux-web ships a small core. Extra sidebar panels — deploy dashboards, CI status, custom tools, etc. — live in **extensions**: separate npm packages discovered at startup, run as isolated child processes, and rendered into the sidebar as iframes.
 
 ## For users
 
@@ -15,19 +15,19 @@ tmux-web ships a small core. Anything beyond the terminal — GitHub Actions sta
 tmux-web setup
 ```
 
-Walks through optional features: command bar, GitHub Actions, and Git Workflow extensions. When either GitHub extension is enabled, setup checks `gh auth status` and prints instructions if you are not logged in. No `GITHUB_PAT` or `.env` token is required for normal local use — `gh auth login` is enough.
+Walks through optional built-in features: command bar and agents page.
 
 Non-interactive:
 
 ```bash
 tmux-web setup --yes
-tmux-web setup --commandbar --github-actions
+tmux-web setup --commandbar --agents
 ```
 
 ### Install and enable a plugin manually
 
 ```bash
-tmux-web add @tmux-web/ext-github-actions
+tmux-web add @yourscope/your-extension
 ```
 
 This does two things:
@@ -41,7 +41,7 @@ You can then run `tmux-web` (or `npx tmux-web` / `bunx tmux-web`) from anywhere 
 
 ```bash
 tmux-web list                              # show enabled plugins + install status
-tmux-web remove @tmux-web/ext-github-actions
+tmux-web remove @yourscope/your-extension
 ```
 
 `remove` uninstalls the package and removes it from `settings.json`. Idempotent.
@@ -60,27 +60,7 @@ tmux-web remove @tmux-web/ext-github-actions
 
 Extensions inherit the env of the `tmux-web` process. **tmux-web loads `~/.tmux-web/.env` automatically** on every start (dev mode uses `~/.dev/.tmux-web/.env`). Variables already set in your shell are not overwritten.
 
-The GitHub Actions and Git Workflow extensions call GitHub through **`gh api`** / **`gh repo view`**, so you need the [GitHub CLI](https://cli.github.com/) installed and on your `PATH`. Authenticate locally with:
-
-```bash
-gh auth login
-```
-
-No `~/.tmux-web/.env` token is required for normal interactive use on your machine.
-
-For headless or systemd deployments where interactive login is not possible, set a token in `~/.tmux-web/.env` instead (`gh` honors `GH_TOKEN`; `GITHUB_PAT` is also passed through as `GH_TOKEN`):
-
-```bash
-cat > ~/.tmux-web/.env <<'EOF'
-GH_TOKEN=github_pat_xxx
-PORT=9878
-EOF
-chmod 600 ~/.tmux-web/.env
-
-tmux-web
-```
-
-For a systemd service, use `EnvironmentFile=/home/youruser/.tmux-web/.env` (same path tmux-web reads by default). The service user must either have run `gh auth login` or have `GH_TOKEN`/`GITHUB_PAT` set in that file.
+Extension-specific authentication (for example, a GitHub token) is handled by the extension itself. Check the extension's own docs for required env vars or CLI tools.
 
 ---
 
@@ -145,13 +125,13 @@ dist/
 | `start` | Command tmux-web runs (cwd = extension dir) |
 | `config` | Arbitrary JSON passed to the UI via `ext.onConfig()` |
 
-There is **no `id` field** — the id is derived from `package.json`'s `name`, with any `@scope/` prefix stripped. So `@tmux-web/ext-github-actions` → id is `ext-github-actions`. This becomes the URL prefix (`/ext/ext-github-actions/...`), the socket name, and the data-dir name. Renaming the npm package is the only renaming needed.
+There is **no `id` field** — the id is derived from `package.json`'s `name`, with any `@scope/` prefix stripped. So `@scope/my-extension` → id is `my-extension`. This becomes the URL prefix (`/ext/my-extension/...`), the socket name, and the data-dir name. Renaming the npm package is the only renaming needed.
 
 ### `package.json`
 
 ```json
 {
-  "name": "@tmux-web/ext-github-actions",
+  "name": "@scope/my-extension",
   "version": "0.1.0",
   "type": "module",
   "files": ["dist/", "tmux-extension.json"],
@@ -262,7 +242,7 @@ Each extension is its own child process. A crash in one extension doesn't take d
 
 ### Local development
 
-Drop the extension directory into the tmux-web repo's `extensions/` folder:
+Drop the extension directory into the tmux-web repo's `extensions/` folder (create it if it does not exist):
 
 ```
 tmux-web/
@@ -274,7 +254,7 @@ tmux-web/
         └── ui/
 ```
 
-The host's resolver checks `extensions/` first (highest priority), so local code overrides any installed npm version with the same id. `npm run dev` from the tmux-web repo rebuilds the extension automatically via the `predev` hook.
+The host's resolver checks `extensions/` first (highest priority), so local code overrides any installed npm version with the same id. `npm run dev` from the tmux-web repo rebuilds local extensions automatically via the `predev` hook.
 
 ### Publishing
 
@@ -288,9 +268,3 @@ Users install via:
 ```bash
 tmux-web add @yourscope/your-extension
 ```
-
-### Bundled extensions
-
-| Extension | Guide |
-| --- | --- |
-| `@tmux-web/ext-git-workflow` | [Git Workflow](extensions/git-workflow.md) — git status, worktree handoff, commit/push |

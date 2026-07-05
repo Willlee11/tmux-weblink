@@ -46,7 +46,7 @@ export function schedulerDrawerCSS(): string {
     font-size: var(--text-xs); color: var(--panel-muted); background: none;
     border: 1px solid var(--panel-border); padding: 6px 12px; border-radius: 6px;
     cursor: pointer; font-family: var(--font-mono); transition: all 0.15s;
-    min-height: 32px;
+    min-height: 44px;
   }
   .sched-preset-btn:hover { border-color: var(--panel-accent); color: var(--panel-accent); background: color-mix(in srgb, var(--panel-accent) 8%, transparent); }
   .sched-preset-btn:focus-visible { box-shadow: 0 0 0 2px var(--panel-accent); outline: none; }
@@ -111,7 +111,7 @@ export function schedulerDrawerCSS(): string {
     font-size: var(--text-xs); color: var(--panel-muted); background: none;
     border: 1px solid var(--panel-border); padding: 6px 10px; border-radius: 6px;
     cursor: pointer; font-family: var(--font-mono); transition: all 0.15s;
-    min-height: 32px;
+    min-height: 44px;
   }
   .sched-cancel-btn:hover { border-color: #cc6666; color: #cc6666; background: color-mix(in srgb, #cc6666 8%, transparent); }
   .sched-cancel-btn:focus-visible { box-shadow: 0 0 0 2px #cc6666; outline: none; }

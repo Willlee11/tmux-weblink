@@ -9,7 +9,8 @@ export const ghosttyTheme: TmuxWebTheme = {
 		panelBg: '#1f2335',
 		panelBorder: '#292e42',
 		panelMuted: '#565f89',
-		panelAccent: '#c0caf5',
+		panelAccent: '#7aa2f7',
+		panelAccentOn: '#1a1b26',
 		panelSuccess: '#9ece6a',
 		terminalBg: '#1a1b26',
 		headerGradient:

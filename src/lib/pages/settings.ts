@@ -2,7 +2,6 @@ import { cssVarsStyle } from '../theme.js';
 import { getThemeTemplates, THEME_TEMPLATE_IDS } from '../themes/index.js';
 import type { TmuxWebTheme } from '../themes/types.js';
 import type { TmuxWebSettings } from '../settings.js';
-import { GITHUB_ACTIONS_PKG } from '../setup-features.js';
 
 function escapeHtml(s: string): string {
 	return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -140,10 +139,6 @@ export function renderSettings(opts: {
     </div>`).join('\n')
 		: `<p class="desc" style="margin:0">No plugins enabled.</p>`;
 
-	const suggestGithub = !plugins.includes(GITHUB_ACTIONS_PKG)
-		? `<p class="suggest">Suggested: <button type="button" onclick="document.getElementById('pkg-input').value='${GITHUB_ACTIONS_PKG}'">${GITHUB_ACTIONS_PKG}</button> (sidebar CI status)</p>`
-		: '';
-
 	return /* html */ `${pageHead('Settings', theme)}
 <body>
 <div class="container">
@@ -212,7 +207,6 @@ export function renderSettings(opts: {
       <input type="text" id="pkg-input" name="pkg" placeholder="npm package name" autocomplete="off" />
       <button type="submit" class="btn">Add</button>
     </form>
-    ${suggestGithub}
   </div>
 
   <div class="section">

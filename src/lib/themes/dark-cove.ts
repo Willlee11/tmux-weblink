@@ -10,6 +10,7 @@ export const darkCoveTheme: TmuxWebTheme = {
 		panelBorder: '#2f353f',
 		panelMuted: '#9097a3',
 		panelAccent: '#7aa2f7',
+		panelAccentOn: '#15181d',
 		panelSuccess: '#73daca',
 		terminalBg: '#15181d',
 		headerGradient: 'linear-gradient(180deg, rgba(34, 38, 45, 0.98), rgba(26, 29, 35, 0.98))',

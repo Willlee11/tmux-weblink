@@ -1,3 +1,5 @@
+import { icon } from './icons.js';
+
 export type CommandbarSession = {
 	name: string;
 	windows: number;
@@ -155,7 +157,7 @@ export function commandbarHTML(): string {
 <div class="cmdbar-backdrop" id="cmdbar-backdrop"></div>
 <div class="cmdbar-panel" id="cmdbar-panel" role="dialog" aria-modal="true" aria-label="Switch tmux session">
   <div class="cmdbar-search">
-    <svg viewBox="0 0 24 24"><path d="M9.5 3a6.5 6.5 0 0 1 5.18 10.43l4.45 4.44-1.42 1.42-4.44-4.45A6.5 6.5 0 1 1 9.5 3Zm0 2a4.5 4.5 0 1 0 0 9 4.5 4.5 0 0 0 0-9Z"/></svg>
+    ${icon('search')}
     <input id="cmdbar-input" type="search" placeholder="Filter tmux sessions" autocomplete="off" spellcheck="false" />
   </div>
   <div class="cmdbar-list" id="cmdbar-list"></div>

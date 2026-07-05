@@ -53,7 +53,7 @@ export function windowsDrawerCSS(): string {
   }
   .windows-row-edit {
     flex-shrink: 0; display: flex; align-items: center; justify-content: center;
-    background: none; border: none; min-width: 36px; min-height: 36px; padding: 4px; border-radius: 6px;
+    background: none; border: none; min-width: 44px; min-height: 44px; padding: 4px; border-radius: 6px;
     color: var(--panel-muted); cursor: pointer; opacity: 0;
     transition: opacity 0.15s, color 0.15s, background 0.15s;
   }

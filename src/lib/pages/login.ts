@@ -91,7 +91,7 @@ export function renderLoginPage(opts: { setupMode: boolean; error?: string; them
     border: none;
     border-radius: 14px;
     background: var(--panel-accent);
-    color: #fff;
+    color: var(--panel-accent-on);
     font: inherit;
     font-size: var(--text-base);
     font-weight: 600;

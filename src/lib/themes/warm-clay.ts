@@ -10,6 +10,7 @@ export const warmClayTheme: TmuxWebTheme = {
 		panelBorder: '#ebe5df',
 		panelMuted: '#7b726b',
 		panelAccent: '#b86b52',
+		panelAccentOn: '#ffffff',
 		panelSuccess: '#6b9e7c',
 		terminalBg: '#2b2623',
 		headerGradient: 'linear-gradient(180deg, rgba(255,255,255,0.98), rgba(250,248,245,0.98))',

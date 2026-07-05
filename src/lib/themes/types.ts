@@ -7,6 +7,7 @@ export type ShellTheme = {
 	panelBorder: string;
 	panelMuted: string;
 	panelAccent: string;
+	panelAccentOn: string;
 	panelSuccess: string;
 	terminalBg: string;
 	headerGradient?: string;

@@ -6,6 +6,7 @@ import { schedulerDrawerCSS, schedulerDrawerHTML, schedulerDrawerScript } from '
 import { windowsDrawerCSS, windowsDrawerHTML, windowsDrawerScript } from '../windows-drawer.js';
 import { sessionsDrawerCSS, sessionsDrawerButtonHTML, sessionsDrawerHTML, sessionsDrawerScript } from '../sessions-drawer.js';
 import { mobileToolbarCSS, mobileToolbarHTML, mobileToolbarScript } from '../mobile-toolbar.js';
+import { icon, extIcon } from '../icons.js';
 import type { ExtManifest } from '../ext-loader.js';
 import {
 	commandbarButtonHTML,
@@ -377,16 +378,16 @@ export function renderTerminal(
   <div class="brand"><a href="/" aria-label="Go to home">tmux</a><span>-weblink</span></div>
   <span class="session">${escapeHtml(sessionName)}</span>
   ${commandbarEnabled ? commandbarButtonHTML('Sessions') : ''}
-  <button class="notes-btn" id="notes-toggle" title="Session notes">
-    <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zm-1 2l5 5h-5V4zM6 20V4h5v7h7v9H6z"/></svg>
+  <button class="notes-btn" id="notes-toggle" title="Session notes" aria-label="Session notes">
+    ${icon('notes')}
   </button>
-  <button class="sched-btn" id="sched-toggle" title="Schedule command">
-    <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67V7z"/></svg>
+  <button class="sched-btn" id="sched-toggle" title="Schedule command" aria-label="Schedule command">
+    ${icon('schedule')}
   </button>
-  <button class="windows-btn" id="windows-toggle" title="Switch window">
-    <svg viewBox="0 0 24 24"><path d="M4 6h16v2H4V6zm0 5h10v2H4v-2zm0 5h16v2H4v-2z"/></svg>
+  <button class="windows-btn" id="windows-toggle" title="Switch window" aria-label="Switch window">
+    ${icon('windows')}
   </button>
-  ${sidebarExts.map(e => `<button class="ext-btn" id="ext-${e.id}-toggle" title="${escapeAttr(e.name)}">${escapeHtml(e.icon)}</button>`).join('\n  ')}
+  ${sidebarExts.map(e => `<button class="ext-btn" id="ext-${e.id}-toggle" title="${escapeAttr(e.name)}" aria-label="${escapeAttr(e.name)}">${extIcon(e.id, e.icon)}</button>`).join('\n  ')}
   ${themeSwitcherButtonHTML(theme.template)}
   <div class="status">
     <div class="dot" id="status-dot"></div>

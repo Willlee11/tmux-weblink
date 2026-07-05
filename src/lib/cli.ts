@@ -7,7 +7,7 @@ import { readActiveTheme, setActiveThemeTemplate } from './theme-store.js';
 import { isThemeTemplateId, THEME_TEMPLATE_IDS } from './themes/index.js';
 import { cmdAdd, cmdRemove, getPluginDir } from './plugins.js';
 import { getEnvFilePath } from './load-env.js';
-import { SETUP_FEATURES, verifyGithubCliAuth } from './setup-features.js';
+import { SETUP_FEATURES } from './setup-features.js';
 import { promptYesNo, promptChoice, requireTty } from './setup-prompts.js';
 
 const DATA_ROOT = getDataRoot();
@@ -22,7 +22,6 @@ export { cmdAdd, cmdRemove };
 type SetupFlags = {
   commandbar?: boolean;
   agents?: boolean;
-  githubActions?: boolean;
   yes?: boolean;
 };
 
@@ -46,12 +45,6 @@ function parseSetupArgs(argv: string[]): SetupFlags {
       case '--no-agents':
         flags.agents = false;
         break;
-      case '--github-actions':
-        flags.githubActions = true;
-        break;
-      case '--no-github-actions':
-        flags.githubActions = false;
-        break;
     }
   }
   return flags;
@@ -59,7 +52,6 @@ function parseSetupArgs(argv: string[]): SetupFlags {
 
 function flagKey(id: string): keyof SetupFlags {
   switch (id) {
-    case 'github-actions': return 'githubActions';
     case 'agents': return 'agents';
     default: return 'commandbar';
   }
@@ -68,7 +60,7 @@ function flagKey(id: string): keyof SetupFlags {
 export async function cmdSetup(argv: string[]): Promise<void> {
   const args = argv[0] === 'setup' ? argv.slice(1) : argv;
   const flags = parseSetupArgs(args);
-  const nonInteractive = flags.yes || flags.commandbar !== undefined || flags.agents !== undefined || flags.githubActions !== undefined;
+  const nonInteractive = flags.yes || flags.commandbar !== undefined || flags.agents !== undefined;
 
   if (!nonInteractive) requireTty();
 
@@ -122,12 +114,6 @@ export async function cmdSetup(argv: string[]): Promise<void> {
     const latest = await readSettings();
     await writeSettings({ ...latest, terminalRenderer: rendererChoice });
     console.log(`✓ terminal renderer set to ${rendererChoice}`);
-  }
-
-  const githubExtOn = selections.get('github-actions') === true
-    || selections.get('git-workflow') === true;
-  if (githubExtOn) {
-    await verifyGithubCliAuth();
   }
 
   console.log(`\nDone. Settings: ${CONFIG_DISPLAY}`);

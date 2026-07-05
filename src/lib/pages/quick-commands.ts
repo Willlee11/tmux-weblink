@@ -10,6 +10,7 @@ import {
 	newSessionModalHTML,
 	newSessionModalScript,
 } from '../shared-layout.js';
+import { icon } from '../icons.js';
 
 function escapeHtml(s: string): string {
 	return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -24,10 +25,10 @@ function renderCommandCard(command: QuickCommandRecord): string {
     </div>
     <div class="quick-icon-actions">
       <button class="quick-icon-btn quick-edit" type="button" title="Edit command" aria-label="Edit ${escapeHtml(command.title)}">
-        <svg viewBox="0 0 24 24"><path d="M4 17.25V20h2.75L17.81 8.94l-2.75-2.75L4 17.25zM19.71 7.04a1 1 0 0 0 0-1.41l-1.34-1.34a1 1 0 0 0-1.41 0l-1.05 1.05 2.75 2.75 1.05-1.05z"/></svg>
+        ${icon('edit')}
       </button>
       <button class="quick-icon-btn quick-delete" type="button" title="Delete command" aria-label="Delete ${escapeHtml(command.title)}">
-        <svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM8 9h8v10H8V9zm7.5-5-1-1h-5l-1 1H5v2h14V4h-3.5z"/></svg>
+        ${icon('delete')}
       </button>
     </div>
   </div>

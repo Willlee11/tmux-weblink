@@ -11,6 +11,7 @@ export function cssVarsStyle(shell: ShellTheme = vscodeTheme.shell): string {
     --panel-border: ${shell.panelBorder};
     --panel-muted: ${shell.panelMuted};
     --panel-accent: ${shell.panelAccent};
+    --panel-accent-on: ${shell.panelAccentOn};
     --panel-success: ${shell.panelSuccess};
     --terminal-bg: ${shell.terminalBg};
     --header-gradient: ${shell.headerGradient ?? 'none'};
