@@ -63,11 +63,11 @@ function sortSessionsForView(
 
 function sessionMeta(s: TmuxSession, view: 'default' | 'recent', accessMap: Map<string, number>): string {
 	const windows = `${s.windows} window${s.windows !== 1 ? 's' : ''}`;
-	const attached = s.attached ? ' &middot; attached' : '';
+	const attached = s.attached ? ' · attached' : '';
 	if (view === 'default') return `${windows}${attached}`;
 
 	const accessedAt = accessMap.get(s.name);
-	if (accessedAt) return `${windows}${attached} &middot; ${formatRelativeTime(accessedAt)}`;
+	if (accessedAt) return `${windows}${attached} · ${formatRelativeTime(accessedAt)}`;
 	return `${windows}${attached}`;
 }
 
@@ -94,7 +94,7 @@ export function renderLanding(
 	const rows = sorted
 		.map(
 			(s) =>
-					`<a href="/s/${encodeURIComponent(s.name)}" class="session-row">
+				`<a href="/s/${encodeURIComponent(s.name)}" class="session-row">
       <span class="name">${escapeHtml(s.name)}</span>
       <span class="meta">${sessionMeta(s, view, accessMap)}</span>
     </a>`,
@@ -112,27 +112,30 @@ export function renderLanding(
 	const pageSpecificCSS = `
   .session-row {
     display: flex; justify-content: space-between; align-items: center;
-    padding: 12px 16px; border: 1px solid var(--panel-border); border-radius: 8px;
-    margin-bottom: 8px; text-decoration: none; color: var(--page-fg);
-    background: var(--panel-bg); transition: border-color 0.15s;
+    padding: 18px 22px; border: 1px solid var(--panel-border); border-radius: 16px;
+    margin-bottom: 12px; text-decoration: none; color: var(--page-fg);
+    background: var(--panel-bg); transition: transform 0.1s, box-shadow 0.15s, border-color 0.15s;
   }
-  .session-row:hover { border-color: var(--panel-success); }
-  .session-row .name { font-size: 14px; font-weight: 500; color: var(--panel-accent); }
-  .session-row .meta { font-size: 11px; color: var(--panel-muted); text-align: right; }
-  .empty { font-size: 13px; color: var(--panel-muted); line-height: 1.7; }
-  .empty code { background: rgba(255,255,255,0.06); padding: 2px 6px; border-radius: 4px; font-size: 12px; }
+  .session-row:hover {
+    border-color: var(--panel-accent);
+    box-shadow: 0 4px 20px color-mix(in srgb, var(--panel-accent) 8%, transparent);
+    transform: translateY(-1px);
+  }
+  .session-row .name { font-size: 16px; font-weight: 500; color: var(--page-fg); }
+  .session-row .meta { font-size: 13px; color: var(--panel-muted); text-align: right; margin-top: 4px; }
+  .empty { font-size: 14px; color: var(--panel-muted); line-height: 1.7; margin-top: 12px; }
+  .empty code { background: color-mix(in srgb, var(--panel-accent) 8%, transparent); padding: 3px 7px; border-radius: 6px; font-size: 12px; }
   .empty strong { color: var(--panel-accent); font-weight: 500; }
   .view-tabs {
-    display: flex; gap: 0; margin-bottom: 20px;
-    border-bottom: 1px solid var(--panel-border);
+    display: flex; gap: 8px; margin-bottom: 24px;
   }
   .view-tabs .tab {
-    font-size: 12px; color: var(--panel-muted); text-decoration: none;
-    padding: 8px 16px; border-bottom: 2px solid transparent;
-    margin-bottom: -1px; transition: color 0.15s, border-color 0.15s;
+    font-size: 13px; color: var(--panel-muted); text-decoration: none;
+    padding: 8px 14px; border-radius: 999px;
+    transition: color 0.15s, background 0.15s;
   }
-  .view-tabs .tab:hover { color: var(--panel-accent); }
-  .view-tabs .tab.active { color: var(--panel-accent); border-bottom-color: var(--panel-accent); }
+  .view-tabs .tab:hover { color: var(--panel-accent); background: color-mix(in srgb, var(--panel-accent) 8%, transparent); }
+  .view-tabs .tab.active { color: #fff; background: var(--panel-accent); }
   ${commandbarEnabled ? commandbarCSS() : ''}
   ${notesDrawerCSS()}`;
 
@@ -142,7 +145,7 @@ export function renderLanding(
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-<title>tmux-web</title>
+<title>tmux-weblink</title>
 <style>
   ${cssVarsStyle(theme.shell)}
   ${sharedLayoutCSS(pageSpecificCSS)}
@@ -150,7 +153,7 @@ export function renderLanding(
 </head>
 <body>
 
-${sharedHeader({ commandbarEnabled, title: 'TMUX Sessions' })}
+${sharedHeader({ commandbarEnabled, title: 'TMUX Sessions', themeTemplate: theme.template })}
 
 <div class="page-wrap">
   <div class="page-layout">

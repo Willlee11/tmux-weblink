@@ -87,7 +87,7 @@ export function renderNotesIndex(
 </head>
 <body>
 
-${sharedHeader({ commandbarEnabled, title: 'All Notes' })}
+${sharedHeader({ commandbarEnabled, title: 'All Notes', themeTemplate: theme.template })}
 
 <div class="page-wrap">
   <div class="page-layout">

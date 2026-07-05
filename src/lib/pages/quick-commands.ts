@@ -192,7 +192,7 @@ export function renderQuickCommandsPage(
 </head>
 <body>
 
-${sharedHeader({ commandbarEnabled, title: 'Quick Commands' })}
+${sharedHeader({ commandbarEnabled, title: 'Quick Commands', themeTemplate: theme.template })}
 
 <div class="page-wrap">
   <div class="page-layout">

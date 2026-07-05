@@ -59,7 +59,7 @@ export function renderAgentsIndex(
 </head>
 <body>
 
-${sharedHeader({ commandbarEnabled, title: 'Agents' })}
+${sharedHeader({ commandbarEnabled, title: 'Agents', themeTemplate: theme.template })}
 
 <div class="page-wrap">
   <div class="page-layout">

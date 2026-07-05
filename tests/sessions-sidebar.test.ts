@@ -122,7 +122,7 @@ describe('terminal page', () => {
 	it('renders the sessions toggle before the tmux home link', () => {
 		const html = renderTerminal('dev', [], { theme: vscodeTheme });
 		const toggleIndex = html.indexOf('id="sessions-toggle"');
-		const tmuxIndex = html.indexOf('<h1><a href="/" aria-label="Go to home">tmux</a></h1>');
+		const tmuxIndex = html.indexOf('aria-label="Go to home">tmux</a>');
 
 		expect(toggleIndex).toBeGreaterThan(-1);
 		expect(tmuxIndex).toBeGreaterThan(toggleIndex);

@@ -1,0 +1,41 @@
+import type { TmuxWebTheme } from './types.js';
+
+/** Dark cove — a quiet, deep blue-grey workspace with a soft blue accent. */
+export const darkCoveTheme: TmuxWebTheme = {
+	template: 'dark-cove',
+	shell: {
+		pageBg: '#1a1d23',
+		pageFg: '#e8eaed',
+		panelBg: '#22262d',
+		panelBorder: '#2f353f',
+		panelMuted: '#9097a3',
+		panelAccent: '#7aa2f7',
+		panelSuccess: '#73daca',
+		terminalBg: '#15181d',
+		headerGradient: 'linear-gradient(180deg, rgba(34, 38, 45, 0.98), rgba(26, 29, 35, 0.98))',
+	},
+	terminal: {
+		foreground: '#c0caf5',
+		background: '#15181d',
+		cursor: '#c0caf5',
+		cursorAccent: '#15181d',
+		selectionBackground: 'rgba(122, 162, 247, 0.35)',
+		selectionForeground: '#c0caf5',
+		black: '#15161e',
+		red: '#f7768e',
+		green: '#9ece6a',
+		yellow: '#e0af68',
+		blue: '#7aa2f7',
+		magenta: '#bb9af7',
+		cyan: '#7dcfff',
+		white: '#a9b1d6',
+		brightBlack: '#414868',
+		brightRed: '#f7768e',
+		brightGreen: '#9ece6a',
+		brightYellow: '#e0af68',
+		brightBlue: '#7aa2f7',
+		brightMagenta: '#bb9af7',
+		brightCyan: '#7dcfff',
+		brightWhite: '#c0caf5',
+	},
+};

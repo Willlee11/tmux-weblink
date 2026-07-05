@@ -41,7 +41,8 @@ import { loadDotEnv } from "./lib/load-env.js";
 import { cmdAdd, cmdRemove, cmdList, cmdSetup, cmdTheme, printUsage, printVersion } from "./lib/cli.js";
 import { readSettings, writeSettings } from "./lib/settings.js";
 import { readActiveTheme, setActiveThemeTemplate } from "./lib/theme-store.js";
-import { isThemeTemplateId } from "./lib/themes/index.js";
+import { isThemeTemplateId, THEME_TEMPLATE_IDS } from "./lib/themes/index.js";
+import type { ThemeTemplateId } from "./lib/themes/types.js";
 import { installPlugin, uninstallPlugin } from "./lib/plugins.js";
 import { buildCommandbarSessions } from "./lib/commandbar.js";
 import { pinView, unpinView, listPinnedViews } from "./lib/pinned-views.js";
@@ -315,7 +316,7 @@ db.data.triggeredTasks ??= [];
 db.data.quickCommands ??= [];
 
 const settings = await readSettings();
-const activeTheme = await readActiveTheme();
+let activeTheme = await readActiveTheme();
 const commandbarEnabled = settings.commandbar === true;
 const agentsEnabled = settings.agents === true;
 const agentsBackgroundWatch = agentsEnabled && settings.agentsBackgroundWatch === true;
@@ -440,7 +441,8 @@ app.get("/favicon.ico", serveFavicon);
 // ── Public routes ──────────────────────────────────────────────────────────
 
 app.get("/login", (c) => {
-	const setupMode = !securityConfig.passwordHash;
+	const setupParam = c.req.query("setup");
+	const setupMode = setupParam === "1" ? true : !securityConfig.passwordHash;
 	const error = c.req.query("error");
 	return c.html(renderLoginPage({ setupMode, error: error ? decodeURIComponent(error) : undefined, theme: activeTheme }));
 });
@@ -741,8 +743,37 @@ app.post("/settings/theme", requireAuth(), async (c) => {
 	if (typeof template !== "string" || !isThemeTemplateId(template)) {
 		return c.redirect("/settings/theme", 303);
 	}
-	await setActiveThemeTemplate(template);
+	activeTheme = await setActiveThemeTemplate(template);
 	return c.redirect("/settings/theme?saved=1", 303);
+});
+
+const THEME_NAMES: Record<ThemeTemplateId, string> = {
+	vscode: "VS Code",
+	ghostty: "Ghostty",
+	"warm-clay": "Warm Clay",
+	"dark-cove": "Dark Cove",
+};
+
+app.get("/api/theme", requireAuth(), (c) => {
+	return c.json({
+		active: activeTheme.template,
+		templates: THEME_TEMPLATE_IDS.map((id) => ({ id, name: THEME_NAMES[id] })),
+	});
+});
+
+app.post("/api/theme", requireAuth(), async (c) => {
+	let body: { template?: unknown };
+	try {
+		body = await c.req.json();
+	} catch {
+		return c.json({ error: "invalid json" }, 400);
+	}
+	const template = body.template;
+	if (typeof template !== "string" || !isThemeTemplateId(template)) {
+		return c.json({ error: "invalid theme template" }, 400);
+	}
+	activeTheme = await setActiveThemeTemplate(template);
+	return c.json({ ok: true, active: activeTheme.template });
 });
 
 app.get("/api/sessions", requireAuth(), (c) => {

@@ -2,136 +2,241 @@ import { commandbarButtonHTML } from './commandbar.js';
 
 export type ActivePage = 'home' | 'notes' | 'schedule' | 'agents' | 'history' | 'quickCommands';
 
+type ThemeOption = { id: string; name: string; dot: string };
+
+const THEME_OPTIONS: ThemeOption[] = [
+	{ id: 'vscode', name: 'VS Code', dot: '#007acc' },
+	{ id: 'ghostty', name: 'Ghostty', dot: '#ff5f00' },
+	{ id: 'warm-clay', name: 'Warm Clay', dot: '#b86b52' },
+	{ id: 'dark-cove', name: 'Dark Cove', dot: '#7aa2f7' },
+];
+
 /** Base CSS for the fixed header, two-column layout, sidebar, and new-session modal. */
 export function sharedLayoutCSS(extraCSS = ''): string {
 	return `
   *, *::before, *::after { box-sizing: border-box; }
-  html, body { background: var(--page-bg); color: var(--page-fg); min-height: 100%; font-family: 'JetBrains Mono', 'SF Mono', 'Menlo', monospace; margin: 0; padding: 0; }
+  html, body { background: var(--page-bg); color: var(--page-fg); min-height: 100%; font-family: 'Inter', system-ui, -apple-system, sans-serif; margin: 0; padding: 0; }
 
   /* ── Fixed header ── */
   .fixed-header {
     position: fixed; top: 0; left: 0; right: 0; z-index: 200;
-    background: var(--panel-bg); border-bottom: 1px solid var(--panel-border);
+    background: color-mix(in srgb, var(--panel-bg) 92%, transparent);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--panel-border);
     display: flex; justify-content: space-between; align-items: center;
-    padding: 0 24px; height: 52px;
+    padding: 0 24px; height: 64px;
   }
-  .fixed-header h1 {
-    font-size: 13px; font-weight: 600; letter-spacing: 0.1em;
-    text-transform: uppercase; color: var(--panel-accent); margin: 0;
+  .fixed-header .brand {
+    font-size: 16px; font-weight: 600; letter-spacing: -0.01em; color: var(--page-fg);
   }
+  .fixed-header .brand span { color: var(--panel-accent); font-weight: 500; }
   .header-actions { display: flex; align-items: center; gap: 8px; }
-  .header-btn {
-    display: flex; align-items: center; gap: 4px;
+  .header-btn, .icon-btn {
+    display: flex; align-items: center; gap: 6px;
     background: none; border: none; color: var(--panel-muted); cursor: pointer;
-    padding: 4px 8px; border-radius: 4px; transition: color 0.15s; font-size: 11px;
-    text-decoration: none; font-family: inherit;
+    padding: 8px 12px; border-radius: 10px; transition: color 0.15s, background 0.15s;
+    font-size: 13px; text-decoration: none;
   }
-  .header-btn:hover { color: var(--panel-accent); }
-  .header-btn svg { width: 14px; height: 14px; fill: currentColor; flex-shrink: 0; }
+  .header-btn:hover, .icon-btn:hover { color: var(--panel-accent); background: color-mix(in srgb, var(--panel-accent) 8%, transparent); }
+  .header-btn svg, .icon-btn svg { width: 16px; height: 16px; fill: currentColor; flex-shrink: 0; }
+
+  /* ── Theme switcher popover ── */
+  .theme-switcher { position: relative; }
+  .theme-switcher-btn {
+    display: flex; align-items: center; gap: 6px;
+    background: none; border: none; color: var(--panel-muted); cursor: pointer;
+    padding: 8px 12px; border-radius: 10px; transition: color 0.15s, background 0.15s;
+    font-size: 13px; text-decoration: none; font-family: inherit;
+  }
+  .theme-switcher-btn:hover { color: var(--panel-accent); background: color-mix(in srgb, var(--panel-accent) 8%, transparent); }
+  .theme-switcher-btn svg { width: 16px; height: 16px; fill: currentColor; flex-shrink: 0; }
+  .theme-switcher-popover {
+    position: absolute; top: calc(100% + 8px); right: 0;
+    min-width: 170px; background: var(--panel-bg); border: 1px solid var(--panel-border);
+    border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,0.12); padding: 6px;
+    display: none; z-index: 300;
+  }
+  .theme-switcher.open .theme-switcher-popover { display: block; }
+  .theme-option {
+    display: flex; align-items: center; gap: 10px; width: 100%;
+    padding: 8px 10px; border-radius: 8px; border: none; background: none;
+    color: var(--page-fg); font-size: 13px; cursor: pointer; text-align: left; font-family: inherit;
+  }
+  .theme-option:hover { background: color-mix(in srgb, var(--panel-accent) 8%, transparent); color: var(--panel-accent); }
+  .theme-option.active { color: var(--panel-accent); font-weight: 500; }
+  .theme-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+  .theme-check { width: 14px; height: 14px; margin-left: auto; color: var(--panel-accent); }
 
   /* ── Page layout ── */
-  .page-wrap { padding-top: 52px; }
+  .page-wrap { padding-top: 64px; }
   .page-layout {
-    display: flex; gap: 0; max-width: 1100px; margin: 0 auto; padding: 32px 24px;
+    display: flex; gap: 40px; max-width: 1120px; margin: 0 auto; padding: 32px 24px;
     align-items: flex-start;
   }
 
   /* ── Main content panel ── */
   .main-panel { flex: 2; min-width: 0; }
 
-  /* ── Action sidebar (1/3) ── */
+  /* ── Action sidebar ── */
   .action-sidebar {
     flex: 1; max-width: 240px; min-width: 180px;
-    margin-right: 32px; position: sticky; top: 72px;
+    margin-right: 0; position: sticky; top: 88px;
   }
   .sidebar-label {
-    font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase;
-    color: var(--panel-muted); margin: 0 0 10px 4px;
+    font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--panel-muted); margin: 0 0 12px 4px; font-weight: 500;
   }
   .sidebar-btn {
-    display: flex; align-items: center; gap: 8px; width: 100%;
-    padding: 9px 12px; border: 1px solid var(--panel-border); border-radius: 7px;
-    background: var(--panel-bg); color: var(--page-fg); cursor: pointer;
-    font-size: 12px; font-family: inherit; text-decoration: none;
-    transition: border-color 0.15s, color 0.15s; margin-bottom: 6px;
+    display: flex; align-items: center; gap: 12px;
+    width: 100%;
+    padding: 11px 14px; border: 1px solid transparent; border-radius: 12px;
+    background: transparent; color: var(--page-fg); cursor: pointer;
+    font-size: 14px; font-family: inherit; text-decoration: none;
+    transition: background 0.15s, color 0.15s; margin-bottom: 4px;
     text-align: left;
   }
-  .sidebar-btn:hover { border-color: var(--panel-accent); color: var(--panel-accent); }
-  .sidebar-btn.primary { border-color: var(--panel-accent); color: var(--panel-accent); }
-  .sidebar-btn.primary:hover { opacity: 0.8; }
-  .sidebar-btn.current {
-    border-color: var(--panel-accent); color: var(--panel-accent);
-    opacity: 0.6; cursor: default; pointer-events: none;
+  .sidebar-btn:hover { background: color-mix(in srgb, var(--panel-accent) 8%, transparent); color: var(--panel-accent); }
+  .sidebar-btn.primary {
+    background: var(--panel-accent); border-color: var(--panel-accent); color: #fff;
+    font-weight: 500; margin-bottom: 16px;
   }
-  .sidebar-btn svg { width: 14px; height: 14px; fill: currentColor; flex-shrink: 0; }
-  .sidebar-divider { border: none; border-top: 1px solid var(--panel-border); margin: 10px 0; }
+  .sidebar-btn.primary:hover { opacity: 0.9; }
+  .sidebar-btn.current {
+    background: color-mix(in srgb, var(--panel-accent) 8%, transparent); color: var(--panel-accent);
+    font-weight: 500; cursor: default; pointer-events: none;
+  }
+  .sidebar-btn svg { width: 16px; height: 16px; fill: currentColor; flex-shrink: 0; }
+  .sidebar-divider { border: none; border-top: 1px solid var(--panel-border); margin: 14px 0; }
 
   /* ── New session modal ── */
   .modal-backdrop {
-    display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.55);
+    display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.3);
     z-index: 500; align-items: center; justify-content: center;
   }
   .modal-backdrop.open { display: flex; }
   .modal-panel {
     background: var(--panel-bg); border: 1px solid var(--panel-border);
-    border-radius: 12px; padding: 24px; width: 100%; max-width: 440px;
+    border-radius: 20px; padding: 32px; width: 100%; max-width: 440px;
     margin: 0 16px;
   }
-  .modal-panel h2 { font-size: 14px; font-weight: 600; margin: 0 0 20px; color: var(--panel-accent); letter-spacing: 0.06em; text-transform: uppercase; }
-  .modal-field { margin-bottom: 16px; position: relative; }
-  .modal-field label { display: block; font-size: 11px; color: var(--panel-muted); margin-bottom: 6px; letter-spacing: 0.05em; text-transform: uppercase; }
+  .modal-panel h2 { font-size: 20px; font-weight: 600; margin: 0 0 24px; color: var(--page-fg); }
+  .modal-field { margin-bottom: 20px; position: relative; }
+  .modal-field label { display: block; font-size: 13px; font-weight: 500; color: var(--page-fg); margin-bottom: 8px; }
   .modal-field input {
-    width: 100%; padding: 9px 12px; background: var(--page-bg);
-    border: 1px solid var(--panel-border); border-radius: 6px;
-    color: var(--page-fg); font-size: 13px; font-family: inherit;
-    outline: none; transition: border-color 0.15s;
+    width: 100%; padding: 13px 15px; background: var(--page-bg);
+    border: 1px solid var(--panel-border); border-radius: 14px;
+    color: var(--page-fg); font-size: 15px; font-family: inherit;
+    outline: none; transition: border-color 0.15s, box-shadow 0.15s;
   }
-  .modal-field input:focus { border-color: var(--panel-accent); }
+  .modal-field input:focus { border-color: var(--panel-accent); box-shadow: 0 0 0 4px color-mix(in srgb, var(--panel-accent) 8%, transparent); }
   /* Custom directory autocomplete dropdown (replaces native <datalist>) */
   .modal-dropdown {
     display: none; position: absolute; left: 0; right: 0; top: 100%;
     margin-top: 4px; max-height: 220px; overflow-y: auto; z-index: 10;
     background: var(--panel-bg); border: 1px solid var(--panel-border);
-    border-radius: 6px; box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+    border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,0.12);
   }
   .modal-dropdown.open { display: block; }
   .modal-dropdown-item {
-    padding: 7px 12px; font-size: 12px; color: var(--page-fg); cursor: pointer;
+    padding: 9px 14px; font-size: 13px; color: var(--page-fg); cursor: pointer;
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
   .modal-dropdown-item:hover, .modal-dropdown-item.active {
-    background: var(--panel-border); color: var(--panel-accent);
+    background: color-mix(in srgb, var(--panel-accent) 8%, transparent); color: var(--panel-accent);
   }
-  .modal-error { font-size: 12px; color: #fc8181; margin-bottom: 12px; display: none; }
-  .modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 4px; }
+  .modal-error { font-size: 13px; color: #b91c1c; margin-bottom: 12px; display: none; }
+  .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 8px; }
   .modal-btn {
-    padding: 8px 18px; border-radius: 6px; font-size: 12px; font-family: inherit;
-    cursor: pointer; border: 1px solid var(--panel-border); background: none;
-    color: var(--page-fg); transition: border-color 0.15s, color 0.15s;
+    padding: 11px 20px; border-radius: 12px; font-size: 14px; font-family: inherit;
+    cursor: pointer; border: 1px solid var(--panel-border); background: var(--panel-bg);
+    color: var(--page-fg); transition: opacity 0.15s;
   }
-  .modal-btn:hover { border-color: var(--panel-accent); color: var(--panel-accent); }
+  .modal-btn:hover { opacity: 0.85; }
   .modal-btn.confirm {
     background: var(--panel-accent); border-color: var(--panel-accent);
-    color: var(--page-bg); font-weight: 600;
+    color: #fff; font-weight: 500;
   }
-  .modal-btn.confirm:hover { opacity: 0.85; }
+  .modal-btn.confirm:hover { opacity: 0.9; }
 
   /* ── Mobile ── */
   @media (max-width: 767px) {
     .page-layout { flex-direction: column; padding: 20px 16px; gap: 0; }
-    .action-sidebar { max-width: 100%; min-width: 0; width: 100%; margin-right: 0; margin-bottom: 24px; position: static; order: -1; }
+    .action-sidebar { max-width: 100%; min-width: 0; width: 100%; margin-right: 0; position: static; order: -1; }
     .fixed-header { padding: 0 16px; }
+    .header-btn span,
+    .theme-switcher-btn span { display: none; }
   }
 
   ${extraCSS}`;
+}
+
+function themeSwitcherOptionsHTML(activeTemplate: string): string {
+	return THEME_OPTIONS.map((t) => {
+		const active = t.id === activeTemplate ? ' active' : '';
+		const check = t.id === activeTemplate
+			? '<svg class="theme-check" viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>'
+			: '<svg class="theme-check" viewBox="0 0 24 24"></svg>';
+		return `<button type="button" class="theme-option${active}" data-theme="${t.id}">
+	      <span class="theme-dot" style="background:${t.dot}"></span>
+	      <span>${t.name}</span>
+	      ${check}
+	    </button>`;
+	}).join('\n');
+}
+
+/** Standalone theme-switcher button + popover HTML. */
+export function themeSwitcherButtonHTML(activeTemplate: string): string {
+	return `<div class="theme-switcher" id="theme-switcher">
+  <button type="button" class="theme-switcher-btn" id="theme-switcher-btn" title="Switch theme">
+    <svg viewBox="0 0 24 24"><path d="M12 3c-4.97 0-9 4.03-9 9s4.03 9 9 9c.83 0 1.5-.67 1.5-1.5 0-.39-.15-.74-.39-1.01-.23-.26-.38-.61-.38-.99 0-.83.67-1.5 1.5-1.5H16c2.76 0 5-2.24 5-5 0-4.42-4.03-8-9-8zm-5.5 9c-.83 0-1.5-.67-1.5-1.5S5.67 9 6.5 9 8 9.67 8 10.5 7.33 12 6.5 12zm3-4C8.67 8 8 7.33 8 6.5S8.67 5 9.5 5s1.5.67 1.5 1.5S10.33 8 9.5 8zm5 0c-.83 0-1.5-.67-1.5-1.5S13.67 5 14.5 5s1.5.67 1.5 1.5S15.33 8 14.5 8zm3 4c-.83 0-1.5-.67-1.5-1.5S16.67 9 17.5 9s1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"/></svg>
+    <span>Theme</span>
+  </button>
+  <div class="theme-switcher-popover">
+    ${themeSwitcherOptionsHTML(activeTemplate)}
+  </div>
+</div>`;
+}
+
+/** Inline IIFE to power the theme switcher. */
+export function themeSwitcherScript(): string {
+	return `(function() {
+  const wrapper = document.getElementById('theme-switcher');
+  const btn = document.getElementById('theme-switcher-btn');
+  if (!wrapper || !btn) return;
+  function closeOnOutside(e) { if (!wrapper.contains(e.target)) wrapper.classList.remove('open'); }
+  btn.addEventListener('click', (e) => { e.stopPropagation(); wrapper.classList.toggle('open'); });
+  document.addEventListener('click', closeOnOutside);
+  wrapper.querySelectorAll('.theme-option').forEach((opt) => {
+    opt.addEventListener('click', async () => {
+      const template = opt.getAttribute('data-theme');
+      if (!template || opt.classList.contains('active')) {
+        wrapper.classList.remove('open');
+        return;
+      }
+      try {
+        const token = localStorage.getItem('tmux-web-token');
+        const headers = { 'Content-Type': 'application/json' };
+        if (token) headers['Authorization'] = 'Bearer ' + token;
+        const res = await fetch('/api/theme', {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({ template }),
+        });
+        if (res.ok) location.reload();
+      } catch {}
+      wrapper.classList.remove('open');
+    });
+  });
+})();`;
 }
 
 /** Fixed header HTML. Title defaults to "TMUX Sessions". */
 export function sharedHeader(opts: {
 	commandbarEnabled: boolean;
 	title?: string;
+	themeTemplate?: string;
 }): string {
-	const { commandbarEnabled, title = 'TMUX Sessions' } = opts;
+	const { commandbarEnabled, title = 'TMUX Sessions', themeTemplate = 'vscode' } = opts;
 	return `<script>
 (function() {
   const token = localStorage.getItem('tmux-web-token');
@@ -149,19 +254,21 @@ export function sharedHeader(opts: {
 })();
 </script>
 <header class="fixed-header">
-  <h1>${title}</h1>
+  <div class="brand">tmux<span>-weblink</span></div>
   <div class="header-actions">
     ${commandbarEnabled ? commandbarButtonHTML('Search') : ''}
     <button class="header-btn" id="notes-toggle" title="Global notes">
       <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zm-1 2l5 5h-5V4zM6 20V4h5v7h7v9H6z"/></svg>
-      Notes
+      <span>Notes</span>
     </button>
+    ${themeSwitcherButtonHTML(themeTemplate)}
     <a class="header-btn" href="/settings" title="Settings">
       <svg viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58a.49.49 0 0 0 .12-.61l-1.92-3.32a.488.488 0 0 0-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.484.484 0 0 0-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58a.49.49 0 0 0-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>
-      Settings
+      <span>Settings</span>
     </a>
   </div>
-</header>`;
+</header>
+<script>${themeSwitcherScript()}</script>`;
 }
 
 /** Sidebar HTML with the current page indicated and agents link conditional. */

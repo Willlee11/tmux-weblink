@@ -239,7 +239,7 @@ export function renderScheduleIndex(
 </head>
 <body>
 
-${sharedHeader({ commandbarEnabled, title: 'Scheduled' })}
+${sharedHeader({ commandbarEnabled, title: 'Scheduled', themeTemplate: theme.template })}
 
 <div class="page-wrap">
   <div class="page-layout">

@@ -1,0 +1,41 @@
+import type { TmuxWebTheme } from './types.js';
+
+/** Warm clay — a light, personal workspace with a soft terracotta accent. */
+export const warmClayTheme: TmuxWebTheme = {
+	template: 'warm-clay',
+	shell: {
+		pageBg: '#faf8f5',
+		pageFg: '#2d2926',
+		panelBg: '#ffffff',
+		panelBorder: '#ebe5df',
+		panelMuted: '#7b726b',
+		panelAccent: '#b86b52',
+		panelSuccess: '#6b9e7c',
+		terminalBg: '#2b2623',
+		headerGradient: 'linear-gradient(180deg, rgba(255,255,255,0.98), rgba(250,248,245,0.98))',
+	},
+	terminal: {
+		foreground: '#e8e2dc',
+		background: '#2b2623',
+		cursor: '#e8e2dc',
+		cursorAccent: '#2b2623',
+		selectionBackground: 'rgba(184, 107, 82, 0.35)',
+		selectionForeground: '#e8e2dc',
+		black: '#2b2623',
+		red: '#d88a8a',
+		green: '#8fc49f',
+		yellow: '#e0c28a',
+		blue: '#8ab4d8',
+		magenta: '#c9a5c9',
+		cyan: '#8ad0d0',
+		white: '#d8d0c8',
+		brightBlack: '#4a433e',
+		brightRed: '#e8a0a0',
+		brightGreen: '#a5d6b2',
+		brightYellow: '#efd69a',
+		brightBlue: '#a5c8e8',
+		brightMagenta: '#d9b8d9',
+		brightCyan: '#a0dede',
+		brightWhite: '#f5f0eb',
+	},
+};

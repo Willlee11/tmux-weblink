@@ -107,7 +107,7 @@ export function renderHistoryIndex(
 </head>
 <body>
 
-${sharedHeader({ commandbarEnabled, title: 'History' })}
+${sharedHeader({ commandbarEnabled, title: 'History', themeTemplate: theme.template })}
 
 <div class="page-wrap">
   <div class="page-layout">

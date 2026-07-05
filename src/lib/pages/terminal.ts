@@ -17,6 +17,7 @@ import {
 	type CommandbarQuickCommand,
 } from '../commandbar.js';
 import { drawerResizeCSS, drawerResizeHandleHTML, drawerResizeScript } from '../drawer-resize.js';
+import { themeSwitcherButtonHTML, themeSwitcherScript } from '../shared-layout.js';
 import type { TerminalBufferConfig } from '../terminal-config.js';
 
 function extDrawerCSS(): string {
@@ -246,50 +247,34 @@ export function renderTerminal(
   html, body { background: var(--page-bg); color: var(--page-fg); height: 100%; width: 100%; overflow: hidden; }
   body { display: flex; flex-direction: column; }
   header {
-    padding: 7px 16px;
+    padding: 10px 18px;
     background: var(--header-gradient);
     border-bottom: 1px solid var(--panel-border);
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 14px;
     flex-shrink: 0;
-    min-height: 38px;
+    min-height: 52px;
   }
-  header h1 {
-    font-size: 13px;
-    line-height: 1;
-    font-weight: 600;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: var(--panel-accent);
-    font-family: 'JetBrains Mono', 'SF Mono', 'Menlo', monospace;
-    white-space: nowrap;
+  header .brand {
+    font-size: 16px; font-weight: 600; letter-spacing: -0.01em; color: var(--page-fg);
   }
-  header h1 a {
-    color: inherit;
-    text-decoration: none;
-  }
-  header h1 a:hover,
-  header h1 a:focus-visible {
-    color: var(--panel-success);
-    outline: none;
-  }
+  header .brand span { color: var(--panel-accent); font-weight: 500; }
+  header .brand a { color: inherit; text-decoration: none; }
   header .session {
-    font-size: 11px;
+    font-size: 13px;
     color: var(--panel-muted);
-    font-family: 'JetBrains Mono', monospace;
-    background: rgba(0, 0, 0, 0.28);
-    border: 1px solid rgba(125, 211, 252, 0.12);
-    padding: 4px 8px;
-    border-radius: 6px;
+    background: var(--page-bg);
+    border: 1px solid var(--panel-border);
+    padding: 7px 14px;
+    border-radius: 10px;
   }
   header .status {
     margin-left: auto;
-    font-size: 11px;
+    font-size: 12px;
     display: flex;
     align-items: center;
-    gap: 6px;
-    font-family: 'JetBrains Mono', 'SF Mono', 'Menlo', monospace;
+    gap: 8px;
     color: var(--panel-muted);
   }
   header .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--panel-muted); transition: background 0.2s; }
@@ -306,13 +291,49 @@ export function renderTerminal(
     outline-offset: -2px;
     background: rgba(125, 211, 252, 0.06);
   }
-  header .notes-btn {
+  header .notes-btn,
+  header .sched-btn,
+  header .windows-btn,
+  header .ext-btn,
+  header .sessions-btn {
     display: flex; align-items: center; gap: 4px;
     background: none; border: none; color: var(--panel-muted); cursor: pointer;
-    padding: 2px 6px; border-radius: 4px; transition: color 0.15s;
+    padding: 8px; border-radius: 10px; transition: color 0.15s, background 0.15s;
   }
-  header .notes-btn:hover { color: var(--panel-accent); }
-  header .notes-btn svg { width: 15px; height: 15px; fill: currentColor; }
+  header .notes-btn:hover,
+  header .sched-btn:hover,
+  header .windows-btn:hover,
+  header .ext-btn:hover,
+  header .sessions-btn:hover { color: var(--panel-accent); background: color-mix(in srgb, var(--panel-accent) 8%, transparent); }
+  header .notes-btn svg,
+  header .sched-btn svg,
+  header .windows-btn svg,
+  header .sessions-btn svg { width: 17px; height: 17px; fill: currentColor; }
+  header .theme-switcher { position: relative; }
+  header .theme-switcher-btn {
+    display: flex; align-items: center; gap: 4px;
+    background: none; border: none; color: var(--panel-muted); cursor: pointer;
+    padding: 8px; border-radius: 10px; transition: color 0.15s, background 0.15s;
+    font-size: 13px;
+  }
+  header .theme-switcher-btn:hover { color: var(--panel-accent); background: color-mix(in srgb, var(--panel-accent) 8%, transparent); }
+  header .theme-switcher-btn svg { width: 17px; height: 17px; fill: currentColor; }
+  header .theme-switcher-popover {
+    position: absolute; top: calc(100% + 8px); right: 0;
+    min-width: 170px; background: var(--panel-bg); border: 1px solid var(--panel-border);
+    border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,0.12); padding: 6px;
+    display: none; z-index: 300;
+  }
+  header .theme-switcher.open .theme-switcher-popover { display: block; }
+  header .theme-option {
+    display: flex; align-items: center; gap: 10px; width: 100%;
+    padding: 8px 10px; border-radius: 8px; border: none; background: none;
+    color: var(--page-fg); font-size: 13px; cursor: pointer; text-align: left; font-family: inherit;
+  }
+  header .theme-option:hover { background: color-mix(in srgb, var(--panel-accent) 8%, transparent); color: var(--panel-accent); }
+  header .theme-option.active { color: var(--panel-accent); font-weight: 500; }
+  header .theme-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+  header .theme-check { width: 14px; height: 14px; margin-left: auto; color: var(--panel-accent); }
   ${commandbarEnabled ? commandbarCSS() : ''}
   ${notesDrawerCSS()}
   ${schedulerDrawerCSS()}
@@ -325,7 +346,7 @@ export function renderTerminal(
 <body>
 <header>
   ${sessionsDrawerButtonHTML()}
-  <h1><a href="/" aria-label="Go to home">tmux</a></h1>
+  <div class="brand"><a href="/" aria-label="Go to home">tmux</a><span>-weblink</span></div>
   <span class="session">${escapeHtml(sessionName)}</span>
   ${commandbarEnabled ? commandbarButtonHTML('Sessions') : ''}
   <button class="notes-btn" id="notes-toggle" title="Session notes">
@@ -338,11 +359,13 @@ export function renderTerminal(
     <svg viewBox="0 0 24 24"><path d="M4 6h16v2H4V6zm0 5h10v2H4v-2zm0 5h16v2H4v-2z"/></svg>
   </button>
   ${sidebarExts.map(e => `<button class="ext-btn" id="ext-${e.id}-toggle" title="${escapeAttr(e.name)}">${escapeHtml(e.icon)}</button>`).join('\n  ')}
+  ${themeSwitcherButtonHTML(theme.template)}
   <div class="status">
     <div class="dot" id="status-dot"></div>
     <span id="status-text">connecting</span>
   </div>
 </header>
+<script>${themeSwitcherScript()}</script>
 <div id="terminal-container" class="terminal-pending"></div>
 ${mobileToolbarHTML()}
 ${commandbarEnabled ? commandbarHTML() : ''}

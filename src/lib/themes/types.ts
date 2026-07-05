@@ -1,4 +1,4 @@
-export type ThemeTemplateId = 'vscode' | 'ghostty';
+export type ThemeTemplateId = 'vscode' | 'ghostty' | 'warm-clay' | 'dark-cove';
 
 export type ShellTheme = {
 	pageBg: string;
