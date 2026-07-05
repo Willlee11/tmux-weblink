@@ -2,6 +2,7 @@
 import { copyFile, mkdir, rm } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import * as esbuild from 'esbuild';
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
 const assetsDir = join(root, 'dist', 'assets');
@@ -9,26 +10,22 @@ const assetsDir = join(root, 'dist', 'assets');
 await rm(assetsDir, { recursive: true, force: true });
 await mkdir(assetsDir, { recursive: true });
 
-const result = await Bun.build({
-	entrypoints: [join(root, 'src', 'browser', 'terminal-client.ts')],
+const result = await esbuild.build({
+	entryPoints: [join(root, 'src', 'browser', 'terminal-client.ts')],
 	outdir: assetsDir,
-	target: 'browser',
+	bundle: true,
+	platform: 'browser',
 	format: 'esm',
-	// Splitting must be on so the dynamically-imported xterm engine is emitted as
-	// a separate chunk (loaded on demand) instead of inlined into the entry. This
-	// keeps the --ghostty path from shipping any xterm code.
 	splitting: true,
 	minify: false,
-	sourcemap: 'none',
-	naming: {
-		entry: '[dir]/[name].js',
-		chunk: '[name]-[hash].js',
-		asset: '[name].[ext]',
-	},
+	sourcemap: false,
+	entryNames: '[name]',
+	chunkNames: '[name]-[hash]',
+	assetNames: '[name]',
 });
 
-if (!result.success) {
-	for (const log of result.logs) console.error(log);
+if (result.errors.length > 0) {
+	for (const error of result.errors) console.error(error);
 	process.exit(1);
 }
 

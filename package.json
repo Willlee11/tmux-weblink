@@ -15,14 +15,14 @@
     "prepublishOnly": "tsc && npm run build:client && npm run build:exts",
     "build": "tsc && npm run check:drawer-scripts && npm run build:client && npm run build:exts",
     "check:drawer-scripts": "tsx scripts/check-drawer-scripts.ts",
-    "build:client": "bun scripts/build-client.mjs",
+    "build:client": "node scripts/build-client.mjs",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
     "coverage": "vitest run --coverage",
     "build:exts": "node scripts/build-exts.mjs --force",
     "start": "node dist/index.js",
-    "predev": "bun scripts/build-client.mjs && node scripts/build-exts.mjs",
+    "predev": "node scripts/build-client.mjs && node scripts/build-exts.mjs",
     "dev": "TMUX_WEB_DEV=1 npx tsx src/index.ts"
   },
   "keywords": [
@@ -41,9 +41,9 @@
     "node": ">=22"
   },
   "dependencies": {
+    "@hono/node-server": "^1.19.12",
     "@xterm/addon-fit": "^0.11.0",
     "@xterm/xterm": "^6.0.0",
-    "@hono/node-server": "^1.19.12",
     "hono": "^4.7.0",
     "lowdb": "^7.0.1",
     "node-pty": "^1.0.0",
@@ -53,6 +53,7 @@
     "@types/node": "^25.8.0",
     "@types/ws": "^8.5.0",
     "@vitest/coverage-v8": "^2.1.9",
+    "esbuild": "^0.25.0",
     "tsx": "^4.21.0",
     "typescript": "^5.7.0",
     "vitest": "^2.1.9"
