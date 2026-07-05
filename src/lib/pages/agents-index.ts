@@ -20,28 +20,32 @@ export function renderAgentsIndex(
 	const labels = JSON.stringify(AGENT_LABELS).replace(/</g, '\\u003c');
 
 	const pageSpecificCSS = `
-  .sub { font-size: 11px; color: var(--panel-muted); margin-bottom: 24px; line-height: 1.5; }
+  .sub { font-size: 13px; color: var(--panel-muted); margin-bottom: 24px; line-height: 1.5; }
   .agent {
     display: flex; align-items: center; gap: 12px; text-decoration: none;
-    padding: 12px 16px; border: 1px solid var(--panel-border); border-radius: 8px;
-    margin-bottom: 8px; background: var(--panel-bg); transition: border-color 0.15s;
+    padding: 14px 16px; border: 1px solid var(--panel-border); border-radius: 12px;
+    margin-bottom: 8px; background: var(--panel-bg); transition: border-color 0.15s, transform 0.1s;
   }
-  .agent:hover { border-color: var(--panel-accent); }
-  .agent .name { font-size: 13px; font-weight: 600; color: var(--page-fg); flex: 1; }
-  .agent .loc { font-size: 11px; color: var(--panel-muted); }
+  .agent:hover { border-color: var(--panel-accent); transform: translateY(-1px); }
+  .agent .name { font-size: 14px; font-weight: 600; color: var(--page-fg); flex: 1; }
+  .agent .loc { font-size: 12px; color: var(--panel-muted); }
   .badge {
     font-size: 10px; letter-spacing: 0.05em; text-transform: uppercase;
-    padding: 3px 9px; border-radius: 10px; border: 1px solid var(--panel-border);
+    padding: 4px 10px; border-radius: 10px; border: 1px solid var(--panel-border);
     flex-shrink: 0; min-width: 64px; text-align: center;
   }
   .badge.working { color: var(--panel-success); border-color: var(--panel-success); }
   .badge.blocked { color: #f0c674; border-color: #f0c674; }
   .badge.idle { color: var(--panel-muted); }
   .badge.unknown { color: var(--panel-muted); opacity: 0.7; }
-  .dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; background: var(--panel-muted); }
+  .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; background: var(--panel-muted); }
   .dot.working { background: var(--panel-success); }
   .dot.blocked { background: #f0c674; }
-  .empty { font-size: 13px; color: var(--panel-muted); line-height: 1.6; margin-top: 20px; }
+  .empty { font-size: 14px; color: var(--panel-muted); line-height: 1.6; margin-top: 20px; }
+  @media (max-width: 560px) {
+    .agent { flex-wrap: wrap; gap: 8px; }
+    .agent .loc { width: 100%; order: 3; }
+  }
   ${commandbarEnabled ? commandbarCSS() : ''}
   ${notesDrawerCSS()}`;
 

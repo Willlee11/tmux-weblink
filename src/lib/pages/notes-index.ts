@@ -49,27 +49,27 @@ export function renderNotesIndex(
 
 	const pageSpecificCSS = `
   .note-card {
-    display: block; padding: 14px 16px; border: 1px solid var(--panel-border); border-radius: 8px;
+    display: block; padding: 16px 18px; border: 1px solid var(--panel-border); border-radius: 12px;
     margin-bottom: 10px; text-decoration: none; color: var(--page-fg);
-    background: var(--panel-bg); transition: border-color 0.15s; cursor: pointer;
+    background: var(--panel-bg); transition: border-color 0.15s, transform 0.1s, box-shadow 0.15s; cursor: pointer;
   }
-  .note-card:hover { border-color: var(--panel-success); }
+  .note-card:hover { border-color: var(--panel-accent); transform: translateY(-1px); box-shadow: 0 4px 20px color-mix(in srgb, var(--panel-accent) 8%, transparent); }
   .note-card .label {
     font-size: 12px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase;
     color: var(--panel-accent); margin-bottom: 6px;
   }
   .note-card .label.global { color: var(--panel-success); }
   .note-card .preview {
-    font-size: 12px; color: var(--panel-muted); line-height: 1.5;
+    font-size: 13px; color: var(--panel-muted); line-height: 1.5;
     white-space: pre-wrap; word-break: break-word;
     display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical;
     overflow: hidden;
   }
   .note-card .meta {
-    font-size: 11px; color: var(--panel-muted); margin-top: 8px;
+    font-size: 12px; color: var(--panel-muted); margin-top: 10px;
     display: flex; justify-content: space-between;
   }
-  .empty { font-size: 13px; color: var(--panel-muted); line-height: 1.6; margin-top: 20px; }
+  .empty { font-size: 14px; color: var(--panel-muted); line-height: 1.6; margin-top: 20px; }
   ${commandbarEnabled ? commandbarCSS() : ''}
   ${notesDrawerCSS()}`;
 

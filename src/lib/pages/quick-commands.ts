@@ -57,30 +57,30 @@ export function renderQuickCommandsPage(
   }
   .quick-card {
     display: flex; flex-direction: column; gap: 12px;
-    padding: 16px; border: 1px solid var(--panel-border); border-radius: 9px;
+    padding: 16px; border: 1px solid var(--panel-border); border-radius: 12px;
     margin-bottom: 12px; background: var(--panel-bg);
   }
   .quick-item {
     display: flex; flex-direction: column; gap: 12px;
-    padding: 14px 16px; border: 1px solid var(--panel-border); border-radius: 9px;
+    padding: 14px 16px; border: 1px solid var(--panel-border); border-radius: 12px;
     margin-bottom: 10px; background: var(--panel-bg);
-    transition: border-color 0.15s, transform 0.15s;
+    transition: border-color 0.15s, transform 0.1s;
   }
   .quick-item:hover {
-    border-color: rgba(125, 211, 252, 0.34); transform: translateY(-1px);
+    border-color: var(--panel-accent); transform: translateY(-1px);
   }
   .quick-card-head {
     display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;
   }
   .quick-title {
-    color: var(--page-fg); font-size: 14px; font-weight: 600; margin-bottom: 4px;
+    color: var(--page-fg); font-size: 15px; font-weight: 600; margin-bottom: 4px;
   }
   .quick-meta {
-    color: var(--panel-muted); font-size: 11px; line-height: 1.5;
+    color: var(--panel-muted); font-size: 12px; line-height: 1.5;
   }
   .quick-command-preview {
-    margin: 0; padding: 10px 12px; border: 1px solid rgba(125, 211, 252, 0.12);
-    border-radius: 7px; background: rgba(0, 0, 0, 0.22);
+    margin: 0; padding: 10px 12px; border: 1px solid color-mix(in srgb, var(--panel-accent) 15%, transparent);
+    border-radius: 8px; background: color-mix(in srgb, var(--page-bg) 60%, transparent);
     color: var(--panel-accent); font-size: 12px; line-height: 1.5;
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   }
@@ -89,56 +89,60 @@ export function renderQuickCommandsPage(
   }
   .quick-icon-btn {
     display: inline-flex; align-items: center; justify-content: center;
-    width: 30px; height: 30px; border: 1px solid var(--panel-border); border-radius: 7px;
+    width: 36px; height: 36px; border: 1px solid var(--panel-border); border-radius: 8px;
     background: none; color: var(--panel-muted); cursor: pointer;
     transition: border-color 0.15s, color 0.15s, background 0.15s;
   }
   .quick-icon-btn svg {
-    width: 15px; height: 15px; fill: currentColor;
+    width: 16px; height: 16px; fill: currentColor;
   }
   .quick-icon-btn:hover {
-    border-color: var(--panel-accent); color: var(--panel-accent); background: rgba(125, 211, 252, 0.08);
+    border-color: var(--panel-accent); color: var(--panel-accent); background: color-mix(in srgb, var(--panel-accent) 8%, transparent);
   }
+  .quick-icon-btn:focus-visible { box-shadow: 0 0 0 2px var(--panel-accent); outline: none; }
   .quick-delete:hover {
-    border-color: #fc8181; color: #fc8181; background: rgba(252, 129, 129, 0.08);
+    border-color: #fc8181; color: #fc8181; background: color-mix(in srgb, #fc8181 8%, transparent);
   }
   .quick-form label {
     display: flex; flex-direction: column; gap: 6px;
   }
   .quick-form label span {
-    color: var(--panel-muted); font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--panel-muted); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase;
   }
   .quick-form input,
   .quick-form textarea {
-    width: 100%; border: 1px solid var(--panel-border); border-radius: 6px;
-    background: var(--page-bg); color: var(--page-fg); font: inherit; font-size: 12px;
-    padding: 9px 10px; outline: none;
+    width: 100%; border: 1px solid var(--panel-border); border-radius: 8px;
+    background: var(--page-bg); color: var(--page-fg); font: inherit; font-size: 13px;
+    padding: 10px 12px; outline: none; transition: border-color 0.15s, box-shadow 0.15s;
   }
   .quick-form textarea {
     min-height: 90px; resize: vertical; line-height: 1.5;
   }
   .quick-form input:focus,
   .quick-form textarea:focus {
-    border-color: var(--panel-accent);
+    border-color: var(--panel-accent); box-shadow: 0 0 0 4px color-mix(in srgb, var(--panel-accent) 8%, transparent);
   }
   .quick-actions {
     display: flex; justify-content: flex-end; gap: 8px;
   }
   .quick-save,
   .quick-cancel {
-    border: 1px solid var(--panel-border); border-radius: 6px;
-    background: none; color: var(--page-fg); font: inherit; font-size: 12px;
-    padding: 7px 12px; cursor: pointer; transition: border-color 0.15s, color 0.15s;
+    border: 1px solid var(--panel-border); border-radius: 8px;
+    background: none; color: var(--page-fg); font: inherit; font-size: 13px;
+    padding: 10px 16px; cursor: pointer; transition: border-color 0.15s, color 0.15s, background 0.15s;
+    min-height: 44px;
   }
   .quick-save {
     border-color: var(--panel-success); color: var(--panel-success);
   }
   .quick-save:hover {
-    background: rgba(115, 201, 145, 0.12);
+    background: color-mix(in srgb, var(--panel-success) 12%, transparent);
   }
+  .quick-save:focus-visible { box-shadow: 0 0 0 2px var(--panel-success); outline: none; }
   .quick-cancel:hover {
-    border-color: var(--panel-accent); color: var(--panel-accent);
+    border-color: var(--panel-accent); color: var(--panel-accent); background: color-mix(in srgb, var(--panel-accent) 8%, transparent);
   }
+  .quick-cancel:focus-visible { box-shadow: 0 0 0 2px var(--panel-accent); outline: none; }
   .quick-drawer-backdrop {
     position: fixed; inset: 0; z-index: 600; background: rgba(0, 0, 0, 0.48);
     opacity: 0; pointer-events: none; transition: opacity 0.18s ease;
@@ -164,10 +168,13 @@ export function renderQuickCommandsPage(
     margin: 0; color: var(--panel-muted); font-size: 12px; line-height: 1.5;
   }
   .quick-drawer-close {
+    display: flex; align-items: center; justify-content: center;
     background: none; border: none; color: var(--panel-muted); cursor: pointer;
-    font-size: 24px; line-height: 1; padding: 0;
+    font-size: 24px; line-height: 1; min-width: 44px; min-height: 44px; padding: 8px; border-radius: 8px;
+    transition: color 0.15s, background 0.15s;
   }
-  .quick-drawer-close:hover { color: var(--panel-accent); }
+  .quick-drawer-close:hover { color: var(--panel-accent); background: color-mix(in srgb, var(--panel-accent) 8%, transparent); }
+  .quick-drawer-close:focus-visible { box-shadow: 0 0 0 2px var(--panel-accent); outline: none; }
   #quick-edit-form {
     display: flex; flex-direction: column; gap: 12px;
   }
@@ -175,7 +182,11 @@ export function renderQuickCommandsPage(
     display: none; margin: 0 0 12px; color: #fc8181; font-size: 12px;
   }
   .quick-error.open { display: block; }
-  .empty { font-size: 13px; color: var(--panel-muted); line-height: 1.6; margin: 0 0 16px; }
+  .empty { font-size: 14px; color: var(--panel-muted); line-height: 1.6; margin: 0 0 16px; }
+  @media (max-width: 560px) {
+    .quick-card-head { flex-wrap: wrap; }
+    .quick-icon-actions { width: 100%; justify-content: flex-end; }
+  }
   ${commandbarEnabled ? commandbarCSS() : ''}`;
 
 	return /* html */ `<!DOCTYPE html>

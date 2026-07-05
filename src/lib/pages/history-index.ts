@@ -67,30 +67,36 @@ export function renderHistoryIndex(
   .hist-toolbar { display: flex; justify-content: flex-end; margin-bottom: 12px; }
   .hist-toolbar button {
     background: none; border: 1px solid var(--panel-border); border-radius: 6px;
-    color: var(--panel-muted); font-family: inherit; font-size: 11px;
-    padding: 6px 12px; cursor: pointer; transition: border-color 0.15s, color 0.15s;
+    color: var(--panel-muted); font-family: inherit; font-size: 12px;
+    padding: 8px 14px; cursor: pointer; transition: border-color 0.15s, color 0.15s, background 0.15s;
+    min-height: 36px;
   }
-  .hist-toolbar button:hover { border-color: #fc8181; color: #fc8181; }
+  .hist-toolbar button:hover { border-color: #fc8181; color: #fc8181; background: color-mix(in srgb, #fc8181 8%, transparent); }
+  .hist-toolbar button:focus-visible { box-shadow: 0 0 0 2px #fc8181; outline: none; }
   .hist-row {
     display: flex; align-items: center; gap: 12px; justify-content: space-between;
-    padding: 12px 16px; border: 1px solid var(--panel-border); border-radius: 8px;
+    padding: 14px 16px; border: 1px solid var(--panel-border); border-radius: 10px;
     margin-bottom: 8px; text-decoration: none; color: var(--page-fg);
-    background: var(--panel-bg); transition: border-color 0.15s;
+    background: var(--panel-bg); transition: border-color 0.15s, transform 0.1s;
   }
-  .hist-row:hover { border-color: var(--panel-accent); }
+  .hist-row:hover { border-color: var(--panel-accent); transform: translateY(-1px); }
   .hist-row.dead { opacity: 0.5; cursor: default; }
   .hist-main { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
   .hist-window {
     font-size: 14px; font-weight: 600; color: var(--page-fg);
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   }
-  .hist-session { font-size: 11px; color: var(--panel-muted); letter-spacing: 0.03em; }
+  .hist-session { font-size: 12px; color: var(--panel-muted); letter-spacing: 0.03em; }
   .hist-gone {
     color: #fc8181; text-transform: uppercase; font-size: 9px; letter-spacing: 0.08em;
     border: 1px solid currentColor; border-radius: 3px; padding: 0 4px; margin-left: 4px;
   }
-  .hist-time { font-size: 11px; color: var(--panel-muted); flex-shrink: 0; }
-  .empty { font-size: 13px; color: var(--panel-muted); line-height: 1.6; margin-top: 20px; }
+  .hist-time { font-size: 12px; color: var(--panel-muted); flex-shrink: 0; }
+  .empty { font-size: 14px; color: var(--panel-muted); line-height: 1.6; margin-top: 20px; }
+  @media (max-width: 560px) {
+    .hist-row { flex-direction: column; align-items: flex-start; gap: 8px; }
+    .hist-time { align-self: flex-end; }
+  }
   ${commandbarEnabled ? commandbarCSS() : ''}`;
 
 	return /* html */ `<!DOCTYPE html>

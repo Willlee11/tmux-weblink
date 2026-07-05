@@ -126,7 +126,6 @@ export function renderScheduleIndex(
 	const delayMaxMessage = DELAY_MAX_MESSAGE;
 
 	const pageSpecificCSS = `
-  .session-group { margin-bottom: 18px; }
   .session-head {
     display: flex; align-items: center; gap: 8px; text-decoration: none;
     font-size: 12px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase;
@@ -134,11 +133,12 @@ export function renderScheduleIndex(
   }
   .session-head:hover .sname { text-decoration: underline; }
   .session-head .scount {
-    font-size: 10px; color: var(--panel-success); border: 1px solid var(--panel-border);
-    border-radius: 10px; padding: 1px 7px; text-transform: none; letter-spacing: 0;
+    font-size: 11px; color: var(--panel-success); border: 1px solid var(--panel-border);
+    border-radius: 10px; padding: 2px 9px; text-transform: none; letter-spacing: 0;
   }
+  .session-group { margin-bottom: 18px; }
   .task {
-    padding: 12px 16px; border: 1px solid var(--panel-border); border-radius: 8px;
+    padding: 14px 16px; border: 1px solid var(--panel-border); border-radius: 10px;
     margin-bottom: 8px; background: var(--panel-bg);
     display: flex; flex-direction: column; gap: 6px;
   }
@@ -153,22 +153,26 @@ export function renderScheduleIndex(
   }
   .task .countdown.urgent { color: #f0c674; }
   .task .countdown.imminent { color: #cc6666; }
-  .task-row2 { display: flex; justify-content: space-between; align-items: center; }
-  .task .meta { font-size: 11px; color: var(--panel-muted); }
+  .task-row2 { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+  .task .meta { font-size: 12px; color: var(--panel-muted); }
   .win-link { color: var(--panel-accent); text-decoration: none; }
   .win-link:hover { text-decoration: underline; }
   .cancel-btn {
-    font-size: 10px; color: var(--panel-muted); background: none;
-    border: 1px solid var(--panel-border); padding: 2px 10px; border-radius: 4px;
+    font-size: 11px; color: var(--panel-muted); background: none;
+    border: 1px solid var(--panel-border); padding: 6px 12px; border-radius: 6px;
     cursor: pointer; font-family: inherit; transition: all 0.15s;
+    min-height: 32px;
   }
-  .cancel-btn:hover { border-color: #cc6666; color: #cc6666; }
+  .cancel-btn:hover { border-color: #cc6666; color: #cc6666; background: color-mix(in srgb, #cc6666 8%, transparent); }
+  .cancel-btn:focus-visible { box-shadow: 0 0 0 2px #cc6666; outline: none; }
   .reschedule-btn {
-    font-size: 10px; color: var(--panel-muted); background: none;
-    border: 1px solid var(--panel-border); padding: 2px 10px; border-radius: 4px;
+    font-size: 11px; color: var(--panel-muted); background: none;
+    border: 1px solid var(--panel-border); padding: 6px 12px; border-radius: 6px;
     cursor: pointer; font-family: inherit; transition: all 0.15s; margin-right: 4px;
+    min-height: 32px;
   }
-  .reschedule-btn:hover { border-color: var(--panel-accent); color: var(--panel-accent); }
+  .reschedule-btn:hover { border-color: var(--panel-accent); color: var(--panel-accent); background: color-mix(in srgb, var(--panel-accent) 8%, transparent); }
+  .reschedule-btn:focus-visible { box-shadow: 0 0 0 2px var(--panel-accent); outline: none; }
   .reschedule-row {
     display: none; flex-direction: column; gap: 6px;
     padding-top: 8px; border-top: 1px solid var(--panel-border);
@@ -177,51 +181,62 @@ export function renderScheduleIndex(
   .reschedule-presets { display: flex; gap: 6px; }
   .reschedule-preset-btn {
     font-size: 11px; color: var(--panel-muted); background: none;
-    border: 1px solid var(--panel-border); padding: 3px 10px; border-radius: 6px;
+    border: 1px solid var(--panel-border); padding: 6px 12px; border-radius: 6px;
     cursor: pointer; font-family: inherit; transition: all 0.15s;
+    min-height: 32px;
   }
-  .reschedule-preset-btn:hover { border-color: var(--panel-accent); color: var(--panel-accent); }
+  .reschedule-preset-btn:hover { border-color: var(--panel-accent); color: var(--panel-accent); background: color-mix(in srgb, var(--panel-accent) 8%, transparent); }
+  .reschedule-preset-btn:focus-visible { box-shadow: 0 0 0 2px var(--panel-accent); outline: none; }
   .reschedule-input-row { display: flex; gap: 8px; align-items: center; }
   .reschedule-input {
-    flex: 1; background: rgba(0,0,0,0.3); border: 1px solid var(--panel-border);
+    flex: 1; background: color-mix(in srgb, var(--page-bg) 70%, transparent); border: 1px solid var(--panel-border);
     color: var(--page-fg); font-family: inherit; font-size: 12px;
-    padding: 4px 8px; border-radius: 6px; outline: none; transition: border-color 0.15s;
+    padding: 6px 10px; border-radius: 6px; outline: none; transition: border-color 0.15s;
   }
-  .reschedule-input:focus { border-color: rgba(125,211,252,0.4); }
+  .reschedule-input:focus { border-color: var(--panel-accent); box-shadow: 0 0 0 4px color-mix(in srgb, var(--panel-accent) 8%, transparent); }
   .reschedule-input.error { border-color: #cc6666; }
   .reschedule-confirm-btn {
-    font-size: 11px; background: rgba(115,201,145,0.12);
+    font-size: 12px; background: color-mix(in srgb, var(--panel-success) 12%, transparent);
     border: 1px solid var(--panel-success); color: var(--panel-success);
-    padding: 4px 14px; border-radius: 6px; cursor: pointer; font-family: inherit;
+    padding: 8px 16px; border-radius: 6px; cursor: pointer; font-family: inherit;
+    min-height: 36px;
   }
-  .reschedule-confirm-btn:hover { background: rgba(115,201,145,0.22); }
+  .reschedule-confirm-btn:hover { background: color-mix(in srgb, var(--panel-success) 22%, transparent); }
+  .reschedule-confirm-btn:focus-visible { box-shadow: 0 0 0 2px var(--panel-success); outline: none; }
   .reschedule-confirm-btn:disabled { opacity: 0.4; cursor: not-allowed; }
   .reschedule-error { font-size: 11px; color: #cc6666; }
   .page-tab-bar { display: flex; gap: 4px; border-bottom: 1px solid var(--panel-border); margin-bottom: 20px; }
   .page-tab {
     font-size: 12px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase;
     color: var(--panel-muted); background: none; border: none; cursor: pointer;
-    padding: 8px 14px; font-family: inherit; border-bottom: 2px solid transparent;
+    padding: 10px 16px; font-family: inherit; border-bottom: 2px solid transparent;
     margin-bottom: -1px; transition: color 0.15s, border-color 0.15s;
+    min-height: 44px;
   }
   .page-tab:hover { color: var(--panel-accent); }
   .page-tab.active { color: var(--panel-accent); border-bottom-color: var(--panel-accent); }
+  .page-tab:focus-visible { outline: none; box-shadow: inset 0 -2px 0 0 var(--panel-accent); }
   .tab-panel { display: none; }
   .tab-panel.active { display: block; }
   .status-pill {
     font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;
-    border: 1px solid var(--panel-border); border-radius: 10px; padding: 1px 9px; flex-shrink: 0;
+    border: 1px solid var(--panel-border); border-radius: 10px; padding: 2px 10px; flex-shrink: 0;
   }
   .status-pill.status-ok { color: var(--panel-success); border-color: var(--panel-success); }
   .status-pill.status-error { color: #cc6666; border-color: #cc6666; }
   .status-pill.status-missed { color: var(--panel-muted); }
-  .trig-target { font-size: 11px; color: var(--panel-accent); text-decoration: none; }
+  .trig-target { font-size: 12px; color: var(--panel-accent); text-decoration: none; }
   .trig-target:hover { text-decoration: underline; }
   .trig-error {
     font-size: 11px; color: #cc6666; white-space: pre-wrap; word-break: break-word;
     margin-top: 2px; padding-top: 6px; border-top: 1px solid var(--panel-border);
   }
-  .empty { font-size: 13px; color: var(--panel-muted); line-height: 1.6; margin-top: 20px; }
+  .empty { font-size: 14px; color: var(--panel-muted); line-height: 1.6; margin-top: 20px; }
+  @media (max-width: 560px) {
+    .task-row2 { flex-direction: column; align-items: flex-start; gap: 8px; }
+    .reschedule-input-row { flex-direction: column; align-items: stretch; }
+    .reschedule-input-row button { align-self: flex-start; }
+  }
   ${commandbarEnabled ? commandbarCSS() : ''}
   ${notesDrawerCSS()}`;
 

@@ -28,20 +28,22 @@ export function renderNotesPage(session: string, theme: TmuxWebTheme, commandbar
   html, body { background: var(--page-bg); color: var(--page-fg); min-height: 100%; font-family: 'JetBrains Mono', 'SF Mono', 'Menlo', monospace; }
   .container { max-width: 720px; margin: 40px auto; padding: 0 20px; }
   .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
-  .breadcrumb { font-size: 12px; color: var(--panel-muted); }
+  .breadcrumb { font-size: 13px; color: var(--panel-muted); }
   .breadcrumb a { color: var(--panel-muted); text-decoration: none; }
   .breadcrumb a:hover { color: var(--panel-accent); }
   .breadcrumb span { color: var(--panel-accent); font-weight: 500; }
   .toolbar {
     display: flex; align-items: center; gap: 10px; margin-bottom: 16px; padding-bottom: 12px;
-    border-bottom: 1px solid var(--panel-border);
+    border-bottom: 1px solid var(--panel-border); flex-wrap: wrap;
   }
   .toolbar button {
-    font-size: 11px; color: var(--panel-muted); background: none;
-    border: 1px solid var(--panel-border); padding: 5px 12px; border-radius: 6px;
+    font-size: 12px; color: var(--panel-muted); background: none;
+    border: 1px solid var(--panel-border); padding: 8px 14px; border-radius: 8px;
     cursor: pointer; font-family: 'JetBrains Mono', monospace; transition: all 0.15s;
+    min-height: 36px;
   }
-  .toolbar button:hover { border-color: var(--panel-accent); color: var(--panel-accent); }
+  .toolbar button:hover { border-color: var(--panel-accent); color: var(--panel-accent); background: color-mix(in srgb, var(--panel-accent) 8%, transparent); }
+  .toolbar button:focus-visible { box-shadow: 0 0 0 2px var(--panel-accent); outline: none; }
   .toolbar button:disabled { opacity: 0.4; cursor: not-allowed; }
   .toolbar button.flash { color: var(--panel-success); border-color: var(--panel-success); }
   .toolbar .badge {
@@ -51,20 +53,24 @@ export function renderNotesPage(session: string, theme: TmuxWebTheme, commandbar
   .toolbar .badge.show { opacity: 1; }
   #notes-editor {
     min-height: 400px; padding: 16px; outline: none;
-    font-size: 13px; line-height: 1.7; font-family: 'JetBrains Mono', monospace;
+    font-size: 14px; line-height: 1.7; font-family: 'JetBrains Mono', monospace;
     white-space: pre-wrap; word-break: break-word; color: var(--page-fg);
-    border: 1px solid transparent; border-radius: 4px;
+    border: 1px solid transparent; border-radius: 8px;
     transition: border-color 0.15s, background 0.15s;
   }
   #notes-editor:empty::before {
     content: "Double-click to edit notes..."; color: var(--panel-muted); pointer-events: none;
   }
   #notes-editor[contenteditable="true"] {
-    border: 1px solid rgba(125, 211, 252, 0.25);
-    background: rgba(0, 0, 0, 0.2);
+    border: 1px solid color-mix(in srgb, var(--panel-accent) 30%, transparent);
+    background: color-mix(in srgb, var(--page-bg) 70%, transparent);
   }
-  #notes-editor a { color: #7aa6da; text-decoration: none; }
+  #notes-editor a { color: var(--panel-accent); text-decoration: none; }
   #notes-editor a:hover { text-decoration: underline; }
+  @media (max-width: 560px) {
+    .container { margin: 20px auto; padding: 0 16px; }
+    #notes-editor { min-height: 300px; padding: 12px; }
+  }
   ${commandbarEnabled ? commandbarCSS() : ''}
 </style>
 </head>
