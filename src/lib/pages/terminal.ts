@@ -4,7 +4,7 @@ import { escapeHtml, escapeAttr } from '../html.js';
 import { notesDrawerCSS, notesDrawerHTML, notesDrawerScript } from '../notes-drawer.js';
 import { schedulerDrawerCSS, schedulerDrawerHTML, schedulerDrawerScript } from '../scheduler-drawer.js';
 import { windowsDrawerCSS, windowsDrawerHTML, windowsDrawerScript } from '../windows-drawer.js';
-import { sessionsDrawerCSS, sessionsDrawerButtonHTML, sessionsDrawerHTML, sessionsDrawerScript } from '../sessions-drawer.js';
+import { sessionsDrawerCSS, sessionsDrawerHTML, sessionsDrawerScript } from '../sessions-drawer.js';
 import { mobileToolbarCSS, mobileToolbarHTML, mobileToolbarScript } from '../mobile-toolbar.js';
 import { icon, extIcon } from '../icons.js';
 import type { ExtManifest } from '../ext-loader.js';
@@ -293,9 +293,7 @@ export function renderTerminal(
   .header-icon-btn,
   header .notes-btn,
   header .sched-btn,
-  header .windows-btn,
   header .ext-btn,
-  header .sessions-btn,
   header .theme-switcher-btn,
   header .cmdbar-btn {
     display: flex; align-items: center; justify-content: center;
@@ -307,25 +305,19 @@ export function renderTerminal(
   .header-icon-btn:hover,
   header .notes-btn:hover,
   header .sched-btn:hover,
-  header .windows-btn:hover,
   header .ext-btn:hover,
-  header .sessions-btn:hover,
   header .theme-switcher-btn:hover,
   header .cmdbar-btn:hover { color: var(--panel-accent); background: color-mix(in srgb, var(--panel-accent) 8%, transparent); }
   .header-icon-btn:focus-visible,
   header .notes-btn:focus-visible,
   header .sched-btn:focus-visible,
-  header .windows-btn:focus-visible,
   header .ext-btn:focus-visible,
-  header .sessions-btn:focus-visible,
   header .theme-switcher-btn:focus-visible,
   header .cmdbar-btn:focus-visible { box-shadow: 0 0 0 2px var(--panel-accent); outline: none; }
   .header-icon-btn svg,
   header .notes-btn svg,
   header .sched-btn svg,
-  header .windows-btn svg,
   header .ext-btn svg,
-  header .sessions-btn svg,
   header .theme-switcher-btn svg,
   header .cmdbar-btn svg { width: 18px; height: 18px; fill: currentColor; flex-shrink: 0; }
   header .theme-switcher { position: relative; }
@@ -374,7 +366,6 @@ export function renderTerminal(
 </head>
 <body>
 <header>
-  ${sessionsDrawerButtonHTML()}
   <div class="brand"><a href="/" aria-label="Go to home">tmux</a><span>-weblink</span></div>
   <span class="session">${escapeHtml(sessionName)}</span>
   ${commandbarEnabled ? commandbarButtonHTML('Sessions') : ''}
@@ -383,9 +374,6 @@ export function renderTerminal(
   </button>
   <button class="sched-btn" id="sched-toggle" title="Schedule command" aria-label="Schedule command">
     ${icon('schedule')}
-  </button>
-  <button class="windows-btn" id="windows-toggle" title="Switch window" aria-label="Switch window">
-    ${icon('windows')}
   </button>
   ${sidebarExts.map(e => `<button class="ext-btn" id="ext-${e.id}-toggle" title="${escapeAttr(e.name)}" aria-label="${escapeAttr(e.name)}">${extIcon(e.id, e.icon)}</button>`).join('\n  ')}
   ${themeSwitcherButtonHTML(theme.template)}
