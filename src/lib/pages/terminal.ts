@@ -366,7 +366,7 @@ export function renderTerminal(
 </head>
 <body>
 <header>
-  <div class="brand"><a href="/" aria-label="Go to home">tmux</a><span>-weblink</span></div>
+  <div class="brand"><a href="/" aria-label="Go to home">tmux<span>-weblink</span></a></div>
   <span class="session">${escapeHtml(sessionName)}</span>
   ${commandbarEnabled ? commandbarButtonHTML('Sessions') : ''}
   <button class="notes-btn" id="notes-toggle" title="Session notes" aria-label="Session notes">

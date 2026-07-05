@@ -105,6 +105,7 @@ export function sharedLayoutCSS(extraCSS = ''): string {
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
   .fixed-header .brand span { color: var(--panel-accent); font-weight: 500; }
+  .fixed-header .brand a { color: inherit; text-decoration: none; }
   .header-actions { display: flex; align-items: center; gap: 4px; }
   .header-btn, .icon-btn {
     display: flex; align-items: center; justify-content: center; gap: 6px;
@@ -283,7 +284,7 @@ export function sharedHeader(opts: {
 })();
 </script>
 <header class="fixed-header">
-  <div class="brand">tmux<span>-weblink</span></div>
+  <div class="brand"><a href="/" aria-label="Go to home">tmux<span>-weblink</span></a></div>
   <div class="header-actions">
     ${commandbarEnabled ? commandbarButtonHTML('Search') : ''}
     <button class="header-btn" id="notes-toggle" title="Global notes" aria-label="Global notes">
