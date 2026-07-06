@@ -1,10 +1,10 @@
 {
-  "name": "tmux-web",
+  "name": "tmux-weblink",
   "version": "0.3.0",
   "description": "Access tmux sessions from your browser via a web-based terminal",
   "type": "module",
   "bin": {
-    "tmux-web": "dist/index.js"
+    "tmux-weblink": "dist/index.js"
   },
   "files": [
     "dist",

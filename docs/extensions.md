@@ -1,18 +1,18 @@
 ---
 title: Extensions
-description: How to install, configure, and build tmux-web extensions.
+description: How to install, configure, and build tmux-weblink extensions.
 ---
 
 # Extensions
 
-tmux-web ships a small core. Extra sidebar panels — deploy dashboards, CI status, custom tools, etc. — live in **extensions**: separate npm packages discovered at startup, run as isolated child processes, and rendered into the sidebar as iframes.
+tmux-weblink ships a small core. Extra sidebar panels — deploy dashboards, CI status, custom tools, etc. — live in **extensions**: separate npm packages discovered at startup, run as isolated child processes, and rendered into the sidebar as iframes.
 
 ## For users
 
 ### Quick setup (recommended)
 
 ```bash
-tmux-web setup
+tmux-weblink setup
 ```
 
 Walks through optional built-in features: command bar and agents page.
@@ -20,14 +20,14 @@ Walks through optional built-in features: command bar and agents page.
 Non-interactive:
 
 ```bash
-tmux-web setup --yes
-tmux-web setup --commandbar --agents
+tmux-weblink setup --yes
+tmux-weblink setup --commandbar --agents
 ```
 
 ### Install and enable a plugin manually
 
 ```bash
-tmux-web add @yourscope/your-extension
+tmux-weblink add @yourscope/your-extension
 ```
 
 This does two things:
@@ -35,13 +35,13 @@ This does two things:
 1. Installs the package into `~/.tmux-web/node_modules/` (or `~/.dev/.tmux-web/node_modules/` when running in dev mode)
 2. Appends it to `~/.config/tmux-web/settings.json`'s `plugins` array (or `~/.dev/.config/tmux-web/settings.json` in dev mode)
 
-You can then run `tmux-web` (or `npx tmux-web` / `bunx tmux-web`) from anywhere and the plugin loads automatically.
+You can then run `tmux-weblink` (or `npx tmux-weblink`) from anywhere and the plugin loads automatically.
 
 ### List, remove
 
 ```bash
-tmux-web list                              # show enabled plugins + install status
-tmux-web remove @yourscope/your-extension
+tmux-weblink list                              # show enabled plugins + install status
+tmux-weblink remove @yourscope/your-extension
 ```
 
 `remove` uninstalls the package and removes it from `settings.json`. Idempotent.

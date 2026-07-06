@@ -1,6 +1,6 @@
 ---
 title: Documentation
-description: Guides for tmux-web features, extensions, and architecture.
+description: Guides for tmux-weblink features, extensions, and architecture.
 ---
 
 # Documentation

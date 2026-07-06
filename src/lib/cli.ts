@@ -65,7 +65,7 @@ export async function cmdSetup(argv: string[]): Promise<void> {
   if (!nonInteractive) requireTty();
 
   const cfg = await readSettings();
-  console.log('tmux-web setup\n');
+  console.log('tmux-weblink setup\n');
   console.log('Configure optional features.\n');
 
   const selections = new Map<string, boolean>();

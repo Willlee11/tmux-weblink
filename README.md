@@ -1,42 +1,42 @@
-# tmux-web
+# tmux-weblink
 
 Access your tmux sessions from the browser. A lightweight web server that lists running tmux sessions and lets you attach through a full terminal in your browser — with built-in notes, a scheduler, and sidebar extensions.
 
 ## Install
 
 ```bash
-npm install -g tmux-web
+npm install -g tmux-weblink
 ```
 
 Or run directly with npx:
 
 ```bash
-npx tmux-web
+npx tmux-weblink
 ```
 
 ## Usage
 
 ```bash
 # Interactive setup (command bar, agents page)
-tmux-web setup
+tmux-weblink setup
 
 # Start on default port 3000
-tmux-web
+tmux-weblink
 
 # Custom port
-PORT=8080 tmux-web
+PORT=8080 tmux-weblink
 
 # Use the default xterm.js renderer
-tmux-web
+tmux-weblink
 
 # Optional: use ghostty-web for terminal rendering
-tmux-web --ghostty
+tmux-weblink --ghostty
 
 # Equivalent environment override
-TMUX_WEB_TERMINAL_RENDERER=ghostty tmux-web
+TMUX_WEB_TERMINAL_RENDERER=ghostty tmux-weblink
 
 # Optional: tail-first buffer loading (see docs/architecture.md)
-TMUX_WEB_INITIAL_LINES=1000 TMUX_WEB_HISTORY_CHUNK=500 tmux-web
+TMUX_WEB_INITIAL_LINES=1000 TMUX_WEB_HISTORY_CHUNK=500 tmux-weblink
 ```
 
 Then open `http://localhost:3000` in your browser. You'll see a list of active tmux sessions — click one to attach.
