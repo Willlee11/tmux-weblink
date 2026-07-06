@@ -20,7 +20,7 @@ npx tmux-weblink
 # Interactive setup (command bar, agents page)
 tmux-weblink setup
 
-# Start on default port 3000
+# Start on default port 21000
 tmux-weblink
 
 # Custom port
@@ -39,7 +39,7 @@ TMUX_WEB_TERMINAL_RENDERER=ghostty tmux-weblink
 TMUX_WEB_INITIAL_LINES=1000 TMUX_WEB_HISTORY_CHUNK=500 tmux-weblink
 ```
 
-Then open `http://localhost:3000` in your browser. You'll see a list of active tmux sessions — click one to attach.
+Then open `http://localhost:21000` in your browser. You'll see a list of active tmux sessions — click one to attach.
 
 ## Documentation
 
