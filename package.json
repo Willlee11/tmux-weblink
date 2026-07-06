@@ -1,7 +1,7 @@
 {
   "name": "tmux-weblink",
   "version": "0.3.0",
-  "description": "Access tmux sessions from your browser via a web-based terminal",
+  "description": "Access your tmux sessions from the browser. A continuation of tmux-web and persalink.",
   "type": "module",
   "bin": {
     "tmux-weblink": "dist/index.js"
@@ -12,8 +12,8 @@
   ],
   "scripts": {
     "postinstall": "node scripts/fix-pty-perms.mjs",
-    "prepublishOnly": "tsc && npm run build:client && npm run build:exts",
-    "build": "tsc && npm run check:drawer-scripts && npm run build:client && npm run build:exts",
+    "prepublishOnly": "tsc && npm run build:client && npm run build:exts && npm run minify:dist",
+    "build": "tsc && npm run check:drawer-scripts && npm run build:client && npm run build:exts && npm run minify:dist",
     "check:drawer-scripts": "tsx scripts/check-drawer-scripts.ts",
     "build:client": "node scripts/build-client.mjs",
     "typecheck": "tsc --noEmit",
@@ -21,6 +21,7 @@
     "test:watch": "vitest",
     "coverage": "vitest run --coverage",
     "build:exts": "node scripts/build-exts.mjs --force",
+    "minify:dist": "node scripts/minify-dist.mjs",
     "start": "node dist/index.js",
     "predev": "node scripts/build-client.mjs && node scripts/build-exts.mjs",
     "dev": "TMUX_WEB_DEV=1 npx tsx src/index.ts"
@@ -35,7 +36,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/ashutoshpw/tmux-web"
+    "url": "https://github.com/Willlee11/tmux-weblink"
   },
   "engines": {
     "node": ">=22"

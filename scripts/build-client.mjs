@@ -17,7 +17,7 @@ const result = await esbuild.build({
 	platform: 'browser',
 	format: 'esm',
 	splitting: true,
-	minify: false,
+	minify: true,
 	sourcemap: false,
 	entryNames: '[name]',
 	chunkNames: '[name]-[hash]',

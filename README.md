@@ -56,6 +56,15 @@ Then open `http://localhost:3000` in your browser. You'll see a list of active t
 - **tmux** installed and available in your PATH
 - Writable `~/.tmux-web/` and `~/.config/tmux-web/` (see [docs](docs/index.md) for dev-mode paths)
 
+## Credits
+
+This project is built on top of ideas and code from:
+
+- [tmux-web](https://github.com/ashutoshpw/tmux-web) by [@ashutoshpw](https://github.com/ashutoshpw)
+- [persalink](https://github.com/brobata/persalink) by [@brobata](https://github.com/brobata)
+
+It is a continuation and re-packaging of those experiments, focused on making a single-person, browser-first tmux companion that is easy to install and run.
+
 ## License
 
 MIT
