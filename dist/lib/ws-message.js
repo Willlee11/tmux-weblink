@@ -1,0 +1,1 @@
+function a(e,r){const n=typeof e=="string"?e:e.toString("utf-8");let t;try{t=JSON.parse(n)}catch{return!1}return t.type==="input"&&typeof t.data=="string"?(r.write(t.data),!0):t.type==="resize"&&typeof t.cols=="number"&&typeof t.rows=="number"?(r.resize(Math.max(10,t.cols),Math.max(5,t.rows)),!0):!1}export{a as handleClientMessage};

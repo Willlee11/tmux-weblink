@@ -1,0 +1,5 @@
+import{execFileSync as f}from"node:child_process";const l=3e3;function g(n){return n.replace(/\r?\n/g,`\r
+`)}function o(n){return f("tmux",n,{encoding:"utf-8",timeout:l}).trimEnd()}function S(n){return o(["display-message","-p","-t",n,"#{session_name}:#{window_index}.#{pane_index}"])}function m(n){const t=o(["display-message","-p","-t",n,"#{history_size}"]),e=parseInt(t,10);return Number.isFinite(e)?e:0}function _(n){return o(["display-message","-p","-t",n,"#{alternate_on}"])==="1"}function c(n,t,e){const i=["capture-pane","-t",n,"-p","-S",String(t)];return e!==void 0&&i.push("-E",String(e)),o(i)}function h(n,t){return c(n,-t)}function y(n,t,e){const i=m(n);if(t>=i)return{data:"",lines:0};const p=-(t+e),a=-(t+1);let r=c(n,p,a);const u=r===""?0:r.split(`
+`).length,s=Math.min(e,u,i-t);return s<u&&s>0&&(r=r.split(`
+`).slice(-s).join(`
+`)),{data:r,lines:s}}export{y as capturePaneHistoryChunk,c as capturePaneLines,h as capturePaneTail,m as getPaneHistorySize,S as getSessionPaneTarget,_ as isAlternateScreen,g as toCrlf};

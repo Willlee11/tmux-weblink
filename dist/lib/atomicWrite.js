@@ -1,0 +1,1 @@
+import{writeFileSync as i,renameSync as m,mkdirSync as a,existsSync as d}from"node:fs";import y from"node:path";function S(t,c,n){const e=y.dirname(t);d(e)||a(e,{recursive:!0});const r=`${t}.tmp.${Date.now()}.${Math.random().toString(36).slice(2)}`;try{i(r,c,n!==void 0?{mode:n}:void 0),m(r,t)}catch(o){try{i(r,"")}catch{}throw o}}export{S as atomicWriteFileSync};

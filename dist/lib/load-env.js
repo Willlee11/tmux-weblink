@@ -1,0 +1,6 @@
+import{readFileSync as p,existsSync as u}from"node:fs";import{writeFile as d,chmod as $,mkdir as v}from"node:fs/promises";import l from"node:path";import{getDataRoot as g}from"./state-paths.js";function h(){return l.join(g(),".env")}function y(){const n=h();if(!u(n))return;let o;try{o=p(n,"utf-8")}catch{return}for(const e of o.split(`
+`)){const s=e.trim();if(!s||s.startsWith("#"))continue;const r=s.indexOf("=");if(r<=0)continue;const c=s.slice(0,r).trim();if(!c||process.env[c]!==void 0)continue;let t=s.slice(r+1).trim();(t.startsWith('"')&&t.endsWith('"')||t.startsWith("'")&&t.endsWith("'"))&&(t=t.slice(1,-1)),process.env[c]=t}}async function F(n,o){const e=h(),s=`${n}=${o}
+`;let r="";u(e)&&(r=p(e,"utf-8"));const c=r.length>0?r.split(`
+`):[],t=new RegExp(`^\\s*${n.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")}\\s*=`);let f=!1;const i=[];for(const a of c){if(t.test(a)){f||(i.push(`${n}=${o}`),f=!0);continue}i.push(a)}f||(i.length>0&&i[i.length-1]!==""&&i.push(""),i.push(`${n}=${o}`));const m=i.join(`
+`).replace(/\n*$/,`
+`);await v(l.dirname(e),{recursive:!0}),await d(e,m,{mode:384});try{await $(e,384)}catch{}return process.env[n]=o,e}export{h as getEnvFilePath,y as loadDotEnv,F as upsertEnvVar};

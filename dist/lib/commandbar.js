@@ -1,0 +1,555 @@
+import{icon as c}from"./icons.js";function m(n,s){return n.map(e=>({...e,lastAccessedAt:s.get(e.name)})).sort((e,t)=>{const i=e.lastAccessedAt??0,a=t.lastAccessedAt??0;return i!==a?a-i:e.name.localeCompare(t.name)})}function l(){return`
+  .cmdbar-btn {
+    display: inline-flex; align-items: center; justify-content: center;
+    background: none; color: var(--panel-muted);
+    border: none; padding: 0;
+    cursor: pointer; font-family: var(--font-mono);
+    line-height: 1;
+    transition: color 0.15s;
+    min-width: 44px; min-height: 44px;
+  }
+  .cmdbar-btn:hover,
+  .cmdbar-btn:focus-visible {
+    color: var(--panel-accent); outline: none;
+  }
+  .cmdbar-btn:focus-visible { box-shadow: 0 0 0 2px var(--panel-accent); border-radius: 6px; }
+  .cmdbar-shortcut {
+    color: inherit; border: 1px solid rgba(148, 163, 184, 0.22);
+    border-radius: 4px; padding: 2px 4px; font-size: var(--text-xs);
+  }
+  .cmdbar-backdrop {
+    position: fixed; inset: 0; z-index: 1400; background: rgba(2, 6, 12, 0.62);
+    opacity: 0; pointer-events: none; transition: opacity 0.14s ease;
+  }
+  .cmdbar-backdrop.open { opacity: 1; pointer-events: auto; }
+  .cmdbar-panel {
+    position: fixed; left: 50%; top: 72px; z-index: 1401;
+    width: min(620px, calc(100vw - 28px)); max-height: min(560px, calc(100vh - 96px));
+    transform: translate(-50%, -8px) scale(0.985); opacity: 0; pointer-events: none;
+    background: var(--panel-bg);
+    background: color-mix(in srgb, var(--panel-bg) 94%, black);
+    border: 1px solid rgba(125, 211, 252, 0.22); border-radius: 8px;
+    box-shadow: 0 24px 80px rgba(0,0,0,0.5);
+    overflow: hidden; transition: opacity 0.14s ease, transform 0.14s ease;
+    font-family: var(--font-mono);
+  }
+  .cmdbar-panel.open { opacity: 1; pointer-events: auto; transform: translate(-50%, 0) scale(1); }
+  .cmdbar-search {
+    display: flex; align-items: center; gap: 10px;
+    padding: 14px 16px; border-bottom: 1px solid var(--panel-border);
+  }
+  .cmdbar-search svg { width: 16px; height: 16px; fill: var(--panel-muted); flex: 0 0 auto; }
+  .cmdbar-search input {
+    width: 100%; min-width: 0; border: 0; outline: 0; background: transparent;
+    color: var(--page-fg); font: inherit; font-size: var(--text-sm);
+  }
+  .cmdbar-search input::placeholder { color: var(--panel-muted); }
+  .cmdbar-list {
+    max-height: 428px; overflow: auto; padding: 8px;
+  }
+  .cmdbar-row {
+    display: flex; justify-content: space-between; align-items: center; gap: 14px;
+    width: 100%; min-height: 44px; padding: 10px 12px; border: 1px solid transparent; border-radius: 6px;
+    background: transparent; color: var(--page-fg); cursor: pointer; text-align: left;
+    font: inherit;
+  }
+  .cmdbar-row:focus-visible { outline: none; box-shadow: inset 0 0 0 2px var(--panel-accent); }
+  .cmdbar-row-action .cmdbar-row-name { color: var(--panel-success); }
+  .cmdbar-row-subview .cmdbar-row-meta {
+    display: inline-flex; align-items: center; gap: 8px;
+  }
+  .cmdbar-row-chevron {
+    color: var(--panel-accent); font-size: var(--text-base); line-height: 1;
+  }
+  .cmdbar-row:hover,
+  .cmdbar-row.active {
+    border-color: color-mix(in srgb, var(--panel-accent) 28%, transparent); background: color-mix(in srgb, var(--panel-accent) 8%, transparent);
+  }
+  .cmdbar-row-name {
+    min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    color: var(--panel-accent); font-size: var(--text-sm);
+  }
+  .cmdbar-row-meta {
+    flex: 0 0 auto; color: var(--panel-muted); font-size: var(--text-xs); text-align: right;
+  }
+  .cmdbar-row-meta-current { color: var(--panel-success); text-transform: uppercase; letter-spacing: 0.06em; }
+  .cmdbar-rename-input {
+    width: 100%; min-width: 0; border: 1px solid rgba(125, 211, 252, 0.35);
+    border-radius: 4px; padding: 4px 6px; background: rgba(0, 0, 0, 0.25);
+    color: var(--page-fg); font: inherit; font-size: var(--text-sm); outline: none;
+  }
+  .cmdbar-rename-input:focus { border-color: var(--panel-accent); }
+  .cmdbar-empty {
+    padding: 28px 16px; text-align: center; color: var(--panel-muted); font-size: var(--text-xs);
+  }
+  .cmdbar-footer {
+    display: flex; justify-content: space-between; gap: 12px;
+    padding: 8px 12px; border-top: 1px solid var(--panel-border);
+    color: var(--panel-muted); font-size: var(--text-xs);
+  }
+  @media (max-width: 560px) {
+    .cmdbar-panel { top: 54px; width: calc(100vw - 16px); max-height: calc(100vh - 70px); }
+    .cmdbar-row { align-items: flex-start; flex-direction: column; gap: 4px; }
+    .cmdbar-row-meta { text-align: left; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .cmdbar-backdrop, .cmdbar-panel { transition-duration: 0.01ms !important; }
+  }`}function u(n="Sessions"){return`<button class="cmdbar-btn" id="cmdbar-open" title="${n} (\u2318K)" aria-label="${n} (\u2318K)">
+    <span class="cmdbar-shortcut">\u2318K</span>
+  </button>`}function p(){return`
+<div class="cmdbar-backdrop" id="cmdbar-backdrop"></div>
+<div class="cmdbar-panel" id="cmdbar-panel" role="dialog" aria-modal="true" aria-label="Switch tmux session">
+  <div class="cmdbar-search">
+    ${c("search")}
+    <input id="cmdbar-input" type="search" placeholder="Filter tmux sessions" autocomplete="off" spellcheck="false" />
+  </div>
+  <div class="cmdbar-list" id="cmdbar-list"></div>
+  <div class="cmdbar-footer">
+    <span id="cmdbar-count">Recent sessions</span>
+    <span id="cmdbar-hint">Enter opens \xB7 Esc closes</span>
+  </div>
+</div>`}function f(n,s=[],e={},t=[]){const i=JSON.stringify(n).replace(/</g,"\\u003c"),a=JSON.stringify(s).replace(/</g,"\\u003c"),o=JSON.stringify(e.sessionName??null).replace(/</g,"\\u003c"),r=JSON.stringify(t).replace(/</g,"\\u003c");return`
+(function() {
+  const initialSessions = ${i};
+  const actions = ${a}.map((action) => ({ ...action, kind: 'action' }));
+  const sessionName = ${o};
+  const quickCommands = ${r}.map((command) => ({ ...command, kind: 'quickCommand' }));
+  let sessions = initialSessions;
+  let visible = [];
+  let activeIndex = 0;
+  let view = 'root';
+  let windows = [];
+  let renaming = false;
+
+  const ROOT_PLACEHOLDER = 'Filter tmux sessions';
+  const WINDOWS_PLACEHOLDER = 'Filter windows';
+  const QUICK_COMMANDS_PLACEHOLDER = 'Filter quick commands';
+
+  const openBtn = document.getElementById('cmdbar-open');
+  const backdrop = document.getElementById('cmdbar-backdrop');
+  const panel = document.getElementById('cmdbar-panel');
+  const input = document.getElementById('cmdbar-input');
+  const list = document.getElementById('cmdbar-list');
+  const count = document.getElementById('cmdbar-count');
+  const hint = document.getElementById('cmdbar-hint');
+  if (!openBtn || !backdrop || !panel || !input || !list || !count || !hint) return;
+
+  const formatter = new Intl.RelativeTimeFormat('en', { numeric: 'auto' });
+
+  function relativeTime(ts) {
+    if (!ts) return '';
+    const diffMs = Date.now() - ts;
+    if (diffMs < 45000) return 'just now';
+    const minutes = Math.floor(diffMs / 60000);
+    const hours = Math.floor(minutes / 60);
+    const days = Math.floor(hours / 24);
+    const weeks = Math.floor(days / 7);
+    const months = Math.floor(days / 30);
+    if (minutes < 60) return formatter.format(-minutes, 'minute');
+    if (hours < 24) return formatter.format(-hours, 'hour');
+    if (days < 7) return formatter.format(-days, 'day');
+    if (weeks < 5) return formatter.format(-weeks, 'week');
+    if (months < 12) return formatter.format(-months, 'month');
+    return formatter.format(-Math.floor(days / 365), 'year');
+  }
+
+  function sessionMeta(session) {
+    const parts = [
+      session.windows + ' window' + (session.windows === 1 ? '' : 's'),
+    ];
+    if (session.attached) parts.push('attached');
+    const recent = relativeTime(session.lastAccessedAt);
+    if (recent) parts.push(recent);
+    return parts.join(' \xB7 ');
+  }
+
+  function windowDisplayName(win) {
+    return win.label || win.name;
+  }
+
+  function escapeHtml(value) {
+    return String(value)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  function updateChrome() {
+    if (view === 'windows') {
+      input.placeholder = WINDOWS_PLACEHOLDER;
+      hint.textContent = 'Enter switches \xB7 r renames \xB7 \u2190 back \xB7 Esc closes';
+    } else if (view === 'quickCommands') {
+      input.placeholder = QUICK_COMMANDS_PLACEHOLDER;
+      hint.textContent = 'Enter pastes \xB7 \u2190 back \xB7 Esc closes';
+    } else {
+      input.placeholder = ROOT_PLACEHOLDER;
+      hint.textContent = 'Enter opens \xB7 Esc closes';
+    }
+  }
+
+  function selectSession(session) {
+    window.location.href = '/s/' + encodeURIComponent(session.name);
+  }
+
+  function selectItem(item) {
+    if (item.kind === 'action') {
+      if (item.subView === 'windows' && sessionName) {
+        void enterWindowsView();
+        return;
+      }
+      if (item.subView === 'quickCommands') {
+        enterQuickCommandsView();
+        return;
+      }
+      setOpen(false);
+      if (item.href) {
+        window.location.href = item.href;
+        return;
+      }
+      if (item.clickTargetId) document.getElementById(item.clickTargetId)?.click();
+      return;
+    }
+    selectSession(item);
+  }
+
+  function quickCommandMeta(command) {
+    return command.description || command.command;
+  }
+
+  function renderRoot() {
+    const query = input.value.trim().toLowerCase();
+    const actionMatches = actions.filter((action) => (
+      action.label.toLowerCase().includes(query) || action.meta.toLowerCase().includes(query)
+    ));
+    const sessionMatches = query
+      ? sessions.filter((session) => session.name.toLowerCase().includes(query))
+      : sessions.slice(0, 5);
+    visible = query ? [...actionMatches, ...sessionMatches] : [...actions, ...sessionMatches];
+    activeIndex = Math.min(activeIndex, Math.max(0, visible.length - 1));
+    count.textContent = query
+      ? visible.length + ' result' + (visible.length === 1 ? '' : 's')
+      : 'Actions \xB7 Recent sessions';
+
+    if (!visible.length) {
+      list.innerHTML = '<div class="cmdbar-empty">No sessions found</div>';
+      return;
+    }
+
+    list.innerHTML = visible.map((item, index) => (
+      '<button class="cmdbar-row' + (item.kind === 'action' ? ' cmdbar-row-action' : '') + (item.kind === 'action' && item.subView ? ' cmdbar-row-subview' : '') + (index === activeIndex ? ' active' : '') + '" data-index="' + index + '">' +
+        '<span class="cmdbar-row-name">' + escapeHtml(item.kind === 'action' ? item.label : item.name) + '</span>' +
+        '<span class="cmdbar-row-meta">' + escapeHtml(item.kind === 'action' ? item.meta : sessionMeta(item)) + (item.kind === 'action' && item.subView ? '<span class="cmdbar-row-chevron" aria-hidden="true">&rsaquo;</span>' : '') + '</span>' +
+      '</button>'
+    )).join('');
+  }
+
+  function renderWindows() {
+    const query = input.value.trim().toLowerCase();
+    visible = query
+      ? windows.filter((win) => {
+          const label = (win.label || '').toLowerCase();
+          const name = win.name.toLowerCase();
+          return label.includes(query) || name.includes(query) || String(win.index).includes(query);
+        })
+      : windows.slice();
+    activeIndex = Math.min(activeIndex, Math.max(0, visible.length - 1));
+    count.textContent = query
+      ? visible.length + ' window' + (visible.length === 1 ? '' : 's')
+      : 'Switch window';
+
+    if (!visible.length) {
+      list.innerHTML = '<div class="cmdbar-empty">' + (windows.length ? 'No windows found' : 'No windows in this session') + '</div>';
+      return;
+    }
+
+    list.innerHTML = visible.map((win, index) => {
+      const metaClass = win.active ? ' cmdbar-row-meta-current' : '';
+      const meta = win.active ? 'current' : String(win.index);
+      return (
+        '<button class="cmdbar-row' + (index === activeIndex ? ' active' : '') + '" data-index="' + index + '">' +
+          '<span class="cmdbar-row-name">' + escapeHtml(windowDisplayName(win)) + '</span>' +
+          '<span class="cmdbar-row-meta' + metaClass + '">' + escapeHtml(meta) + '</span>' +
+        '</button>'
+      );
+    }).join('');
+  }
+
+  function renderQuickCommands() {
+    const query = input.value.trim().toLowerCase();
+    visible = query
+      ? quickCommands.filter((command) => (
+          command.title.toLowerCase().includes(query) ||
+          command.command.toLowerCase().includes(query) ||
+          (command.description || '').toLowerCase().includes(query)
+        ))
+      : quickCommands.slice();
+    activeIndex = Math.min(activeIndex, Math.max(0, visible.length - 1));
+    count.textContent = query
+      ? visible.length + ' command' + (visible.length === 1 ? '' : 's')
+      : 'Quick commands';
+
+    if (!visible.length) {
+      list.innerHTML = '<div class="cmdbar-empty">' + (
+        quickCommands.length
+          ? 'No quick commands found'
+          : 'No quick commands configured. <a href="/quick-commands">Configure them</a>'
+      ) + '</div>';
+      return;
+    }
+
+    list.innerHTML = visible.map((command, index) => (
+      '<button class="cmdbar-row' + (index === activeIndex ? ' active' : '') + '" data-index="' + index + '">' +
+        '<span class="cmdbar-row-name">' + escapeHtml(command.title) + '</span>' +
+        '<span class="cmdbar-row-meta">' + escapeHtml(quickCommandMeta(command)) + '</span>' +
+      '</button>'
+    )).join('');
+  }
+
+  function render() {
+    updateChrome();
+    if (view === 'windows') renderWindows();
+    else if (view === 'quickCommands') renderQuickCommands();
+    else renderRoot();
+  }
+
+  async function fetchWindows() {
+    if (!sessionName) return [];
+    try {
+      const res = await fetch('/api/session/' + encodeURIComponent(sessionName) + '/windows');
+      if (!res.ok) return [];
+      return await res.json();
+    } catch {
+      return [];
+    }
+  }
+
+  async function enterWindowsView() {
+    if (!sessionName) return;
+    windows = await fetchWindows();
+    view = 'windows';
+    input.value = '';
+    activeIndex = 0;
+    render();
+    setTimeout(() => input.focus(), 0);
+  }
+
+  function enterQuickCommandsView() {
+    view = 'quickCommands';
+    input.value = '';
+    activeIndex = 0;
+    render();
+    setTimeout(() => input.focus(), 0);
+  }
+
+  function exitSubview() {
+    view = 'root';
+    input.value = '';
+    activeIndex = 0;
+    render();
+    setTimeout(() => input.focus(), 0);
+  }
+
+  function selectQuickCommand(command) {
+    if (!command || typeof command.command !== 'string') return;
+    setOpen(false);
+    if (window.tmuxWeb && window.tmuxWeb.sendInput) {
+      window.tmuxWeb.sendInput(command.command);
+      if (window.tmuxWeb.focusTerminal) window.tmuxWeb.focusTerminal();
+    }
+  }
+
+  async function selectWindow(win) {
+    if (!sessionName || !win || win.active) return;
+    try {
+      const res = await fetch(
+        '/api/session/' + encodeURIComponent(sessionName) + '/select-window',
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ windowIndex: win.index }),
+        },
+      );
+      if (!res.ok) return;
+      setOpen(false);
+    } catch {}
+  }
+
+  function startWindowRename(win) {
+    if (!sessionName || !win || renaming) return;
+    renaming = true;
+    const row = list.querySelector('.cmdbar-row.active');
+    if (!row) {
+      renaming = false;
+      return;
+    }
+    const nameEl = row.querySelector('.cmdbar-row-name');
+    if (!nameEl) {
+      renaming = false;
+      return;
+    }
+
+    const editInput = document.createElement('input');
+    editInput.type = 'text';
+    editInput.className = 'cmdbar-rename-input';
+    editInput.value = win.label || win.name || '';
+    editInput.placeholder = win.name || '';
+    editInput.addEventListener('click', (event) => event.stopPropagation());
+
+    let done = false;
+    const finish = async (save) => {
+      if (done) return;
+      done = true;
+      renaming = false;
+      if (save) {
+        try {
+          const res = await fetch(
+            '/api/session/' + encodeURIComponent(sessionName) + '/window-label',
+            {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ windowIndex: win.index, label: editInput.value }),
+            },
+          );
+          if (res.ok) {
+            const trimmed = editInput.value.trim();
+            win.label = trimmed || null;
+            const stored = windows.find((entry) => entry.index === win.index);
+            if (stored) stored.label = win.label;
+          }
+        } catch {}
+      }
+      render();
+    };
+
+    editInput.addEventListener('keydown', (event) => {
+      event.stopPropagation();
+      if (event.key === 'Enter') { event.preventDefault(); void finish(true); }
+      else if (event.key === 'Escape') { event.preventDefault(); void finish(false); }
+    });
+    editInput.addEventListener('blur', () => { void finish(true); });
+
+    nameEl.replaceWith(editInput);
+    editInput.focus();
+    editInput.select();
+  }
+
+  function setOpen(nextOpen) {
+    panel.classList.toggle('open', nextOpen);
+    backdrop.classList.toggle('open', nextOpen);
+    if (nextOpen) {
+      view = 'root';
+      renaming = false;
+      input.value = '';
+      activeIndex = 0;
+      render();
+      setTimeout(() => input.focus(), 0);
+      refreshSessions();
+    } else {
+      view = 'root';
+      renaming = false;
+      openBtn.focus();
+    }
+  }
+
+  async function refreshSessions() {
+    try {
+      const res = await fetch('/api/sessions', { headers: { accept: 'application/json' } });
+      if (!res.ok) return;
+      sessions = await res.json();
+      render();
+    } catch {}
+  }
+
+  openBtn.addEventListener('click', () => setOpen(true));
+  backdrop.addEventListener('click', () => setOpen(false));
+  input.addEventListener('input', () => {
+    if (renaming) return;
+    activeIndex = 0;
+    render();
+  });
+  list.addEventListener('click', (event) => {
+    if (renaming) return;
+    const row = event.target instanceof Element ? event.target.closest('.cmdbar-row') : null;
+    if (!row) return;
+    const item = visible[Number(row.dataset.index)];
+    if (!item) return;
+    if (view === 'windows') void selectWindow(item);
+    else if (view === 'quickCommands') selectQuickCommand(item);
+    else selectItem(item);
+  });
+  list.addEventListener('mousemove', (event) => {
+    if (renaming) return;
+    const row = event.target instanceof Element ? event.target.closest('.cmdbar-row') : null;
+    if (!row) return;
+    activeIndex = Number(row.dataset.index);
+    render();
+  });
+
+  document.addEventListener('keydown', (event) => {
+    const isShortcut = event.metaKey && !event.ctrlKey && !event.altKey && event.key.toLowerCase() === 'k';
+    if (isShortcut) {
+      event.preventDefault();
+      event.stopPropagation();
+      setOpen(!panel.classList.contains('open'));
+      return;
+    }
+    if (!panel.classList.contains('open') || renaming) return;
+
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      if (view !== 'root') exitSubview();
+      else setOpen(false);
+      return;
+    }
+    if (event.key === 'ArrowLeft') {
+      if (view !== 'root') {
+        event.preventDefault();
+        exitSubview();
+      }
+      return;
+    }
+    if (event.key === 'ArrowRight') {
+      if (view === 'root') {
+        const item = visible[activeIndex];
+        if (item && item.kind === 'action' && item.subView === 'windows' && sessionName) {
+          event.preventDefault();
+          void enterWindowsView();
+        } else if (item && item.kind === 'action' && item.subView === 'quickCommands') {
+          event.preventDefault();
+          enterQuickCommandsView();
+        }
+      }
+      return;
+    }
+    if (event.key === 'ArrowDown') {
+      event.preventDefault();
+      activeIndex = Math.min(activeIndex + 1, visible.length - 1);
+      render();
+      return;
+    }
+    if (event.key === 'ArrowUp') {
+      event.preventDefault();
+      activeIndex = Math.max(activeIndex - 1, 0);
+      render();
+      return;
+    }
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      const item = visible[activeIndex];
+      if (!item) return;
+      if (view === 'windows') void selectWindow(item);
+      else if (view === 'quickCommands') selectQuickCommand(item);
+      else selectItem(item);
+      return;
+    }
+    if (view === 'windows' && !event.metaKey && !event.ctrlKey && !event.altKey && event.key === 'r') {
+      event.preventDefault();
+      const item = visible[activeIndex];
+      if (item) startWindowRename(item);
+    }
+  }, true);
+
+  render();
+}());`}export{m as buildCommandbarSessions,u as commandbarButtonHTML,l as commandbarCSS,p as commandbarHTML,f as commandbarScript};

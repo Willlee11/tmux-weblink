@@ -1,0 +1,105 @@
+import{cssVarsStyle as s}from"../theme.js";import{AGENT_LABELS as o}from"../agent-detect.js";import{commandbarCSS as i,commandbarHTML as l,commandbarScript as p}from"../commandbar.js";import{notesDrawerCSS as c,notesDrawerHTML as d,notesDrawerScript as g}from"../notes-drawer.js";import{sharedLayoutCSS as m,sharedHeader as u,sharedSidebar as x,newSessionModalHTML as f,newSessionModalScript as b}from"../shared-layout.js";function k(a,e=!1,t=[]){const n=JSON.stringify(o).replace(/</g,"\\u003c"),r=`
+  .sub { font-size: var(--text-sm); color: var(--panel-muted); margin-bottom: 24px; line-height: 1.5; }
+  .agent {
+    display: flex; align-items: center; gap: 12px; text-decoration: none;
+    padding: 14px 16px; border: 1px solid var(--panel-border); border-radius: 12px;
+    margin-bottom: 8px; background: var(--panel-bg); transition: border-color 0.15s, transform 0.1s;
+  }
+  .agent:hover { border-color: var(--panel-accent); transform: translateY(-1px); }
+  .agent .name { font-size: var(--text-sm); font-weight: 600; color: var(--page-fg); flex: 1; }
+  .agent .loc { font-size: var(--text-xs); color: var(--panel-muted); }
+  .badge {
+    font-size: var(--text-xs); letter-spacing: 0.05em; text-transform: uppercase;
+    padding: 4px 10px; border-radius: 10px; border: 1px solid var(--panel-border);
+    flex-shrink: 0; min-width: 64px; text-align: center;
+  }
+  .badge.working { color: var(--panel-success); border-color: var(--panel-success); }
+  .badge.blocked { color: #f0c674; border-color: #f0c674; }
+  .badge.idle { color: var(--panel-muted); }
+  .badge.unknown { color: var(--panel-muted); opacity: 0.7; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; background: var(--panel-muted); }
+  .dot.working { background: var(--panel-success); }
+  .dot.blocked { background: #f0c674; }
+  .empty { font-size: var(--text-sm); color: var(--panel-muted); line-height: 1.6; margin-top: 20px; }
+  @media (max-width: 560px) {
+    .agent { flex-wrap: wrap; gap: 8px; }
+    .agent .loc { width: 100%; order: 3; }
+  }
+  ${e?i():""}
+  ${c()}`;return`<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+<title>Agents - tmux-web</title>
+<style>
+  ${s(a.shell)}
+  ${m(r)}
+</style>
+</head>
+<body>
+
+${u({commandbarEnabled:e,title:"Agents",themeTemplate:a.template})}
+
+<div class="page-wrap">
+  <div class="page-layout">
+    ${x({activePage:"agents",agentsEnabled:!0,refreshHref:"/agents"})}
+    <main class="main-panel">
+      <p class="sub">AI agents in the last panes you viewed. Updates automatically.</p>
+      <div id="agents-list">
+        <p class="empty" id="empty-msg">Loading\u2026</p>
+      </div>
+    </main>
+  </div>
+</div>
+
+${f()}
+${e?l():""}
+${d("Notes - Global")}
+
+<script type="module">
+${g("__global__")}
+${e?p(t,[]):""}
+${b()}
+</script>
+
+<script type="module">
+const LABELS = ${n};
+
+function esc(s) {
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function render(list) {
+  const container = document.getElementById('agents-list');
+  if (!list || list.length === 0) {
+    container.innerHTML = '<p class="empty" id="empty-msg">No agents detected.<br>Open a session running Claude, Codex, OpenCode, or Cursor to start watching it.</p>';
+    return;
+  }
+  container.innerHTML = list.map((a) => {
+    const label = LABELS[a.agent] || a.agent;
+    const state = a.state || 'unknown';
+    return '<a class="agent" href="/s/' + encodeURIComponent(a.sessionName) + '">' +
+      '<span class="dot ' + esc(state) + '"></span>' +
+      '<span class="name">' + esc(label) + '</span>' +
+      '<span class="loc">' + esc(a.sessionName) + ':' + a.windowIndex + '.' + a.paneIndex + '</span>' +
+      '<span class="badge ' + esc(state) + '">' + esc(state) + '</span>' +
+    '</a>';
+  }).join('');
+}
+
+async function poll() {
+  try {
+    const res = await fetch('/api/agents', { headers: { 'accept': 'application/json' } });
+    if (res.ok) render(await res.json());
+  } catch {
+    // transient \u2014 keep last render
+  }
+}
+
+poll();
+setInterval(poll, 2500);
+</script>
+</body>
+</html>`}export{k as renderAgentsIndex};
