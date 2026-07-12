@@ -7,6 +7,17 @@ import type { Terminal as XTerminalType } from '@xterm/xterm';
 // and the default ships no ghostty code.
 const GHOSTTY_WEB_URL = 'https://esm.sh/ghostty-web@0.4.0';
 
+// OSC sequences that change the terminal foreground/background or reset them.
+// tmux may send these (e.g. window-style/window-active-style) and override the
+// theme colors we set on the xterm.js Terminal. Strip them so the page theme
+// always wins.
+// Matches: OSC 10/11/110/111/104;... BEL or ST (ESC \ or ESC \\).
+const OSC_COLOR_RE = /\x1b\](?:10|11|110|111|104)(?:;[^\x07\x1b]*)?\x1b?(?:\\|\x07)/g;
+
+function stripOscColorSequences(data: string): string {
+	return data.replace(OSC_COLOR_RE, '');
+}
+
 // xterm needs its stylesheet to lay out correctly. It is injected only when an
 // XtermAdapter is actually created (default renderer, or ghostty fallback), so
 // ghostty mode never loads it.
@@ -408,7 +419,7 @@ function fullLoadedText(): string {
 async function rewriteTerminal(preserveScroll: boolean, addedLines = 0) {
 	const viewportY = preserveScroll ? term.viewportY() : 0;
 	const baseY = preserveScroll ? term.baseY() : 0;
-	const text = fullLoadedText();
+	const text = stripOscColorSequences(fullLoadedText());
 
 	term.reset();
 	if (!text) {
@@ -431,7 +442,7 @@ function handleServerMessage(raw: string) {
 	} catch {
 		if (phase === 'live') {
 			liveSuffix += raw;
-			void term.write(raw);
+			void term.write(stripOscColorSequences(raw));
 		}
 		return;
 	}
@@ -479,12 +490,13 @@ function handleServerMessage(raw: string) {
 	}
 
 	if (msg.type === 'snapshot' && typeof msg.data === 'string') {
-		historyParts = [msg.data];
+		const data = stripOscColorSequences(msg.data);
+		historyParts = [data];
 		liveSuffix = '';
 		serverHistoryLoaded = typeof msg.lines === 'number' ? msg.lines : cfg.terminal.initialLines;
 		phase = 'live';
 		term.reset();
-		void term.write(msg.data).then(() => term.scrollToBottom());
+		void term.write(data).then(() => term.scrollToBottom());
 		return;
 	}
 
@@ -513,15 +525,16 @@ function handleServerMessage(raw: string) {
 	}
 
 	if (msg.type === 'data' && typeof msg.data === 'string') {
+		const data = stripOscColorSequences(msg.data);
 		if (phase === 'connecting') {
 			phase = 'live';
-			liveSuffix = msg.data;
-			void term.write(msg.data);
+			liveSuffix = data;
+			void term.write(data);
 			return;
 		}
 		if (phase === 'live') {
-			liveSuffix += msg.data;
-			void term.write(msg.data);
+			liveSuffix += data;
+			void term.write(data);
 		}
 	}
 }
