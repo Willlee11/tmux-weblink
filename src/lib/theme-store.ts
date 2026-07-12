@@ -24,19 +24,37 @@ function isValidTheme(data: unknown): data is TmuxWebTheme {
 	);
 }
 
+function themesEqual(a: TmuxWebTheme, b: TmuxWebTheme): boolean {
+	return JSON.stringify(a) === JSON.stringify(b);
+}
+
 export async function writeActiveTheme(theme: TmuxWebTheme): Promise<void> {
 	await mkdir(path.dirname(THEME_PATH), { recursive: true });
 	await writeFile(THEME_PATH, JSON.stringify(theme, null, 2) + '\n');
 }
 
 export async function readActiveTheme(): Promise<TmuxWebTheme> {
+	const defaultTheme = resolveTheme('vscode');
+	let raw: unknown;
 	try {
-		const raw = JSON.parse(await readFile(THEME_PATH, 'utf-8')) as unknown;
-		if (isValidTheme(raw)) return raw;
+		raw = JSON.parse(await readFile(THEME_PATH, 'utf-8')) as unknown;
 	} catch {
 		// missing or invalid — seed default
+		await writeActiveTheme(defaultTheme);
+		return defaultTheme;
 	}
-	const defaultTheme = resolveTheme('vscode');
+
+	if (!isValidTheme(raw)) {
+		await writeActiveTheme(defaultTheme);
+		return defaultTheme;
+	}
+
+	// Always follow the built-in default theme. If the persisted theme matches
+	// the current default, keep it; otherwise upgrade to the latest default.
+	// This ensures theme updates in new releases are picked up automatically.
+	if (themesEqual(raw, defaultTheme)) {
+		return raw;
+	}
 	await writeActiveTheme(defaultTheme);
 	return defaultTheme;
 }
