@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { chmodSync, existsSync, readdirSync, statSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, readdirSync, readFileSync, statSync, unlinkSync, writeFileSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import path from "node:path";
@@ -25,10 +25,12 @@ try {
 	}
 } catch {}
 import { listSessions } from "./sessions.js";
-import { renderLanding, renderTerminal, renderLoginPage, renderNotesIndex, renderNotesPage, renderSettings, renderThemeSettings, renderScheduleIndex, renderAgentsIndex, renderHistoryIndex, renderQuickCommandsPage } from "./frontend.js";
+import { renderLanding, renderTerminal, renderLoginPage, renderNotesIndex, renderNotesPage, renderSettings, renderThemeSettings, renderScheduleIndex, renderAgentsIndex, renderHistoryIndex, renderQuickCommandsPage, renderFilesIndex, renderShell } from "./frontend.js";
 import { loadSecurityConfig, saveSecurityConfig, type TmuxWebSecurityConfig, type SecurityConfig } from "./lib/security-config.js";
 import { hashPassword, verifyPassword, validatePassword, TokenStore, type StoredToken } from "./lib/auth.js";
 import { RateLimiter, type RateLimitResult } from "./lib/rateLimiter.js";
+import { atomicWriteFileSync } from "./lib/atomicWrite.js";
+import { resolveFsPath, resolveFsRoots, MAX_FILE_BYTES, walkRecursive } from "./lib/fs-access.js";
 import { audit } from "./lib/auditLog.js";
 import { db } from "./lib/db.js";
 import { recordSessionAccess, getSessionAccessMap } from "./lib/session-access.js";
@@ -450,14 +452,18 @@ app.get("/login", (c) => {
 // ── Page routes (require authentication) ────────────────────────────────────
 
 app.get("/", requireAuthOrRedirect(), (c) => {
-	const q = c.req.query("view");
-	const view = q === "recent" ? "recent"
-		: q === "default" ? "default"
-		: (settings.defaultView ?? "default");
-	const sessions = listSessions();
-	const accessMap = getSessionAccessMap();
-	const commandbarSessions = commandbarEnabled ? buildCommandbarSessions(sessions, accessMap) : [];
-	return c.html(renderLanding(sessions, { view, accessMap, commandbarEnabled, commandbarSessions, agentsEnabled, theme: activeTheme }));
+	const commandbarSessions = commandbarEnabled ? buildCommandbarSessions(listSessions(), getSessionAccessMap()) : [];
+	const roots = resolveFsRoots();
+	return c.html(renderShell({
+		theme: activeTheme,
+		commandbarEnabled,
+		commandbarSessions,
+		agentsEnabled,
+		fsRoots: roots,
+		terminalCfg: terminalBufferConfig,
+		renderer: terminalRenderer,
+		scrollback: terminalBufferConfig.initialLines + 2 * terminalBufferConfig.historyChunk,
+	}));
 });
 
 app.get("/s/:session", requireAuthOrRedirect(), async (c) => {
@@ -512,6 +518,12 @@ app.get("/history", requireAuthOrRedirect(), (c) => {
 app.get("/quick-commands", requireAuthOrRedirect(), (c) => {
 	const commandbarSessions = commandbarEnabled ? buildCommandbarSessions(listSessions(), getSessionAccessMap()) : [];
 	return c.html(renderQuickCommandsPage(listQuickCommands(), activeTheme, commandbarEnabled, commandbarSessions, agentsEnabled));
+});
+
+app.get("/files", requireAuthOrRedirect(), (c) => {
+	const commandbarSessions = commandbarEnabled ? buildCommandbarSessions(listSessions(), getSessionAccessMap()) : [];
+	const roots = resolveFsRoots();
+	return c.html(renderFilesIndex(activeTheme, commandbarEnabled, commandbarSessions, agentsEnabled, roots));
 });
 
 app.post("/api/history/clear", requireAuth(), async (c) => {
@@ -805,6 +817,8 @@ app.get("/api/fs/list", requireAuth(), (c) => {
 	if (rawPath.startsWith("~")) rawPath = home + rawPath.slice(1);
 	if (!rawPath.startsWith("/")) rawPath = path.join(home, rawPath);
 
+	const recursive = c.req.query("recursive") === "true";
+
 	// If rawPath is an existing directory (or ends with "/"), list its contents.
 	// Otherwise treat the trailing segment as a prefix and list/filter its parent,
 	// so partial input like "~/Doc" suggests "~/Documents".
@@ -824,18 +838,93 @@ app.get("/api/fs/list", requireAuth(), (c) => {
 	try {
 		const entries = readdirSync(dirPath);
 		const dirs: string[] = [];
+		const files: string[] = [];
 		for (const entry of entries) {
 			if (entry.startsWith(".")) continue;
 			if (prefix && !entry.toLowerCase().startsWith(prefix)) continue;
 			try {
 				const full = path.join(dirPath, entry);
-				if (statSync(full).isDirectory()) dirs.push(full);
+				if (statSync(full).isDirectory()) {
+					dirs.push(full);
+					if (recursive) {
+						walkRecursive(full, dirs, files, 0);
+					}
+				} else {
+					files.push(full);
+				}
 			} catch {}
-			if (dirs.length >= 50) break;
+			if (dirs.length + files.length >= 5000) break;
 		}
-		return c.json({ dirs });
+		return c.json({ dirs, files: recursive ? files : undefined });
 	} catch {
-		return c.json({ dirs: [] });
+		return c.json({ dirs: [], files: [] });
+	}
+});
+
+
+// ── File API (requires TMUX_WEB_FS_ROOTS) ─────────────────────────────────
+
+app.get("/api/file", requireAuth(), (c) => {
+	try {
+		const rawPath = c.req.query("path");
+		if (!rawPath) return c.json({ error: "path is required" }, 400);
+		const resolved = resolveFsPath(rawPath);
+		if (!statSync(resolved).isFile()) return c.json({ error: "not a file" }, 400);
+		const size = statSync(resolved).size;
+		if (size > MAX_FILE_BYTES) return c.json({ error: "file too large", size, maxBytes: MAX_FILE_BYTES }, 413);
+		const content = readFileSync(resolved, "utf-8");
+		return c.json({ path: resolved, content, size });
+	} catch (err) {
+		if ((err as Error).message === "FS_ROOTS_NOT_CONFIGURED") return c.json({ error: "file access not configured" }, 403);
+		if ((err as Error).message === "PATH_NOT_ALLOWED") return c.json({ error: "path not allowed" }, 403);
+		if ((err as NodeJS.ErrnoException).code === "ENOENT") return c.json({ error: "not found" }, 404);
+		return c.json({ error: "internal error" }, 500);
+	}
+});
+
+app.put("/api/file", requireAuth(), async (c) => {
+	try {
+		const body: { path?: string; content?: string } = await c.req.json();
+		if (!body.path || typeof body.content !== "string") return c.json({ error: "path and content are required" }, 400);
+		const resolved = resolveFsPath(body.path);
+		atomicWriteFileSync(resolved, body.content);
+		return c.json({ ok: true });
+	} catch (err) {
+		if ((err as Error).message === "FS_ROOTS_NOT_CONFIGURED") return c.json({ error: "file access not configured" }, 403);
+		if ((err as Error).message === "PATH_NOT_ALLOWED") return c.json({ error: "path not allowed" }, 403);
+		return c.json({ error: "write failed" }, 500);
+	}
+});
+
+app.post("/api/file/delete", requireAuth(), async (c) => {
+	try {
+		const body: { path?: string } = await c.req.json();
+		if (!body.path) return c.json({ error: "path is required" }, 400);
+		const resolved = resolveFsPath(body.path);
+		if (!statSync(resolved).isFile()) return c.json({ error: "not a file" }, 400);
+		unlinkSync(resolved);
+		return c.json({ ok: true });
+	} catch (err) {
+		if ((err as Error).message === "FS_ROOTS_NOT_CONFIGURED") return c.json({ error: "file access not configured" }, 403);
+		if ((err as Error).message === "PATH_NOT_ALLOWED") return c.json({ error: "path not allowed" }, 403);
+		if ((err as NodeJS.ErrnoException).code === "ENOENT") return c.json({ error: "not found" }, 404);
+		return c.json({ error: "delete failed" }, 500);
+	}
+});
+
+app.post("/api/file/touch", requireAuth(), async (c) => {
+	try {
+		const body: { path?: string } = await c.req.json();
+		if (!body.path) return c.json({ error: "path is required" }, 400);
+		const resolved = resolveFsPath(body.path);
+		if (existsSync(resolved)) return c.json({ error: "file already exists" }, 409);
+		mkdirSync(path.dirname(resolved), { recursive: true });
+		writeFileSync(resolved, "", "utf-8");
+		return c.json({ ok: true, path: resolved });
+	} catch (err) {
+		if ((err as Error).message === "FS_ROOTS_NOT_CONFIGURED") return c.json({ error: "file access not configured" }, 403);
+		if ((err as Error).message === "PATH_NOT_ALLOWED") return c.json({ error: "path not allowed" }, 403);
+		return c.json({ error: "touch failed" }, 500);
 	}
 });
 

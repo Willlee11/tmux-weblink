@@ -2,7 +2,7 @@ import { commandbarButtonHTML } from './commandbar.js';
 import { escapeHtml } from './html.js';
 import { icon, iconPath } from './icons.js';
 
-export type ActivePage = 'home' | 'notes' | 'schedule' | 'agents' | 'history' | 'quickCommands';
+export type ActivePage = 'home' | 'notes' | 'schedule' | 'agents' | 'history' | 'quickCommands' | 'files';
 
 type ThemeOption = { id: string; name: string; dot: string };
 
@@ -18,7 +18,7 @@ function focusRing(accent = 'var(--panel-accent)'): string {
 }
 
 /** Reduced-motion helper: disables transform transitions. */
-function reducedMotion(extra = ''): string {
+export function reducedMotion(extra = ''): string {
 	return `
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after {
@@ -324,6 +324,7 @@ export function sharedSidebar(opts: {
 	const agentsIcon = iconPath('agents');
 	const historyIcon = iconPath('history');
 	const quickCommandsIcon = iconPath('quick-commands');
+	const filesIcon = iconPath('file');
 	const refreshIcon = iconPath('refresh');
 
 	return `<aside class="action-sidebar">
@@ -336,6 +337,7 @@ export function sharedSidebar(opts: {
       ${btn('home', '/', sessionsIcon, 'Sessions')}
       ${btn('notes', '/notes', notesIcon, 'All Notes')}
       ${btn('schedule', '/schedule', scheduleIcon, 'Scheduled')}
+      ${btn('files', '/files', filesIcon, 'Files')}
       ${btn('history', '/history', historyIcon, 'History')}
       ${btn('quickCommands', '/quick-commands', quickCommandsIcon, 'Quick Commands')}
       ${agentsEnabled ? btn('agents', '/agents', agentsIcon, 'All Agents') : ''}
