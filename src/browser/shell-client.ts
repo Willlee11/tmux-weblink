@@ -39,6 +39,9 @@ const settingsPopover = document.getElementById('settings-popover')!;
 
 // ── Mode switching ──
 
+document.getElementById('mode-sessions')!.addEventListener('click', () => setMode('sessions'));
+document.getElementById('mode-files')!.addEventListener('click', () => setMode('files'));
+
 function setMode(mode: 'sessions' | 'files') {
 	currentMode = mode;
 	document.querySelectorAll('.mode-btn').forEach((btn) => btn.classList.remove('active'));

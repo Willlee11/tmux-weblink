@@ -855,7 +855,7 @@ app.get("/api/fs/list", requireAuth(), (c) => {
 			} catch {}
 			if (dirs.length + files.length >= 5000) break;
 		}
-		return c.json({ dirs, files: recursive ? files : undefined });
+		return c.json({ dirs, files });
 	} catch {
 		return c.json({ dirs: [], files: [] });
 	}
