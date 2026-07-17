@@ -279,9 +279,10 @@ export function renderShell(cfg: ShellConfig): string {
   ${commandbarEnabled ? commandbarCSS() : ''}
   ${reducedMotion()}
   @media (max-width: 640px) {
-    .sidebar { flex-basis: 200px; }
     .app-layout { flex-direction: column; }
-    .sidebar { flex: 0 0 auto; max-height: 50vh; border-right: none; border-bottom: 1px solid var(--panel-border); }
+    .sidebar { flex: 0 0 auto; border-right: none; border-bottom: 1px solid var(--panel-border); transition: max-height 0.2s; }
+    .sidebar.collapsed .sidebar-content { display: none; }
+    .sidebar.collapsed { max-height: 48px; overflow: hidden; }
   }
   `;
 

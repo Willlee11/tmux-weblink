@@ -39,8 +39,21 @@ const settingsPopover = document.getElementById('settings-popover')!;
 
 // ── Mode switching ──
 
-document.getElementById('mode-sessions')!.addEventListener('click', () => setMode('sessions'));
-document.getElementById('mode-files')!.addEventListener('click', () => setMode('files'));
+const sidebar = document.querySelector('.sidebar')!;
+
+function isNarrow(): boolean {
+	return window.matchMedia('(max-width: 640px)').matches;
+}
+
+function collapseSidebar() {
+	if (isNarrow()) sidebar.classList.add('collapsed');
+}
+function expandSidebar() {
+	sidebar.classList.remove('collapsed');
+}
+
+document.getElementById('mode-sessions')!.addEventListener('click', () => { expandSidebar(); setMode('sessions'); });
+document.getElementById('mode-files')!.addEventListener('click', () => { expandSidebar(); setMode('files'); });
 
 function setMode(mode: 'sessions' | 'files') {
 	currentMode = mode;
@@ -95,6 +108,7 @@ async function openSession(name: string) {
 	mainPlaceholder.style.display = 'none';
 	terminalContainer.style.display = '';
 	terminalContainer.classList.add('terminal-pending');
+	collapseSidebar();
 
 	// Destroy old terminal
 	if (currentTerminal) {
