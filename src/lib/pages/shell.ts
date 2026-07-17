@@ -57,6 +57,7 @@ export function renderShell(cfg: ShellConfig): string {
     display: flex;
     height: 100vh;
     padding-top: 48px;
+    transition: height 0.05s;
   }
 
   /* ── Sidebar ── */
@@ -500,6 +501,17 @@ window.__onSessionCreated = async function(name) {
   window.__openSession(name);
 };
 ${newSessionModalScript('__onSessionCreated')}
+</script>
+<script>
+// Sync app-layout height to visual viewport so mobile keyboard doesn't overlap
+(function(){
+  var el = document.querySelector('.app-layout');
+  var vv = window.visualViewport;
+  if (!vv || !el) return;
+  function sync(){ el.style.height = vv.height + 'px'; }
+  vv.addEventListener('resize', sync);
+  sync();
+})();
 </script>
 </body>
 </html>`;

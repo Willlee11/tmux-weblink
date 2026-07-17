@@ -1239,8 +1239,8 @@ app.patch("/api/schedule/:id", requireAuth(), async (c) => {
 
 const port = parseInt(process.env.PORT || "21000", 10);
 
-const server = serve({ fetch: app.fetch, port }, (info) => {
-	console.log(`tmux-web running at http://localhost:${info.port}`);
+const server = serve({ fetch: app.fetch, port, hostname: '0.0.0.0' }, (info) => {
+	console.log(`tmux-web running at http://${info.port}`);
 });
 
 // Optional always-on agent watcher: a single interval that probes only the
