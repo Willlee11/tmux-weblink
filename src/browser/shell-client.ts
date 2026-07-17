@@ -90,6 +90,12 @@ async function renderSessionList() {
 				openSession(s.name);
 			});
 			sidebarContent.appendChild(el);
+				// Wire up edit button
+				const editBtn = el.querySelector('.session-edit-btn');
+				if (editBtn) editBtn.addEventListener('click', (e) => {
+					e.stopPropagation();
+					showSessionPopover(s.name, editBtn as HTMLElement);
+				});
 		}
 	} catch {
 		sidebarContent.innerHTML += '<div class="file-tree-empty">Failed to load sessions</div>';
