@@ -438,6 +438,7 @@ export function newSessionModalScript(onCreatedExpr?: string): string {
   const dirInput = document.getElementById('ns-dir');
   const dirList = document.getElementById('ns-dir-list');
   const errorEl = document.getElementById('ns-error');
+  const onCreated = '${onCreatedExpr ?? ''}';
 
   function openModal() {
     modal.classList.add('open');
