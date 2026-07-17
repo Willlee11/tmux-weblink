@@ -230,6 +230,7 @@ async function openFileEditor(filePath: string) {
 		currentTerminal = null;
 		currentSession = null;
 	}
+	collapseSidebar();
 	mainPlaceholder.style.display = 'none';
 	fileEditor.style.display = 'flex';
 
