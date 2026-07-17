@@ -68,6 +68,8 @@ import {
 	newSessionWindow,
 	renameSessionWindow,
 	newTmuxSession,
+	renameSession,
+	killSession,
 	TmuxWindowsError,
 } from "./lib/tmux-windows.js";
 import { getActivePaneInfo } from "./lib/tmux-panes.js";
@@ -809,6 +811,25 @@ app.post("/api/sessions/new", requireAuth(), async (c) => {
 		const msg = err instanceof TmuxWindowsError ? err.message : "failed to create session";
 		return c.json({ error: msg }, 500);
 	}
+});
+
+app.post("/api/sessions/rename", requireAuth(), async (c) => {
+	try {
+		const { oldName, newName } = await c.req.json();
+		if (!oldName || !newName) return c.json({ error: "oldName and newName required" }, 400);
+		if (!/^[a-zA-Z0-9_\-. ]+$/.test(newName)) return c.json({ error: "invalid characters in name" }, 400);
+		renameSession(oldName, newName);
+		return c.json({ ok: true });
+	} catch { return c.json({ error: "rename failed" }, 500); }
+});
+
+app.post("/api/sessions/kill", requireAuth(), async (c) => {
+	try {
+		const { name } = await c.req.json();
+		if (!name) return c.json({ error: "name required" }, 400);
+		killSession(name);
+		return c.json({ ok: true });
+	} catch { return c.json({ error: "kill failed" }, 500); }
 });
 
 app.get("/api/fs/list", requireAuth(), (c) => {

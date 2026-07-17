@@ -119,6 +119,14 @@ export function newTmuxSession(name: string, dir?: string): void {
 	}
 }
 
+export function renameSession(oldName: string, newName: string): void {
+	execFileSync("tmux", ["rename-session", "-t", oldName, newName], { timeout: 5000 });
+}
+
+export function killSession(name: string): void {
+	execFileSync("tmux", ["kill-session", "-t", name], { timeout: 5000 });
+}
+
 export function selectSessionWindow(session: string, windowIndex: number): void {
 	if (!sessionExists(session)) {
 		throw new TmuxWindowsError("session not found", 404);

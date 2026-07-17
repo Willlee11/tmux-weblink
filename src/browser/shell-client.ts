@@ -83,8 +83,12 @@ async function renderSessionList() {
 			el.className = 'session-item' + (s.name === currentSession ? ' active' : '');
 			el.innerHTML = `<svg viewBox="0 0 24 24" fill="currentColor"><path d="${s.attached ? 'M19 4H5a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2zm0 14H5V6h14v12z' : 'M4 6h16v2H4V6zm0 5h16v2H4v-2zm0 5h16v2H4v-2z'}"></svg>
 			<span>${escHtml(s.name)}</span>
-			<span class="meta">${s.windows}w</span>`;
-			el.addEventListener('click', () => openSession(s.name));
+			<button class="session-edit-btn" data-session="${escHtml(s.name)}" title="Edit session"><svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 000-1.41l-2.34-2.34a1 1 0 00-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg></button>
+`;
+			el.addEventListener('click', (e) => {
+				if ((e.target as HTMLElement).closest('.session-edit-btn')) return;
+				openSession(s.name);
+			});
 			sidebarContent.appendChild(el);
 		}
 	} catch {
@@ -100,45 +104,38 @@ function escHtml(s: string): string {
 	return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
-async function openSession(name: string) {
-	if (currentSession === name && currentTerminal) return; // already open
+	async function openSession(name: string) {
+		if (currentSession === name && currentTerminal) return; // already open
 
-	// Hide file editor, show terminal
-	fileEditor.style.display = 'none';
-	mainPlaceholder.style.display = 'none';
-	terminalContainer.style.display = '';
-	terminalContainer.classList.add('terminal-pending');
-	collapseSidebar();
+		// Hide file editor, show terminal
+		fileEditor.style.display = 'none';
+		mainPlaceholder.style.display = 'none';
+		terminalContainer.style.display = '';
+		terminalContainer.classList.add('terminal-pending');
+		collapseSidebar();
 
-	// Destroy old terminal
-	if (currentTerminal) {
-		currentTerminal.destroy();
-		currentTerminal = null;
+		// Destroy old terminal
+		if (currentTerminal) {
+			currentTerminal.destroy();
+			currentTerminal = null;
+		}
+		currentSession = name;
+
+		// Start new terminal
+		try {
+			currentTerminal = await initTerminal(terminalContainer, name, {
+				terminal: shellCfg.terminal,
+				scrollback: shellCfg.scrollback,
+				theme: shellCfg.theme,
+				renderer: shellCfg.renderer,
+			});
+		} catch (err) {
+			console.error('[shell] terminal init failed:', err);
+			const msg = (err && typeof err === 'object' && 'message' in err) ? (err as any).message : String(err);
+			terminalContainer.textContent = 'Failed to open terminal for ' + name + ': ' + msg;
+			terminalContainer.classList.remove('terminal-pending');
+		}
 	}
-	currentSession = name;
-
-	// Update sidebar highlight
-	document.querySelectorAll('.session-item').forEach((el) => el.classList.remove('active'));
-	document.querySelectorAll('.session-item').forEach((el) => {
-		const span = el.querySelector('span');
-		if (span && span.textContent === name) el.classList.add('active');
-	});
-
-	// Start new terminal
-	try {
-		currentTerminal = await initTerminal(terminalContainer, name, {
-			terminal: shellCfg.terminal,
-			scrollback: shellCfg.scrollback,
-			theme: shellCfg.theme,
-			renderer: shellCfg.renderer,
-		});
-	} catch (err) {
-		console.error('[shell] terminal init failed:', err);
-		const msg = (err && typeof err === 'object' && 'message' in err) ? (err as any).message : String(err);
-		terminalContainer.textContent = 'Failed to open terminal for ' + name + ': ' + msg;
-		terminalContainer.classList.remove('terminal-pending');
-	}
-}
 
 // ── Files mode ──
 
@@ -344,6 +341,91 @@ settingsBackdrop.addEventListener('click', () => {
 	settingsBackdrop.classList.remove('open');
 });
 
+// ── Session edit popover ──
+
+let spSessionName = '';
+
+const spBackdrop = document.createElement('div');
+spBackdrop.className = 'session-popover-backdrop';
+document.body.appendChild(spBackdrop);
+
+const spPopover = document.createElement('div');
+spPopover.id = 'session-popover';
+spPopover.className = 'session-popover';
+spPopover.style.display = 'none';
+spPopover.innerHTML = `<div class="sp-field">
+  <label>Rename session</label>
+  <input type="text" id="sp-name" />
+</div>
+<div class="sp-actions">
+  <button class="btn primary" id="sp-save">Save</button>
+  <button class="btn" id="sp-cancel">Cancel</button>
+</div>
+<hr class="sp-divider" />
+<button class="btn danger" id="sp-delete">Delete session</button>`;
+document.body.appendChild(spPopover);
+
+function positionPopover(anchorEl: HTMLElement) {
+	const rect = anchorEl.getBoundingClientRect();
+	spPopover.style.top = (rect.bottom + 4) + 'px';
+	spPopover.style.left = Math.max(8, Math.min(rect.left, window.innerWidth - 240)) + 'px';
+}
+
+function showSessionPopover(name: string, anchorEl: HTMLElement) {
+	spSessionName = name;
+	const input = document.getElementById('sp-name') as HTMLInputElement;
+	input.value = name;
+	spBackdrop.classList.add('open');
+	spPopover.style.display = 'block';
+	positionPopover(anchorEl);
+	setTimeout(() => input.focus(), 50);
+}
+
+function closeSessionPopover() {
+	spBackdrop.classList.remove('open');
+	spPopover.style.display = 'none';
+}
+
+spBackdrop.addEventListener('click', closeSessionPopover);
+
+document.getElementById('sp-save')!.addEventListener('click', async () => {
+	const newName = (document.getElementById('sp-name') as HTMLInputElement).value.trim();
+	if (!newName || newName === spSessionName) { closeSessionPopover(); return; }
+	try {
+		const res = await fetch('/api/sessions/rename', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ oldName: spSessionName, newName }),
+		});
+		if (!res.ok) return;
+		closeSessionPopover();
+		renderSessionList();
+		if (currentSession === spSessionName) openSession(newName);
+	} catch {}
+});
+
+document.getElementById('sp-delete')!.addEventListener('click', async () => {
+	if (!confirm('Delete session "' + spSessionName + '"?')) return;
+	try {
+		const res = await fetch('/api/sessions/kill', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ name: spSessionName }),
+		});
+		if (!res.ok) return;
+		closeSessionPopover();
+		if (currentSession === spSessionName) {
+			if (currentTerminal) { currentTerminal.destroy(); currentTerminal = null; }
+			currentSession = null;
+			terminalContainer.style.display = 'none';
+			mainPlaceholder.style.display = 'flex';
+		}
+		renderSessionList();
+	} catch {}
+});
+
+document.getElementById('sp-cancel')!.addEventListener('click', closeSessionPopover);
+
 // ── Mobile key toolbar ──
 
 const keyMap: Record<string, string> = {
@@ -372,4 +454,5 @@ document.getElementById('mobile-keys')!.addEventListener('click', (e) => {
 // ── Init ──
 
 (window as any).__openSession = openSession;
+(window as any).__refreshSidebar = renderSessionList;
 renderSessionList();

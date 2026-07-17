@@ -451,7 +451,7 @@ export function newSessionModalScript(onCreatedExpr?: string): string {
 
   function closeModal() { modal.classList.remove('open'); }
 
-  openBtn.addEventListener('click', openModal);
+  if (openBtn) openBtn.addEventListener('click', openModal);
   cancelBtn.addEventListener('click', closeModal);
   modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && modal.classList.contains('open')) closeModal(); });

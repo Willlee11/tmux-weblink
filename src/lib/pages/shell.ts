@@ -104,6 +104,15 @@ export function renderShell(cfg: ShellConfig): string {
   .session-item.active { background: color-mix(in srgb, var(--panel-accent) 12%, transparent); color: var(--panel-accent); font-weight: 500; }
   .session-item .meta { margin-left: auto; font-size: var(--text-xs); color: var(--panel-muted); white-space: nowrap; }
   .session-item svg { width: 16px; height: 16px; flex-shrink: 0; fill: currentColor; }
+  .session-edit-btn {
+    display: none; margin-left: auto; flex-shrink: 0;
+    background: none; border: none; cursor: pointer;
+    color: var(--panel-muted); padding: 2px 4px; border-radius: 4px;
+    line-height: 1; transition: color 0.1s, background 0.1s;
+  }
+  .session-item:hover .session-edit-btn { display: flex; align-items: center; }
+  .session-edit-btn:hover { color: var(--panel-accent); background: color-mix(in srgb, var(--panel-accent) 8%, transparent); }
+  .session-edit-btn:focus-visible { ${focusRing()} }
 
   .sidebar-section-label {
     font-size: var(--text-xs); text-transform: uppercase; letter-spacing: 0.05em;
@@ -241,6 +250,32 @@ export function renderShell(cfg: ShellConfig): string {
   .theme-option:hover { background: color-mix(in srgb, var(--panel-accent) 8%, transparent); color: var(--panel-accent); }
   .theme-option .theme-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
   .theme-option .theme-check { margin-left: auto; width: 14px; height: 14px; }
+
+  /* ── Session edit popover ── */
+  .session-popover {
+    position: fixed; z-index: 600;
+    background: var(--panel-bg); border: 1px solid var(--panel-border);
+    border-radius: 14px; box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+    padding: 12px; min-width: 200px;
+  }
+  .session-popover-backdrop {
+    display: none; position: fixed; inset: 0; z-index: 550;
+  }
+  .session-popover-backdrop.open { display: block; }
+  .sp-field { margin-bottom: 10px; }
+  .sp-field label {
+    display: block; font-size: var(--text-xs); color: var(--panel-muted);
+    margin-bottom: 4px; font-weight: 500;
+  }
+  .sp-field input {
+    width: 100%; padding: 10px 12px;
+    background: var(--page-bg); border: 1px solid var(--panel-border);
+    border-radius: 10px; color: var(--page-fg); font-size: var(--text-sm);
+    font-family: inherit; outline: none;
+  }
+  .sp-field input:focus { border-color: var(--panel-accent); }
+  .sp-actions { display: flex; gap: 6px; margin-top: 0; }
+  .sp-divider { border: none; border-top: 1px solid var(--panel-border); margin: 10px 0; }
 
   /* ── Status indicator for terminal ── */
   .terminal-status {
@@ -458,7 +493,12 @@ window.__TMUX_WEB_SHELL__ = ${shellConfigJson};
 <script type="module">
 await import('/assets/shell-client.js');
 ${commandbarEnabled ? commandbarScript(commandbarSessions, []) : ''}
-${newSessionModalScript('__openSession')}
+// Wrapper: refresh sidebar list, then open session
+window.__onSessionCreated = function(name) {
+  window.__refreshSidebar();
+  window.__openSession(name);
+};
+${newSessionModalScript('__onSessionCreated')}
 </script>
 </body>
 </html>`;
