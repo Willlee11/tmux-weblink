@@ -447,22 +447,13 @@ const keyMap: Record<string, string> = {
 	'ctrl-c': '\x03',
 	'ctrl-d': '\x04',
 	enter: '\r',
+	exit: 'exit\r',
 };
 
 document.getElementById('mobile-keys')!.addEventListener('click', (e) => {
 	const btn = (e.target as HTMLElement).closest('button[data-key]');
-	if (!btn) return;
-	const key = (btn as HTMLElement).dataset.key!;
-	if (key === 'exit') {
-		if (currentTerminal) { currentTerminal.destroy(); currentTerminal = null; }
-		currentSession = null;
-		terminalContainer.style.display = 'none';
-		mainPlaceholder.style.display = 'flex';
-		fileEditor.style.display = 'none';
-		return;
-	}
-	if (!currentTerminal) return;
-	const seq = keyMap[key];
+	if (!btn || !currentTerminal) return;
+	const seq = keyMap[(btn as HTMLElement).dataset.key!];
 	if (seq) {
 		currentTerminal.sendInput(seq);
 		currentTerminal.focus();

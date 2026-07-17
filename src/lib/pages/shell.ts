@@ -312,7 +312,6 @@ export function renderShell(cfg: ShellConfig): string {
     touch-action: manipulation; user-select: none;
   }
   .mobile-keys button:active { opacity: 0.55; }
-  .mobile-keys button.danger { color: #ef4444; border-color: #ef4444; }
   @media (max-width: 640px) {
     .mobile-keys { display: flex; }
   }
@@ -430,10 +429,10 @@ export function renderShell(cfg: ShellConfig): string {
       <button data-key="left">←</button>
       <button data-key="right">→</button>
       <button data-key="space">␣</button>
-      <button data-key="ctrl-c" class="danger">Ctrl-C</button>
+      <button data-key="ctrl-c">Ctrl-C</button>
       <button data-key="ctrl-d">Ctrl-D</button>
       <button data-key="enter">↵ Enter</button>
-      <button data-key="exit" class="danger">Exit</button>
+      <button data-key="exit">Exit</button>
     </div>
   </main>
 </div>
