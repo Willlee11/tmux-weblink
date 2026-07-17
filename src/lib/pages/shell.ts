@@ -432,6 +432,8 @@ export function renderShell(cfg: ShellConfig): string {
       <button data-key="space">␣</button>
       <button data-key="ctrl-c" class="danger">Ctrl-C</button>
       <button data-key="ctrl-d">Ctrl-D</button>
+      <button data-key="enter">↵ Enter</button>
+      <button data-key="exit" class="danger">Exit</button>
     </div>
   </main>
 </div>
