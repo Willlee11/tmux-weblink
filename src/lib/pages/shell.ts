@@ -263,6 +263,25 @@ export function renderShell(cfg: ShellConfig): string {
     outline-offset: -2px;
   }
 
+  /* ── Mobile key toolbar ── */
+  .mobile-keys {
+    display: none; flex-wrap: wrap; gap: 4px;
+    padding: 6px 8px; border-top: 1px solid var(--panel-border);
+    background: var(--panel-bg); flex-shrink: 0;
+  }
+  .mobile-keys button {
+    min-width: 38px; min-height: 38px; padding: 4px 10px;
+    border: 1px solid var(--panel-border); border-radius: 8px;
+    background: var(--page-bg); color: var(--page-fg);
+    font-size: 11px; font-family: var(--font-mono); cursor: pointer;
+    touch-action: manipulation; user-select: none;
+  }
+  .mobile-keys button:active { opacity: 0.55; }
+  .mobile-keys button.danger { color: #ef4444; border-color: #ef4444; }
+  @media (max-width: 640px) {
+    .mobile-keys { display: flex; }
+  }
+
   /* ── File list view (when no root selected) ── */
   .file-roots-list { list-style: none; padding: 0; margin: 16px; }
   .file-roots-list li {
@@ -365,6 +384,18 @@ export function renderShell(cfg: ShellConfig): string {
         <input type="text" id="fe-new-name" placeholder="filename.txt" spellcheck="false" />
         <button class="btn primary" id="fe-new-btn">New File</button>
       </div>
+    </div>
+    <div class="mobile-keys" id="mobile-keys">
+      <button data-key="esc">ESC</button>
+      <button data-key="tab">Tab</button>
+      <button data-key="s-tab">S-Tab</button>
+      <button data-key="up">↑</button>
+      <button data-key="down">↓</button>
+      <button data-key="left">←</button>
+      <button data-key="right">→</button>
+      <button data-key="space">␣</button>
+      <button data-key="ctrl-c" class="danger">Ctrl-C</button>
+      <button data-key="ctrl-d">Ctrl-D</button>
     </div>
   </main>
 </div>

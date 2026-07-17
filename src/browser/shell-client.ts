@@ -344,6 +344,31 @@ settingsBackdrop.addEventListener('click', () => {
 	settingsBackdrop.classList.remove('open');
 });
 
+// ── Mobile key toolbar ──
+
+const keyMap: Record<string, string> = {
+	esc: '\x1b',
+	tab: '\t',
+	's-tab': '\x1b[Z',
+	up: '\x1b[A',
+	down: '\x1b[B',
+	left: '\x1b[D',
+	right: '\x1b[C',
+	space: ' ',
+	'ctrl-c': '\x03',
+	'ctrl-d': '\x04',
+};
+
+document.getElementById('mobile-keys')!.addEventListener('click', (e) => {
+	const btn = (e.target as HTMLElement).closest('button[data-key]');
+	if (!btn || !currentTerminal) return;
+	const seq = keyMap[(btn as HTMLElement).dataset.key!];
+	if (seq) {
+		currentTerminal.sendInput(seq);
+		currentTerminal.focus();
+	}
+});
+
 // ── Init ──
 
 renderSessionList();
