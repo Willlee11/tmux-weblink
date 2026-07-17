@@ -150,7 +150,11 @@ let fsRoots: string[] = [];
 function renderFileRoots() {
 	fsRoots = shellCfg.fsRoots || [];
 	if (fsRoots.length === 0) {
-		sidebarContent.innerHTML = '<div class="file-tree-info">Set <code>TMUX_WEB_FS_ROOTS</code> to browse files.</div>';
+		if (currentSession) {
+			loadFileDirForSession(currentSession);
+			return;
+		}
+		sidebarContent.innerHTML = '<div class="file-tree-info">Open a session first, then switch to Files to browse its directory.</div>';
 		return;
 	}
 	sidebarContent.innerHTML = '';
@@ -160,6 +164,21 @@ function renderFileRoots() {
 		el.innerHTML = `<svg viewBox="0 0 24 24" fill="currentColor" class="file-icon"><path d="M10 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z"/></svg> ${escHtml(root)}`;
 		el.addEventListener('click', () => loadFileDir(root));
 		sidebarContent.appendChild(el);
+	}
+}
+
+async function loadFileDirForSession(session: string) {
+	sidebarContent.innerHTML = '<div class="file-tree-empty">Loading...</div>';
+	try {
+		const res = await fetch('/api/fs/session-path?session=' + encodeURIComponent(session));
+		const data = await res.json();
+		if (data.path) {
+			loadFileDir(data.path);
+		} else {
+			sidebarContent.innerHTML = '<div class="file-tree-info">Could not determine session directory.</div>';
+		}
+	} catch {
+		sidebarContent.innerHTML = '<div class="file-tree-error">Failed to get session directory</div>';
 	}
 }
 

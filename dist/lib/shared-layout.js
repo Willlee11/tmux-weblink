@@ -1,4 +1,4 @@
-import{commandbarButtonHTML as y}from"./commandbar.js";import{escapeHtml as l}from"./html.js";import{icon as a,iconPath as o}from"./icons.js";const d=[{id:"vscode",name:"VS Code",dot:"#007acc"},{id:"ghostty",name:"Ghostty",dot:"#ff5f00"},{id:"warm-clay",name:"Warm Clay",dot:"#b86b52"},{id:"dark-cove",name:"Dark Cove",dot:"#7aa2f7"}];function i(e="var(--panel-accent)"){return`box-shadow: 0 0 0 2px ${e}; outline: none;`}function k(e=""){return`
+import{commandbarButtonHTML as k}from"./commandbar.js";import{escapeHtml as c}from"./html.js";import{icon as i,iconPath as o}from"./icons.js";const d=[{id:"vscode",name:"VS Code",dot:"#007acc"},{id:"ghostty",name:"Ghostty",dot:"#ff5f00"},{id:"warm-clay",name:"Warm Clay",dot:"#b86b52"},{id:"dark-cove",name:"Dark Cove",dot:"#7aa2f7"}];function a(e="var(--panel-accent)"){return`box-shadow: 0 0 0 2px ${e}; outline: none;`}function I(e=""){return`
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after {
       animation-duration: 0.01ms !important;
@@ -7,20 +7,20 @@ import{commandbarButtonHTML as y}from"./commandbar.js";import{escapeHtml as l}fr
       scroll-behavior: auto !important;
     }
     ${e}
-  }`}function I(e="vscode"){const r=d.find(t=>t.id===e)??d[0],s=d.map(t=>{const n=t.id===e;return`<button type="button" class="theme-option${n?" active":""}" data-theme="${t.id}" role="menuitem">
+  }`}function E(e="vscode"){const r=d.find(t=>t.id===e)??d[0],s=d.map(t=>{const n=t.id===e;return`<button type="button" class="theme-option${n?" active":""}" data-theme="${t.id}" role="menuitem">
       <span class="theme-dot" style="background:${t.dot}"></span>
-      ${l(t.name)}
-      ${n?a("check",'class="theme-check" aria-hidden="true"'):""}
+      ${c(t.name)}
+      ${n?i("check",'class="theme-check" aria-hidden="true"'):""}
     </button>`}).join(`
 `);return`<div class="theme-switcher" id="theme-switcher">
     <button type="button" class="theme-switcher-btn" aria-label="Theme" aria-haspopup="true" aria-expanded="false">
       <span class="theme-dot" style="background:${r.dot}"></span>
-      <span>${l(r.name)}</span>
+      <span>${c(r.name)}</span>
     </button>
     <div class="theme-switcher-popover" role="menu">
       ${s}
     </div>
-  </div>`}function E(){return`(function() {
+  </div>`}function L(){return`(function() {
   const switcher = document.getElementById('theme-switcher');
   if (!switcher) return;
   const btn = switcher.querySelector('.theme-switcher-btn');
@@ -75,7 +75,7 @@ import{commandbarButtonHTML as y}from"./commandbar.js";import{escapeHtml as l}fr
     font-size: var(--text-sm); text-decoration: none;
   }
   .header-btn:hover, .icon-btn:hover { color: var(--panel-accent); background: color-mix(in srgb, var(--panel-accent) 8%, transparent); }
-  .header-btn:focus-visible, .icon-btn:focus-visible { ${i()} }
+  .header-btn:focus-visible, .icon-btn:focus-visible { ${a()} }
   .header-btn svg, .icon-btn svg { width: 18px; height: 18px; fill: currentColor; flex-shrink: 0; }
 
   /* \u2500\u2500 Theme switcher popover \u2500\u2500 */
@@ -88,7 +88,7 @@ import{commandbarButtonHTML as y}from"./commandbar.js";import{escapeHtml as l}fr
     font-size: var(--text-sm); text-decoration: none; font-family: inherit;
   }
   .theme-switcher-btn:hover { color: var(--panel-accent); background: color-mix(in srgb, var(--panel-accent) 8%, transparent); }
-  .theme-switcher-btn:focus-visible { ${i()} }
+  .theme-switcher-btn:focus-visible { ${a()} }
   .theme-switcher-btn svg { width: 18px; height: 18px; fill: currentColor; flex-shrink: 0; }
   .theme-switcher-popover {
     position: absolute; top: calc(100% + 6px); right: 0;
@@ -104,7 +104,7 @@ import{commandbarButtonHTML as y}from"./commandbar.js";import{escapeHtml as l}fr
     color: var(--page-fg); font-size: var(--text-sm); cursor: pointer; text-align: left; font-family: inherit;
   }
   .theme-option:hover { background: color-mix(in srgb, var(--panel-accent) 8%, transparent); color: var(--panel-accent); }
-  .theme-option:focus-visible { ${i()} }
+  .theme-option:focus-visible { ${a()} }
   .theme-option.active { color: var(--panel-accent); font-weight: 500; }
   .theme-dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
   .theme-check { width: 16px; height: 16px; margin-left: auto; color: var(--panel-accent); }
@@ -138,7 +138,7 @@ import{commandbarButtonHTML as y}from"./commandbar.js";import{escapeHtml as l}fr
     text-align: left;
   }
   .sidebar-btn:hover { background: color-mix(in srgb, var(--panel-accent) 8%, transparent); color: var(--panel-accent); }
-  .sidebar-btn:focus-visible { ${i()} }
+  .sidebar-btn:focus-visible { ${a()} }
   .sidebar-btn.primary {
     background: var(--panel-accent); border-color: var(--panel-accent); color: var(--panel-accent-on);
     font-weight: 500; margin-bottom: 16px; justify-content: center;
@@ -197,7 +197,7 @@ import{commandbarButtonHTML as y}from"./commandbar.js";import{escapeHtml as l}fr
     color: var(--page-fg); transition: opacity 0.15s;
   }
   .modal-btn:hover { opacity: 0.85; }
-  .modal-btn:focus-visible { ${i()} }
+  .modal-btn:focus-visible { ${a()} }
   .modal-btn.confirm {
     background: var(--panel-accent); border-color: var(--panel-accent);
     color: var(--panel-accent-on); font-weight: 500;
@@ -216,8 +216,8 @@ import{commandbarButtonHTML as y}from"./commandbar.js";import{escapeHtml as l}fr
     .header-btn, .theme-switcher-btn { padding: 8px; }
   }
 
-  ${k()}
-  ${e}`}function z(e){const{commandbarEnabled:r,title:s="TMUX Sessions",themeTemplate:t="vscode"}=e;return`<script>
+  ${I()}
+  ${e}`}function M(e){const{commandbarEnabled:r,title:s="TMUX Sessions",themeTemplate:t="vscode"}=e;return`<script>
 (function() {
   const token = localStorage.getItem('tmux-web-token');
   if (token) {
@@ -236,40 +236,92 @@ import{commandbarButtonHTML as y}from"./commandbar.js";import{escapeHtml as l}fr
 <header class="fixed-header">
   <div class="brand"><a href="/" aria-label="Go to home">tmux<span>-weblink</span></a></div>
   <div class="header-actions">
-    ${r?y("Search"):""}
+    ${r?k("Search"):""}
     <button class="header-btn" id="notes-toggle" title="Global notes" aria-label="Global notes">
-      ${a("notes")}
+      ${i("notes")}
       <span>Notes</span>
     </button>
-    ${I(t)}
+    ${E(t)}
     <a class="header-btn" href="/settings" title="Settings">
-      ${a("settings")}
+      ${i("settings")}
       <span>Settings</span>
     </a>
   </div>
 </header>
-<script>${E()}</script>`}function D(e){const{activePage:r,agentsEnabled:s,refreshHref:t}=e;function n(c,x,g,v,w=""){return`<a href="${x}" class="${c!==null&&c===r?"sidebar-btn current":"sidebar-btn"}"${w}>
-        <svg viewBox="0 0 24 24" fill="currentColor">${g}</svg>
-        ${v}
-      </a>`}const p=o("sessions"),m=o("notes"),u=o("schedule"),h=o("agents"),b=o("history"),f=o("quick-commands"),L=o("refresh");return`<aside class="action-sidebar">
+<script>${L()}</script>`}function D(e){const{activePage:r,agentsEnabled:s,refreshHref:t}=e;function n(l,g,v,w,y=""){return`<a href="${g}" class="${l!==null&&l===r?"sidebar-btn current":"sidebar-btn"}"${y}>
+        <svg viewBox="0 0 24 24" fill="currentColor">${v}</svg>
+        ${w}
+      </a>`}const p=o("sessions"),m=o("notes"),b=o("schedule"),u=o("agents"),h=o("history"),x=o("quick-commands"),f=o("file"),$=o("refresh");return`<aside class="action-sidebar">
       <p class="sidebar-label">Actions</p>
       <button class="sidebar-btn primary" id="new-session-btn">
-        ${a("add")}
+        ${i("add")}
         New Session
       </button>
       <hr class="sidebar-divider">
       ${n("home","/",p,"Sessions")}
       ${n("notes","/notes",m,"All Notes")}
-      ${n("schedule","/schedule",u,"Scheduled")}
-      ${n("history","/history",b,"History")}
-      ${n("quickCommands","/quick-commands",f,"Quick Commands")}
-      ${s?n("agents","/agents",h,"All Agents"):""}
+      ${n("schedule","/schedule",b,"Scheduled")}
+      ${n("files","/files",f,"Files")}
+      ${n("history","/history",h,"History")}
+      ${n("quickCommands","/quick-commands",x,"Quick Commands")}
+      ${s?n("agents","/agents",u,"All Agents"):""}
       <hr class="sidebar-divider">
       <a href="${t}" class="sidebar-btn">
-        ${a("refresh")}
+        ${i("refresh")}
         Refresh
       </a>
-    </aside>`}function M(){return`<div class="modal-backdrop" id="new-session-modal" role="dialog" aria-modal="true" aria-label="Create new tmux session">
+    </aside>`}function j(){return`  /* \u2500\u2500 New session modal \u2500\u2500 */
+  .modal-backdrop {
+    display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.3);
+    z-index: 500; align-items: center; justify-content: center;
+    padding: 16px;
+  }
+  .modal-backdrop.open { display: flex; }
+  .modal-panel {
+    background: var(--panel-bg); border: 1px solid var(--panel-border);
+    border-radius: 20px; padding: 24px; width: 100%; max-width: 440px;
+  }
+  .modal-panel h2 { font-size: var(--text-lg); font-weight: 600; margin: 0 0 20px; color: var(--page-fg); }
+  .modal-field { margin-bottom: 18px; position: relative; }
+  .modal-field label { display: block; font-size: var(--text-sm); font-weight: 500; color: var(--page-fg); margin-bottom: 8px; }
+  .modal-field input {
+    width: 100%; padding: 13px 15px; background: var(--page-bg);
+    border: 1px solid var(--panel-border); border-radius: 14px;
+    color: var(--page-fg); font-size: var(--text-base); font-family: inherit;
+    outline: none; transition: border-color 0.15s, box-shadow 0.15s;
+  }
+  .modal-field input:focus { border-color: var(--panel-accent); box-shadow: 0 0 0 4px color-mix(in srgb, var(--panel-accent) 8%, transparent); }
+  .modal-dropdown {
+    display: none; position: absolute; left: 0; right: 0; top: 100%;
+    margin-top: 4px; max-height: 220px; overflow-y: auto; z-index: 10;
+    background: var(--panel-bg); border: 1px solid var(--panel-border);
+    border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+  }
+  .modal-dropdown.open { display: block; }
+  .modal-dropdown-item {
+    display: flex; align-items: center;
+    min-height: 44px; padding: 10px 14px; font-size: var(--text-sm); color: var(--page-fg); cursor: pointer;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .modal-dropdown-item:hover, .modal-dropdown-item.active, .modal-dropdown-item:focus-visible {
+    background: color-mix(in srgb, var(--panel-accent) 8%, transparent); color: var(--panel-accent);
+  }
+  .modal-dropdown-item:focus-visible { outline: none; box-shadow: inset 0 0 0 2px var(--panel-accent); }
+  .modal-error { font-size: var(--text-sm); color: #b91c1c; margin-bottom: 12px; display: none; }
+  .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 8px; }
+  .modal-btn {
+    min-height: 44px; padding: 10px 20px; border-radius: 12px; font-size: var(--text-sm); font-family: inherit;
+    cursor: pointer; border: 1px solid var(--panel-border); background: var(--panel-bg);
+    color: var(--page-fg); transition: opacity 0.15s;
+  }
+  .modal-btn:hover { opacity: 0.85; }
+  .modal-btn:focus-visible { ${a()} }
+  .modal-btn.confirm {
+    background: var(--panel-accent); border-color: var(--panel-accent);
+    color: var(--panel-accent-on); font-weight: 500;
+  }
+  .modal-btn.confirm:hover { opacity: 0.9; }
+`}function N(){return`<div class="modal-backdrop" id="new-session-modal" role="dialog" aria-modal="true" aria-label="Create new tmux session">
   <div class="modal-panel">
     <h2>New Session</h2>
     <div class="modal-field">
@@ -287,7 +339,7 @@ import{commandbarButtonHTML as y}from"./commandbar.js";import{escapeHtml as l}fr
       <button class="modal-btn confirm" id="ns-submit">Create</button>
     </div>
   </div>
-</div>`}function j(){return`(function() {
+</div>`}function H(e){return`(function() {
   const modal = document.getElementById('new-session-modal');
   const openBtn = document.getElementById('new-session-btn');
   const cancelBtn = document.getElementById('ns-cancel');
@@ -296,6 +348,7 @@ import{commandbarButtonHTML as y}from"./commandbar.js";import{escapeHtml as l}fr
   const dirInput = document.getElementById('ns-dir');
   const dirList = document.getElementById('ns-dir-list');
   const errorEl = document.getElementById('ns-error');
+  const onCreated = '${e??""}';
 
   function openModal() {
     modal.classList.add('open');
@@ -309,7 +362,7 @@ import{commandbarButtonHTML as y}from"./commandbar.js";import{escapeHtml as l}fr
 
   function closeModal() { modal.classList.remove('open'); }
 
-  openBtn.addEventListener('click', openModal);
+  if (openBtn) openBtn.addEventListener('click', openModal);
   cancelBtn.addEventListener('click', closeModal);
   modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && modal.classList.contains('open')) closeModal(); });
@@ -384,6 +437,8 @@ import{commandbarButtonHTML as y}from"./commandbar.js";import{escapeHtml as l}fr
       });
       const data = await res.json();
       if (!res.ok) { showError(data.error || 'Failed to create session.'); return; }
+      closeModal();
+      if (onCreated && typeof window[onCreated] === 'function') { window[onCreated](name); return; }
       window.location.href = '/s/' + encodeURIComponent(name);
     } catch { showError('Network error. Please try again.'); }
     finally { submitBtn.disabled = false; submitBtn.textContent = 'Create'; }
@@ -409,4 +464,4 @@ import{commandbarButtonHTML as y}from"./commandbar.js";import{escapeHtml as l}fr
     }
     if (e.key === 'Enter') submit();
   });
-})();`}export{M as newSessionModalHTML,j as newSessionModalScript,z as sharedHeader,T as sharedLayoutCSS,D as sharedSidebar,I as themeSwitcherButtonHTML,E as themeSwitcherScript};
+})();`}export{j as newSessionModalCSS,N as newSessionModalHTML,H as newSessionModalScript,I as reducedMotion,M as sharedHeader,T as sharedLayoutCSS,D as sharedSidebar,E as themeSwitcherButtonHTML,L as themeSwitcherScript};

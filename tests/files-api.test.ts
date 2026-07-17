@@ -80,10 +80,10 @@ describe("fs-access", () => {
 		expect(result).toBe("/home/test/projects");
 	});
 
-	it("resolveFsPath throws when not configured", async () => {
+	it("resolveFsPath allows any path when not configured", async () => {
 		delete process.env.TMUX_WEB_FS_ROOTS;
 		const { resolveFsPath } = await import("../src/lib/fs-access.js");
-		expect(() => resolveFsPath("/any/path")).toThrow("FS_ROOTS_NOT_CONFIGURED");
+		expect(resolveFsPath("/any/path")).toBe("/any/path");
 	});
 
 	it("MAX_FILE_BYTES is 1 MiB", async () => {

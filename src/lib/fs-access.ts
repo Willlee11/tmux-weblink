@@ -15,12 +15,14 @@ export function resolveFsRoots(): string[] {
 
 export function resolveFsPath(raw: string): string {
 	const roots = resolveFsRoots();
-	if (roots.length === 0) throw new Error("FS_ROOTS_NOT_CONFIGURED");
 
 	let p = raw;
 	if (p.startsWith("~")) p = path.join(process.env.HOME || "/", p.slice(1));
 	if (!path.isAbsolute(p)) p = path.resolve(p);
 	p = path.normalize(p);
+
+	// No roots configured — allow any path (e.g. when following tmux session CWD)
+	if (roots.length === 0) return p;
 
 	const ok = roots.some((root) => p === root || p.startsWith(root + path.sep));
 	if (!ok) throw new Error("PATH_NOT_ALLOWED");

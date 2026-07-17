@@ -31,6 +31,7 @@ import { hashPassword, verifyPassword, validatePassword, TokenStore, type Stored
 import { RateLimiter, type RateLimitResult } from "./lib/rateLimiter.js";
 import { atomicWriteFileSync } from "./lib/atomicWrite.js";
 import { resolveFsPath, resolveFsRoots, MAX_FILE_BYTES, walkRecursive } from "./lib/fs-access.js";
+import { captureSessionWindowsWithPath } from "./lib/tmux-windows.js";
 import { audit } from "./lib/auditLog.js";
 import { db } from "./lib/db.js";
 import { recordSessionAccess, getSessionAccessMap } from "./lib/session-access.js";
@@ -830,6 +831,19 @@ app.post("/api/sessions/kill", requireAuth(), async (c) => {
 		killSession(name);
 		return c.json({ ok: true });
 	} catch { return c.json({ error: "kill failed" }, 500); }
+});
+
+app.get("/api/fs/session-path", requireAuth(), (c) => {
+	const session = c.req.query("session");
+	if (!session) return c.json({ error: "session is required" }, 400);
+	try {
+		const windows = captureSessionWindowsWithPath(session);
+		const active = windows.find((w) => w.active);
+		const p = active?.path ?? windows[0]?.path ?? process.env.HOME ?? "/";
+		return c.json({ path: p });
+	} catch {
+		return c.json({ path: process.env.HOME ?? "/" });
+	}
 });
 
 app.get("/api/fs/list", requireAuth(), (c) => {
