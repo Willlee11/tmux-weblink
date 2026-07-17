@@ -371,4 +371,5 @@ document.getElementById('mobile-keys')!.addEventListener('click', (e) => {
 
 // ── Init ──
 
+(window as any).__openSession = openSession;
 renderSessionList();

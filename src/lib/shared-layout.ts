@@ -350,6 +350,61 @@ export function sharedSidebar(opts: {
 }
 
 /** New session modal HTML (hidden by default). */
+export function newSessionModalCSS(): string {
+	return `  /* ── New session modal ── */
+  .modal-backdrop {
+    display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.3);
+    z-index: 500; align-items: center; justify-content: center;
+    padding: 16px;
+  }
+  .modal-backdrop.open { display: flex; }
+  .modal-panel {
+    background: var(--panel-bg); border: 1px solid var(--panel-border);
+    border-radius: 20px; padding: 24px; width: 100%; max-width: 440px;
+  }
+  .modal-panel h2 { font-size: var(--text-lg); font-weight: 600; margin: 0 0 20px; color: var(--page-fg); }
+  .modal-field { margin-bottom: 18px; position: relative; }
+  .modal-field label { display: block; font-size: var(--text-sm); font-weight: 500; color: var(--page-fg); margin-bottom: 8px; }
+  .modal-field input {
+    width: 100%; padding: 13px 15px; background: var(--page-bg);
+    border: 1px solid var(--panel-border); border-radius: 14px;
+    color: var(--page-fg); font-size: var(--text-base); font-family: inherit;
+    outline: none; transition: border-color 0.15s, box-shadow 0.15s;
+  }
+  .modal-field input:focus { border-color: var(--panel-accent); box-shadow: 0 0 0 4px color-mix(in srgb, var(--panel-accent) 8%, transparent); }
+  .modal-dropdown {
+    display: none; position: absolute; left: 0; right: 0; top: 100%;
+    margin-top: 4px; max-height: 220px; overflow-y: auto; z-index: 10;
+    background: var(--panel-bg); border: 1px solid var(--panel-border);
+    border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+  }
+  .modal-dropdown.open { display: block; }
+  .modal-dropdown-item {
+    display: flex; align-items: center;
+    min-height: 44px; padding: 10px 14px; font-size: var(--text-sm); color: var(--page-fg); cursor: pointer;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .modal-dropdown-item:hover, .modal-dropdown-item.active, .modal-dropdown-item:focus-visible {
+    background: color-mix(in srgb, var(--panel-accent) 8%, transparent); color: var(--panel-accent);
+  }
+  .modal-dropdown-item:focus-visible { outline: none; box-shadow: inset 0 0 0 2px var(--panel-accent); }
+  .modal-error { font-size: var(--text-sm); color: #b91c1c; margin-bottom: 12px; display: none; }
+  .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 8px; }
+  .modal-btn {
+    min-height: 44px; padding: 10px 20px; border-radius: 12px; font-size: var(--text-sm); font-family: inherit;
+    cursor: pointer; border: 1px solid var(--panel-border); background: var(--panel-bg);
+    color: var(--page-fg); transition: opacity 0.15s;
+  }
+  .modal-btn:hover { opacity: 0.85; }
+  .modal-btn:focus-visible { ${focusRing()} }
+  .modal-btn.confirm {
+    background: var(--panel-accent); border-color: var(--panel-accent);
+    color: var(--panel-accent-on); font-weight: 500;
+  }
+  .modal-btn.confirm:hover { opacity: 0.9; }
+`;
+}
+
 export function newSessionModalHTML(): string {
 	return `<div class="modal-backdrop" id="new-session-modal" role="dialog" aria-modal="true" aria-label="Create new tmux session">
   <div class="modal-panel">
@@ -373,7 +428,7 @@ export function newSessionModalHTML(): string {
 }
 
 /** Inline JS IIFE for the new session modal. */
-export function newSessionModalScript(): string {
+export function newSessionModalScript(onCreatedExpr?: string): string {
 	return `(function() {
   const modal = document.getElementById('new-session-modal');
   const openBtn = document.getElementById('new-session-btn');
@@ -471,6 +526,8 @@ export function newSessionModalScript(): string {
       });
       const data = await res.json();
       if (!res.ok) { showError(data.error || 'Failed to create session.'); return; }
+      closeModal();
+      if (onCreated && typeof window[onCreated] === 'function') { window[onCreated](name); return; }
       window.location.href = '/s/' + encodeURIComponent(name);
     } catch { showError('Network error. Please try again.'); }
     finally { submitBtn.disabled = false; submitBtn.textContent = 'Create'; }

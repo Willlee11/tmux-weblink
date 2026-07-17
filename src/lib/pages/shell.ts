@@ -2,7 +2,7 @@ import { cssVarsStyle } from '../theme.js';
 import type { TmuxWebTheme, TerminalTheme } from '../themes/types.js';
 import type { TerminalBufferConfig } from '../terminal-config.js';
 import { commandbarCSS, commandbarHTML, commandbarScript, type CommandbarSession } from '../commandbar.js';
-import { newSessionModalHTML, newSessionModalScript, reducedMotion } from '../shared-layout.js';
+import { newSessionModalCSS, newSessionModalHTML, newSessionModalScript, reducedMotion } from '../shared-layout.js';
 import { icon } from '../icons.js';
 
 export type ShellConfig = {
@@ -297,6 +297,7 @@ export function renderShell(cfg: ShellConfig): string {
   /* ── Commandbar ── */
   ${commandbarEnabled ? commandbarCSS() : ''}
   ${reducedMotion()}
+  ${newSessionModalCSS()}
   @media (max-width: 640px) {
     .app-layout { flex-direction: column; }
     .sidebar { flex: 0 0 auto; border-right: none; border-bottom: 1px solid var(--panel-border); transition: max-height 0.2s; }
@@ -457,7 +458,7 @@ window.__TMUX_WEB_SHELL__ = ${shellConfigJson};
 <script type="module">
 await import('/assets/shell-client.js');
 ${commandbarEnabled ? commandbarScript(commandbarSessions, []) : ''}
-${newSessionModalScript()}
+${newSessionModalScript('__openSession')}
 </script>
 </body>
 </html>`;
