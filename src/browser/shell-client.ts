@@ -463,10 +463,9 @@ const keyMap: Record<string, string> = {
 	left: '\x1b[D',
 	right: '\x1b[C',
 	space: ' ',
-	'ctrl-c': '\x03',
-	'ctrl-d': '\x04',
 	enter: '\r',
 	exit: 'exit\r',
+	yes: 'yes\r',
 };
 
 document.getElementById('mobile-keys')!.addEventListener('click', (e) => {
@@ -478,6 +477,64 @@ document.getElementById('mobile-keys')!.addEventListener('click', (e) => {
 		currentTerminal.focus();
 	}
 });
+
+// ── Mobile keyboard input ──
+
+const mkInput = document.getElementById('mk-input') as HTMLTextAreaElement | null;
+const mkSend = document.getElementById('mk-send') as HTMLButtonElement | null;
+
+function sendMkText() {
+	if (!mkInput || !currentTerminal) return;
+	const text = mkInput.value;
+	if (!text) return;
+	currentTerminal.sendInput(text + '\r');
+	mkInput.value = '';
+	mkInput.rows = 1;
+	currentTerminal.focus();
+}
+
+if (mkInput) {
+	mkInput.addEventListener('input', () => {
+		mkInput.rows = 1;
+		const lines = mkInput.value.split('\n').length;
+		mkInput.rows = Math.min(lines, 4);
+	});
+
+	mkInput.addEventListener('keydown', (e) => {
+		if (e.key === 'Enter' && !e.shiftKey) {
+			e.preventDefault();
+			sendMkText();
+		}
+	});
+}
+
+if (mkSend) {
+	mkSend.addEventListener('click', sendMkText);
+}
+
+// ── iOS keyboard: prevent page push-up ──
+
+if (window.visualViewport) {
+	const appLayout = document.querySelector('.app-layout') as HTMLElement | null;
+	const clampLayout = () => {
+		// Keep layout inside visual viewport height
+		if (appLayout) appLayout.style.height = window.visualViewport!.height + 'px';
+		// iOS auto-scrolls the page when keyboard opens, pushing content up.
+		// Scroll back to top immediately to counteract this.
+		window.scrollTo(0, 0);
+		document.documentElement.scrollTop = 0;
+		document.body.scrollTop = 0;
+	};
+	window.visualViewport.addEventListener('resize', clampLayout);
+	window.addEventListener('orientationchange', () => setTimeout(clampLayout, 100));
+
+	// Also reset scroll on any touch that might trigger keyboard
+	document.addEventListener('touchstart', () => {
+		if (window.scrollY > 0 || document.documentElement.scrollTop > 0) {
+			window.scrollTo(0, 0);
+		}
+	}, { passive: true });
+}
 
 // ── Init ──
 

@@ -55,7 +55,8 @@ export function renderShell(cfg: ShellConfig): string {
   /* ── App layout ── */
   .app-layout {
     display: flex;
-    height: 100vh;
+    height: 100dvh;
+    overflow: hidden;
     padding-top: 48px;
     transition: height 0.05s;
   }
@@ -313,6 +314,32 @@ export function renderShell(cfg: ShellConfig): string {
     touch-action: manipulation; user-select: none;
   }
   .mobile-keys button:active { opacity: 0.55; }
+  .mobile-keys .mk-input {
+    display: flex; gap: 4px; flex: 1 1 100%;
+  }
+  .mobile-keys .mk-input textarea {
+    flex: 1; resize: none; box-sizing: border-box;
+    min-height: 38px; max-height: 80px;
+    background: var(--terminal-bg, rgba(0,0,0,0.28));
+    color: var(--page-fg);
+    border: 1px solid var(--panel-border);
+    border-radius: 8px; padding: 6px 10px;
+    font-family: var(--font-mono); font-size: var(--text-base); line-height: 1.4;
+    outline: none;
+  }
+  .mobile-keys .mk-input textarea:focus {
+    border-color: var(--panel-accent);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--panel-accent) 12%, transparent);
+  }
+  .mobile-keys .mk-input textarea::placeholder { color: var(--panel-muted); opacity: 0.6; }
+  .mobile-keys .mk-input button {
+    min-width: 44px;
+    border: 1px solid var(--panel-success); color: var(--panel-success);
+    background: var(--page-bg);
+  }
+  .mobile-keys .mk-input button:hover {
+    background: color-mix(in srgb, var(--panel-success) 12%, transparent);
+  }
   @media (max-width: 640px) {
     .mobile-keys { display: flex; }
   }
@@ -422,6 +449,10 @@ export function renderShell(cfg: ShellConfig): string {
       </div>
     </div>
     <div class="mobile-keys" id="mobile-keys">
+      <div class="mk-input">
+        <textarea id="mk-input" placeholder="Type or voice input…" autocapitalize="off" autocomplete="off" autocorrect="off" spellcheck="false" rows="1"></textarea>
+        <button id="mk-send" type="button" title="Send (Enter)">&#9166;</button>
+      </div>
       <button data-key="esc">ESC</button>
       <button data-key="tab">Tab</button>
       <button data-key="s-tab">S-Tab</button>
@@ -430,10 +461,9 @@ export function renderShell(cfg: ShellConfig): string {
       <button data-key="left">←</button>
       <button data-key="right">→</button>
       <button data-key="space">␣</button>
-      <button data-key="ctrl-c">Ctrl-C</button>
-      <button data-key="ctrl-d">Ctrl-D</button>
       <button data-key="enter">↵ Enter</button>
       <button data-key="exit">Exit</button>
+      <button data-key="yes">Yes</button>
     </div>
   </main>
 </div>
