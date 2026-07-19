@@ -1,10 +1,50 @@
-import{cssVarsStyle as v}from"../theme.js";import{commandbarCSS as w,commandbarHTML as b,commandbarScript as y}from"../commandbar.js";import{sharedLayoutCSS as S,sharedHeader as $,sharedSidebar as M,newSessionModalHTML as H,newSessionModalScript as k}from"../shared-layout.js";function l(e){return e.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;")}function C(e,i){const t=Math.max(0,i-e),n=Math.floor(t/1e3);if(n<45)return"just now";const s=Math.floor(n/60);if(s<60)return s+"m ago";const r=Math.floor(s/60);if(r<24)return r+"h ago";const a=Math.floor(r/24);return a<30?a+"d ago":new Date(e).toLocaleDateString()}function N(e,i,t=!1,n=[],s=!1,r=new Set){const a=Date.now(),p=e.map(o=>{const x=l(o.windowName||"(unnamed)"),g=l(o.sessionName),u=l(C(o.visitedAt,a)),c=r.has(o.sessionName),d=`
+import { cssVarsStyle } from '../theme.js';
+import { commandbarCSS, commandbarHTML, commandbarScript } from '../commandbar.js';
+import { sharedLayoutCSS, sharedHeader, sharedSidebar, newSessionModalHTML, newSessionModalScript, } from '../shared-layout.js';
+function escapeHtml(s) {
+    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+/** Compact relative time, e.g. "just now", "5m ago", "3h ago", "2d ago". */
+function relativeTime(ts, now) {
+    const diff = Math.max(0, now - ts);
+    const s = Math.floor(diff / 1000);
+    if (s < 45)
+        return 'just now';
+    const m = Math.floor(s / 60);
+    if (m < 60)
+        return m + 'm ago';
+    const h = Math.floor(m / 60);
+    if (h < 24)
+        return h + 'h ago';
+    const d = Math.floor(h / 24);
+    if (d < 30)
+        return d + 'd ago';
+    return new Date(ts).toLocaleDateString();
+}
+export function renderHistoryIndex(history, theme, commandbarEnabled = false, commandbarSessions = [], liveSessionNames = new Set()) {
+    const now = Date.now();
+    const rows = history.map((h) => {
+        const win = escapeHtml(h.windowName || '(unnamed)');
+        const session = escapeHtml(h.sessionName);
+        const time = escapeHtml(relativeTime(h.visitedAt, now));
+        const live = liveSessionNames.has(h.sessionName);
+        const inner = `
   <div class="hist-main">
-    <span class="hist-window">${x}</span>
-    <span class="hist-session">${g}${c?"":' <span class="hist-gone">gone</span>'}</span>
+    <span class="hist-window">${win}</span>
+    <span class="hist-session">${session}${live ? '' : ' <span class="hist-gone">gone</span>'}</span>
   </div>
-  <span class="hist-time">${u}</span>`;return c?`<a class="hist-row" href="${"/s/"+encodeURIComponent(o.sessionName)+"?window="+o.windowIndex}">${d}</a>`:`<div class="hist-row dead" title="Session no longer exists">${d}</div>`}).join(`
-`),m=e.length?'<div class="hist-toolbar"><button id="hist-clear" type="button">Clear history</button></div>':"",h=e.length?p:'<p class="empty">No history yet. Sessions and windows you visit will show up here.</p>',f=`
+  <span class="hist-time">${time}</span>`;
+        if (live) {
+            const href = '/';
+            return `<a class="hist-row" href="${href}">${inner}</a>`;
+        }
+        return `<div class="hist-row dead" title="Session no longer exists">${inner}</div>`;
+    }).join('\n');
+    const toolbar = history.length
+        ? `<div class="hist-toolbar"><button id="hist-clear" type="button">Clear history</button></div>`
+        : '';
+    const body = history.length ? rows : '<p class="empty">No history yet. Sessions and windows you visit will show up here.</p>';
+    const pageSpecificCSS = `
   .hist-toolbar { display: flex; justify-content: flex-end; margin-bottom: 12px; }
   .hist-toolbar button {
     background: none; border: 1px solid var(--panel-border); border-radius: 6px;
@@ -38,7 +78,8 @@ import{cssVarsStyle as v}from"../theme.js";import{commandbarCSS as w,commandbarH
     .hist-row { flex-direction: column; align-items: flex-start; gap: 8px; }
     .hist-time { align-self: flex-end; }
   }
-  ${t?w():""}`;return`<!DOCTYPE html>
+  ${commandbarEnabled ? commandbarCSS() : ''}`;
+    return /* html */ `<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
@@ -46,26 +87,26 @@ import{cssVarsStyle as v}from"../theme.js";import{commandbarCSS as w,commandbarH
 <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 <title>History - tmux-web</title>
 <style>
-  ${v(i.shell)}
-  ${S(f)}
+  ${cssVarsStyle(theme.shell)}
+  ${sharedLayoutCSS(pageSpecificCSS)}
 </style>
 </head>
 <body>
 
-${$({commandbarEnabled:t,title:"History",themeTemplate:i.template})}
+${sharedHeader({ commandbarEnabled, title: 'History', themeTemplate: theme.template })}
 
 <div class="page-wrap">
   <div class="page-layout">
-    ${M({activePage:"history",agentsEnabled:s,refreshHref:"/history"})}
+    ${sharedSidebar({ activePage: 'history', refreshHref: '/history' })}
     <main class="main-panel">
-      ${m}
-      <div id="hist-list">${h}</div>
+      ${toolbar}
+      <div id="hist-list">${body}</div>
     </main>
   </div>
 </div>
 
-${H()}
-${t?b():""}
+${newSessionModalHTML()}
+${commandbarEnabled ? commandbarHTML() : ''}
 
 <script type="module">
 const clearBtn = document.getElementById('hist-clear');
@@ -78,8 +119,9 @@ if (clearBtn) {
     } catch { clearBtn.disabled = false; }
   });
 }
-${t?y(n,[]):""}
-${k()}
+${commandbarEnabled ? commandbarScript(commandbarSessions, []) : ''}
+${newSessionModalScript()}
 </script>
 </body>
-</html>`}export{N as renderHistoryIndex};
+</html>`;
+}

@@ -9,7 +9,6 @@ export type ShellConfig = {
 	theme: TmuxWebTheme;
 	commandbarEnabled: boolean;
 	commandbarSessions: CommandbarSession[];
-	agentsEnabled: boolean;
 	fsRoots: string[];
 	terminalCfg: TerminalBufferConfig;
 	renderer: 'xterm' | 'ghostty';
@@ -25,7 +24,7 @@ function focusRing(accent = 'var(--panel-accent)'): string {
 }
 
 export function renderShell(cfg: ShellConfig): string {
-	const { theme, commandbarEnabled, commandbarSessions, agentsEnabled, fsRoots, terminalCfg, renderer, scrollback } = cfg;
+	const { theme, commandbarEnabled, commandbarSessions, fsRoots, terminalCfg, renderer, scrollback } = cfg;
 
 	const shellCSS = `
   *, *::before, *::after { box-sizing: border-box; }
@@ -375,7 +374,6 @@ export function renderShell(cfg: ShellConfig): string {
 		theme: theme.terminal,
 		renderer,
 		fsRoots,
-		agentsEnabled,
 		commandbarEnabled,
 	}).replace(/</g, '\\u003c');
 
@@ -476,8 +474,6 @@ export function renderShell(cfg: ShellConfig): string {
     <button class="toggle${commandbarEnabled ? ' on' : ''}" id="set-commandbar"></button>
   </div>
   <div class="settings-item">
-    <span>Agents page</span>
-    <button class="toggle${agentsEnabled ? ' on' : ''}" id="set-agents"></button>
   </div>
   <hr class="settings-divider" />
   <div class="settings-item">

@@ -1,8 +1,159 @@
-import{existsSync as d}from"node:fs";import b from"node:path";import{createRequire as w}from"node:module";import{getDataRoot as x,getSettingsPath as y,getThemePath as l}from"./state-paths.js";import{readSettings as c,writeSettings as v}from"./settings.js";import{readActiveTheme as T,setActiveThemeTemplate as E}from"./theme-store.js";import{isThemeTemplateId as S,THEME_TEMPLATE_IDS as $}from"./themes/index.js";import{cmdAdd as R,cmdRemove as A,getPluginDir as k}from"./plugins.js";import{getEnvFilePath as m}from"./load-env.js";import{SETUP_FEATURES as p}from"./setup-features.js";import{promptYesNo as D,promptChoice as I,requireTty as P}from"./setup-prompts.js";const _=x(),U=k(),f=y(),L=w(import.meta.url),{version:M}=L("../../package.json");function N(s){const t={};for(const e of s)switch(e){case"--yes":case"-y":t.yes=!0;break;case"--commandbar":t.commandbar=!0;break;case"--no-commandbar":t.commandbar=!1;break;case"--agents":t.agents=!0;break;case"--no-agents":t.agents=!1;break}return t}function j(s){switch(s){case"agents":return"agents";default:return"commandbar"}}async function X(s){const t=s[0]==="setup"?s.slice(1):s,e=N(t),n=e.yes||e.commandbar!==void 0||e.agents!==void 0;n||P();const u=await c();console.log(`tmux-weblink setup
-`),console.log(`Configure optional features.
-`);const g=new Map;for(const o of p){const i=j(o.id);let r;if(e.yes)r=!0;else if(e[i]!==void 0)r=e[i];else{const h=o.isEnabled(u);r=await D(`${o.label} (${o.description})`,h)}g.set(o.id,r)}let a;if(!n){const o=u.terminalRenderer==="ghostty"?"ghostty":"xterm";a=await I("Terminal renderer (xterm.js is the default; ghostty-web is experimental)",["xterm","ghostty"],o)}for(const o of p)g.get(o.id)?await o.enable():await o.disable();if(a){const o=await c();await v({...o,terminalRenderer:a}),console.log(`\u2713 terminal renderer set to ${a}`)}console.log(`
-Done. Settings: ${f}`),d(m())&&console.log(`Env file:    ${m()}`),console.log("Restart tmux-web to apply UI changes.")}async function z(s){const[t,e]=s;switch(t){case"list":{console.log("Available themes:");for(const n of $)console.log(`  ${n}`);return}case"set":{e||(console.error("usage: tmux-web theme set <vscode|ghostty>"),process.exit(1)),S(e)||(console.error(`unknown theme: ${e}`),console.error("Run: tmux-web theme list"),process.exit(1)),await E(e),console.log(`\u2713 theme set to ${e}`),console.log(`  ${l()}`),console.log("Restart tmux-web to apply.");return}case"show":{const n=await T();console.log(`Active theme: ${n.template}`),console.log(`Config file:  ${l()}`);return}default:console.error("usage: tmux-web theme <list|set|show>"),process.exit(1)}}async function J(){const t=(await c()).plugins??[];if(t.length===0){console.log(`No plugins enabled. Add one with:
-  tmux-web add <package>`);return}console.log("Enabled plugins:");for(const e of t){const n=d(b.join(U,"node_modules",e));console.log(`  ${n?"\u2713":"\u2717"} ${e}${n?"":"  (not installed \u2014 run: tmux-web add "+e+")"}`)}}function Q(){console.log(M)}function Z(){const s=_,t=m();console.log(`tmux-web \u2014 terminal-in-the-browser for tmux
+import { existsSync } from 'node:fs';
+import path from 'node:path';
+import { createRequire } from 'node:module';
+import { getDataRoot, getSettingsPath, getThemePath } from './state-paths.js';
+import { readSettings, writeSettings } from './settings.js';
+import { readActiveTheme, setActiveThemeTemplate } from './theme-store.js';
+import { isThemeTemplateId, THEME_TEMPLATE_IDS } from './themes/index.js';
+import { cmdAdd, cmdRemove, getPluginDir } from './plugins.js';
+import { getEnvFilePath } from './load-env.js';
+import { SETUP_FEATURES } from './setup-features.js';
+import { promptYesNo, promptChoice, requireTty } from './setup-prompts.js';
+const DATA_ROOT = getDataRoot();
+const PLUGIN_DIR = getPluginDir();
+const CONFIG_DISPLAY = getSettingsPath();
+const require = createRequire(import.meta.url);
+const { version } = require('../../package.json');
+export { cmdAdd, cmdRemove };
+function parseSetupArgs(argv) {
+    const flags = {};
+    for (const arg of argv) {
+        switch (arg) {
+            case '--yes':
+            case '-y':
+                flags.yes = true;
+                break;
+            case '--commandbar':
+                flags.commandbar = true;
+                break;
+            case '--no-commandbar':
+                flags.commandbar = false;
+                break;
+            case '--agents':
+                flags.agents = true;
+                break;
+            case '--no-agents':
+                flags.agents = false;
+                break;
+        }
+    }
+    return flags;
+}
+function flagKey(id) {
+    switch (id) {
+        case 'agents': return 'agents';
+        default: return 'commandbar';
+    }
+}
+export async function cmdSetup(argv) {
+    const args = argv[0] === 'setup' ? argv.slice(1) : argv;
+    const flags = parseSetupArgs(args);
+    const nonInteractive = flags.yes || flags.commandbar !== undefined || flags.agents !== undefined;
+    if (!nonInteractive)
+        requireTty();
+    const cfg = await readSettings();
+    console.log('tmux-weblink setup\n');
+    console.log('Configure optional features.\n');
+    const selections = new Map();
+    for (const feature of SETUP_FEATURES) {
+        const key = flagKey(feature.id);
+        let enabled;
+        if (flags.yes) {
+            enabled = true;
+        }
+        else if (flags[key] !== undefined) {
+            enabled = flags[key];
+        }
+        else {
+            const currently = feature.isEnabled(cfg);
+            enabled = await promptYesNo(`${feature.label} (${feature.description})`, currently);
+        }
+        selections.set(feature.id, enabled);
+    }
+    // Terminal renderer is a choice, not a feature toggle. Ask interactively,
+    // defaulting to the saved renderer (xterm for a fresh install).
+    let rendererChoice;
+    if (!nonInteractive) {
+        const current = cfg.terminalRenderer === 'ghostty' ? 'ghostty' : 'xterm';
+        rendererChoice = (await promptChoice('Terminal renderer (xterm.js is the default; ghostty-web is experimental)', ['xterm', 'ghostty'], current));
+    }
+    for (const feature of SETUP_FEATURES) {
+        const enabled = selections.get(feature.id);
+        if (enabled) {
+            await feature.enable();
+        }
+        else {
+            await feature.disable();
+        }
+    }
+    if (rendererChoice) {
+        const latest = await readSettings();
+        await writeSettings({ ...latest, terminalRenderer: rendererChoice });
+        console.log(`✓ terminal renderer set to ${rendererChoice}`);
+    }
+    console.log(`\nDone. Settings: ${CONFIG_DISPLAY}`);
+    if (existsSync(getEnvFilePath())) {
+        console.log(`Env file:    ${getEnvFilePath()}`);
+    }
+    console.log('Restart tmux-web to apply UI changes.');
+}
+export async function cmdTheme(argv) {
+    const [sub, arg] = argv;
+    switch (sub) {
+        case 'list': {
+            console.log('Available themes:');
+            for (const id of THEME_TEMPLATE_IDS) {
+                console.log(`  ${id}`);
+            }
+            return;
+        }
+        case 'set': {
+            if (!arg) {
+                console.error('usage: tmux-web theme set <vscode|ghostty>');
+                process.exit(1);
+            }
+            if (!isThemeTemplateId(arg)) {
+                console.error(`unknown theme: ${arg}`);
+                console.error('Run: tmux-web theme list');
+                process.exit(1);
+            }
+            await setActiveThemeTemplate(arg);
+            console.log(`✓ theme set to ${arg}`);
+            console.log(`  ${getThemePath()}`);
+            console.log('Restart tmux-web to apply.');
+            return;
+        }
+        case 'show': {
+            const theme = await readActiveTheme();
+            console.log(`Active theme: ${theme.template}`);
+            console.log(`Config file:  ${getThemePath()}`);
+            return;
+        }
+        default:
+            console.error('usage: tmux-web theme <list|set|show>');
+            process.exit(1);
+    }
+}
+export async function cmdList() {
+    const cfg = await readSettings();
+    const plugins = cfg.plugins ?? [];
+    if (plugins.length === 0) {
+        console.log('No plugins enabled. Add one with:\n  tmux-web add <package>');
+        return;
+    }
+    console.log('Enabled plugins:');
+    for (const p of plugins) {
+        const installed = existsSync(path.join(PLUGIN_DIR, 'node_modules', p));
+        console.log(`  ${installed ? '✓' : '✗'} ${p}${installed ? '' : '  (not installed — run: tmux-web add ' + p + ')'}`);
+    }
+}
+export function printVersion() {
+    console.log(version);
+}
+export function printUsage() {
+    const dataDirDisplay = DATA_ROOT;
+    const envDisplay = getEnvFilePath();
+    console.log(`tmux-web — terminal-in-the-browser for tmux
 
 Usage:
   tmux-web                       Start the server (PORT env var, default 3000)
@@ -20,13 +171,14 @@ Usage:
   tmux-web theme show            Show active theme
 
 Files:
-  ${f}   settings (plugins, commandbar)
-  ${l()}   active theme (shell + terminal colors)
-  ${t}       secrets (loaded automatically)
-  ${s}/  plugin installs + runtime state
+  ${CONFIG_DISPLAY}   settings (plugins, commandbar)
+  ${getThemePath()}   active theme (shell + terminal colors)
+  ${envDisplay}       secrets (loaded automatically)
+  ${dataDirDisplay}/  plugin installs + runtime state
 
 Most of these are also editable from the browser at /settings and /settings/theme.
 
 Env:
   TMUX_WEB_TERMINAL_RENDERER=xterm|ghostty   (also persistable via /settings)
-`)}export{R as cmdAdd,J as cmdList,A as cmdRemove,X as cmdSetup,z as cmdTheme,Z as printUsage,Q as printVersion};
+`);
+}

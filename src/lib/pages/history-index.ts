@@ -34,7 +34,7 @@ export function renderHistoryIndex(
 	theme: TmuxWebTheme,
 	commandbarEnabled = false,
 	commandbarSessions: CommandbarSession[] = [],
-	agentsEnabled = false,
+	
 	liveSessionNames: Set<string> = new Set(),
 ): string {
 	const now = Date.now();
@@ -51,7 +51,7 @@ export function renderHistoryIndex(
   </div>
   <span class="hist-time">${time}</span>`;
 		if (live) {
-			const href = '/s/' + encodeURIComponent(h.sessionName) + '?window=' + h.windowIndex;
+			const href = '/';
 			return `<a class="hist-row" href="${href}">${inner}</a>`;
 		}
 		return `<div class="hist-row dead" title="Session no longer exists">${inner}</div>`;
@@ -117,7 +117,7 @@ ${sharedHeader({ commandbarEnabled, title: 'History', themeTemplate: theme.templ
 
 <div class="page-wrap">
   <div class="page-layout">
-    ${sharedSidebar({ activePage: 'history', agentsEnabled, refreshHref: '/history' })}
+    ${sharedSidebar({ activePage: 'history', refreshHref: '/history' })}
     <main class="main-panel">
       ${toolbar}
       <div id="hist-list">${body}</div>

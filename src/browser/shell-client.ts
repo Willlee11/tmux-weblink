@@ -2,7 +2,7 @@ import { initTerminal, type TerminalInitConfig, type TerminalInstance } from './
 
 declare global {
 	interface Window {
-		__TMUX_WEB_SHELL__?: TerminalInitConfig & { fsRoots: string[]; agentsEnabled: boolean; commandbarEnabled: boolean };
+		__TMUX_WEB_SHELL__?: TerminalInitConfig & { fsRoots: string[]; commandbarEnabled: boolean };
 	}
 }
 

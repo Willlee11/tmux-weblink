@@ -26,7 +26,6 @@ export function renderNotesIndex(
 	theme: TmuxWebTheme,
 	commandbarEnabled = false,
 	commandbarSessions: CommandbarSession[] = [],
-	agentsEnabled = false,
 ): string {
 	const sorted = [...notes].sort((a, b) => (b.updatedAt ?? 0) - (a.updatedAt ?? 0));
 
@@ -91,7 +90,7 @@ ${sharedHeader({ commandbarEnabled, title: 'All Notes', themeTemplate: theme.tem
 
 <div class="page-wrap">
   <div class="page-layout">
-    ${sharedSidebar({ activePage: 'notes', agentsEnabled, refreshHref: '/notes' })}
+    ${sharedSidebar({ activePage: 'notes', refreshHref: '/notes' })}
     <main class="main-panel">
       <div id="notes-list">${body}</div>
     </main>

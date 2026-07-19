@@ -2,7 +2,7 @@ import { commandbarButtonHTML } from './commandbar.js';
 import { escapeHtml } from './html.js';
 import { icon, iconPath } from './icons.js';
 
-export type ActivePage = 'home' | 'notes' | 'schedule' | 'agents' | 'history' | 'quickCommands' | 'files';
+export type ActivePage = 'home' | 'notes' | 'schedule' | 'history' | 'quickCommands' | 'files';
 
 type ThemeOption = { id: string; name: string; dot: string };
 
@@ -301,13 +301,12 @@ export function sharedHeader(opts: {
 <script>${themeSwitcherScript()}</script>`;
 }
 
-/** Sidebar HTML with the current page indicated and agents link conditional. */
+/** Sidebar HTML with the current page indicated. */
 export function sharedSidebar(opts: {
 	activePage: ActivePage;
-	agentsEnabled: boolean;
 	refreshHref: string;
 }): string {
-	const { activePage, agentsEnabled, refreshHref } = opts;
+	const { activePage, refreshHref } = opts;
 
 	function btn(page: ActivePage | null, href: string, iconPathString: string, label: string, extra = '') {
 		const isCurrent = page !== null && page === activePage;
@@ -321,7 +320,6 @@ export function sharedSidebar(opts: {
 	const sessionsIcon = iconPath('sessions');
 	const notesIcon = iconPath('notes');
 	const scheduleIcon = iconPath('schedule');
-	const agentsIcon = iconPath('agents');
 	const historyIcon = iconPath('history');
 	const quickCommandsIcon = iconPath('quick-commands');
 	const filesIcon = iconPath('file');
@@ -340,7 +338,6 @@ export function sharedSidebar(opts: {
       ${btn('files', '/files', filesIcon, 'Files')}
       ${btn('history', '/history', historyIcon, 'History')}
       ${btn('quickCommands', '/quick-commands', quickCommandsIcon, 'Quick Commands')}
-      ${agentsEnabled ? btn('agents', '/agents', agentsIcon, 'All Agents') : ''}
       <hr class="sidebar-divider">
       <a href="${refreshHref}" class="sidebar-btn">
         ${icon('refresh')}

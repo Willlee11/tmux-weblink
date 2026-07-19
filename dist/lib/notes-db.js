@@ -1,4 +1,5 @@
-function n(){return`
+export function notesDbScript() {
+    return `
 async function loadNote(scope) {
   try {
     const res = await fetch('/api/notes/' + encodeURIComponent(scope));
@@ -15,4 +16,5 @@ async function saveNote(scope, content) {
       body: JSON.stringify({ content }),
     });
   } catch {}
-}`}export{n as notesDbScript};
+}`;
+}

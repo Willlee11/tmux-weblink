@@ -19,11 +19,33 @@ import{icon as e}from"./icons.js";function n(){return`
   #mobile-toolbar button:hover { color: var(--panel-accent); background: color-mix(in srgb, var(--panel-accent) 8%, transparent); }
   #mobile-toolbar button:focus-visible { box-shadow: 0 0 0 2px var(--panel-accent); outline: none; }
   #mobile-toolbar button svg { width: 22px; height: 22px; fill: currentColor; }
-  #mobile-toolbar button.listening {
-    color: var(--panel-success);
-    animation: tmux-mic-pulse 1.2s ease-in-out infinite;
+
+  #mobile-toolbar .tb-input {
+    flex: 1; display: flex; align-items: stretch; gap: 6px; min-width: 0;
   }
-  @keyframes tmux-mic-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.45; } }
+  #mobile-toolbar .tb-input textarea {
+    flex: 1; resize: none; box-sizing: border-box;
+    min-height: 38px; max-height: 96px;
+    background: var(--terminal-bg, rgba(0,0,0,0.28));
+    color: var(--page-fg);
+    border: 1px solid var(--panel-border);
+    border-radius: 8px; padding: 6px 10px;
+    font-family: var(--font-mono); font-size: var(--text-base); line-height: 1.4;
+    outline: none;
+  }
+  #mobile-toolbar .tb-input textarea:focus {
+    border-color: var(--panel-accent);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--panel-accent) 12%, transparent);
+  }
+  #mobile-toolbar .tb-input textarea::placeholder { color: var(--panel-muted); opacity: 0.6; }
+  #mobile-toolbar .tb-input button {
+    flex: 0 0 auto; min-width: 44px;
+    border: 1px solid var(--panel-success); color: var(--panel-success);
+  }
+  #mobile-toolbar .tb-input button:hover {
+    background: color-mix(in srgb, var(--panel-success) 12%, transparent);
+  }
+  #mobile-toolbar #tb-kb-btn { flex: 0 0 auto; min-width: 44px; }
 
   #type-backdrop {
     position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 1001;
@@ -126,12 +148,15 @@ import{icon as e}from"./icons.js";function n(){return`
   }
   #type-modal .type-modal-footer #type-send-enter {
     border-color: var(--panel-success); color: var(--panel-success);
-  }`}function a(){return`
+  }
+
+  `}function a(){return`
 <div id="mobile-toolbar">
-  <button id="mic-toggle" type="button" title="Voice input" aria-label="Voice input">
-    ${e("microphone")}
-  </button>
-  <button id="type-toggle" type="button" title="Type to send" aria-label="Type to send">
+  <div class="tb-input">
+    <textarea id="tb-input" placeholder="Type or voice input\u2026" autocapitalize="off" autocomplete="off" autocorrect="off" spellcheck="false" rows="1"></textarea>
+    <button id="tb-send" type="button" title="Send (Enter)">&#9166;</button>
+  </div>
+  <button id="type-toggle" type="button" title="Advanced keys" aria-label="Advanced keys">
     ${e("keyboard")}
   </button>
 </div>
@@ -147,14 +172,13 @@ import{icon as e}from"./icons.js";function n(){return`
     <label><input type="radio" name="type-modifier" value="Tab" /><span class="type-modal-modifier-label">Tab</span></label>
     <label><input type="radio" name="type-modifier" value="Ctrl" /><span class="type-modal-modifier-label">Ctrl</span></label>
   </div>
-  <textarea id="type-input" placeholder="Type a command or tap the mic\u2026" autocapitalize="off" autocomplete="off" autocorrect="off" spellcheck="false"></textarea>
+  <textarea id="type-input" placeholder="Type a command\u2026" autocapitalize="off" autocomplete="off" autocorrect="off" spellcheck="false"></textarea>
   <div id="type-status"></div>
   <div class="type-modal-footer">
     <button id="type-send" type="button">Send</button>
     <button id="type-send-enter" type="button">Send &#9166;</button>
   </div>
-</div>`}function i(t){return`(function() {
-  const micBtn = document.getElementById('mic-toggle');
+</div>`}function r(t){return`(function() {
   const typeBtn = document.getElementById('type-toggle');
   const modal = document.getElementById('type-modal');
   const backdrop = document.getElementById('type-backdrop');
@@ -183,7 +207,6 @@ import{icon as e}from"./icons.js";function n(){return`
   function closeModal() {
     modal.classList.remove('open');
     backdrop.classList.remove('open');
-    stopRecognition();
   }
 
   function getActiveModifier() {
@@ -241,73 +264,35 @@ import{icon as e}from"./icons.js";function n(){return`
   sendBtn.addEventListener('click', () => send(false));
   sendEnterBtn.addEventListener('click', () => send(true));
 
-  // \u2500\u2500 Speech-to-text (browser Web Speech API) \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
-  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  let recognition = null;
-  let listening = false;
+  // \u2500\u2500 Inline toolbar input \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+  const tbInput = document.getElementById('tb-input');
+  const tbSend = document.getElementById('tb-send');
 
-  if (!SR) {
-    // Unsupported browser \u2014 hide the mic entirely.
-    micBtn.style.display = 'none';
-  } else {
-    micBtn.addEventListener('click', () => {
-      if (listening) { stopRecognition(); return; }
-      startRecognition();
+  if (tbInput && tbSend) {
+    function sendTb() {
+      const text = tbInput.value;
+      if (text && window.tmuxWeb && window.tmuxWeb.sendInput) {
+        window.tmuxWeb.sendInput(text + '\r');
+      }
+      tbInput.value = '';
+      tbInput.rows = 1;
+      if (window.tmuxWeb && window.tmuxWeb.focusTerminal) window.tmuxWeb.focusTerminal();
+    }
+
+    tbInput.addEventListener('input', () => {
+      tbInput.rows = 1;
+      const lines = tbInput.value.split('
+').length;
+      tbInput.rows = Math.min(lines, 4);
     });
-  }
 
-  function startRecognition() {
-    if (!SR) return;
-    recognition = new SR();
-    recognition.lang = navigator.language || 'en-US';
-    recognition.interimResults = true;
-    recognition.continuous = false;
-    const baseText = input.value ? input.value + ' ' : '';
-
-    recognition.onstart = () => {
-      listening = true;
-      micBtn.classList.add('listening');
-      openModal();
-      setStatus('Listening\u2026');
-    };
-    recognition.onresult = (event) => {
-      let transcript = '';
-      for (let i = 0; i < event.results.length; i++) {
-        transcript += event.results[i][0].transcript;
+    tbInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendTb();
       }
-      input.value = baseText + transcript;
-    };
-    recognition.onerror = (event) => {
-      const code = event && event.error;
-      if (code === 'not-allowed' || code === 'service-not-allowed') {
-        setStatus('Microphone permission denied', true);
-      } else if (code === 'no-speech') {
-        setStatus('No speech detected', true);
-      } else {
-        setStatus('Voice input error', true);
-      }
-    };
-    recognition.onend = () => {
-      listening = false;
-      micBtn.classList.remove('listening');
-      if (!status.textContent || status.textContent === 'Listening\u2026') {
-        setStatus(input.value ? 'Review and send' : '');
-      }
-      recognition = null;
-    };
+    });
 
-    try {
-      recognition.start();
-    } catch (e) {
-      setStatus('Voice input unavailable', true);
-      listening = false;
-      micBtn.classList.remove('listening');
-    }
+    tbSend.addEventListener('click', sendTb);
   }
-
-  function stopRecognition() {
-    if (recognition) {
-      try { recognition.stop(); } catch (e) { /* ignore */ }
-    }
-  }
-})();`}export{n as mobileToolbarCSS,a as mobileToolbarHTML,i as mobileToolbarScript};
+})();`}export{n as mobileToolbarCSS,a as mobileToolbarHTML,r as mobileToolbarScript};

@@ -10,7 +10,6 @@ export interface TmuxWebSettings {
 	/** Enable the /agents page that watches AI agents in recently-viewed panes. */
 	agents?: boolean;
 	/** Probe watched panes on a background interval (even when /agents is closed). */
-	agentsBackgroundWatch?: boolean;
 	/** Days to retain the /schedule "Recently Triggered" history. Defaults to 7. */
 	scheduleHistoryDays?: number;
 }

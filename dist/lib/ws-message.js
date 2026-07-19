@@ -1,1 +1,21 @@
-function a(e,r){const n=typeof e=="string"?e:e.toString("utf-8");let t;try{t=JSON.parse(n)}catch{return!1}return t.type==="input"&&typeof t.data=="string"?(r.write(t.data),!0):t.type==="resize"&&typeof t.cols=="number"&&typeof t.rows=="number"?(r.resize(Math.max(10,t.cols),Math.max(5,t.rows)),!0):!1}export{a as handleClientMessage};
+export function handleClientMessage(raw, ptyProcess) {
+    const data = typeof raw === 'string' ? raw : raw.toString('utf-8');
+    let msg;
+    try {
+        msg = JSON.parse(data);
+    }
+    catch {
+        return false;
+    }
+    if (msg.type === 'input' && typeof msg.data === 'string') {
+        ptyProcess.write(msg.data);
+        return true;
+    }
+    if (msg.type === 'resize' &&
+        typeof msg.cols === 'number' &&
+        typeof msg.rows === 'number') {
+        ptyProcess.resize(Math.max(10, msg.cols), Math.max(5, msg.rows));
+        return true;
+    }
+    return false;
+}

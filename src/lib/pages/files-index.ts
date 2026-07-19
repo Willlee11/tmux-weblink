@@ -19,7 +19,7 @@ export function renderFilesIndex(
 	theme: TmuxWebTheme,
 	commandbarEnabled = false,
 	commandbarSessions: CommandbarSession[] = [],
-	agentsEnabled = false,
+	
 	roots: string[],
 ): string {
 	const configured = roots.length > 0;
@@ -61,7 +61,7 @@ ${sharedHeader({ commandbarEnabled, title: 'Files', themeTemplate: theme.templat
 
 <div class="page-wrap">
   <div class="page-layout">
-    ${sharedSidebar({ activePage: 'files', agentsEnabled, refreshHref: '/files' })}
+    ${sharedSidebar({ activePage: 'files', refreshHref: '/files' })}
     <main class="main-panel">
 
       ${configured ? `

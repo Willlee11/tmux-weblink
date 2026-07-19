@@ -1,4 +1,16 @@
-import{cssVarsStyle as g}from"../theme.js";import{commandbarCSS as x,commandbarHTML as m,commandbarScript as f}from"../commandbar.js";import{newSessionModalCSS as v,newSessionModalHTML as h,newSessionModalScript as u,reducedMotion as y}from"../shared-layout.js";import{icon as o}from"../icons.js";function C(n){return n.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;")}function a(n="var(--panel-accent)"){return`box-shadow: 0 0 0 2px ${n}; outline: none;`}function _(n){const{theme:e,commandbarEnabled:t,commandbarSessions:s,agentsEnabled:r,fsRoots:d,terminalCfg:l,renderer:i,scrollback:p}=n,c=`
+import { cssVarsStyle } from '../theme.js';
+import { commandbarCSS, commandbarHTML, commandbarScript } from '../commandbar.js';
+import { newSessionModalCSS, newSessionModalHTML, newSessionModalScript, reducedMotion } from '../shared-layout.js';
+import { icon } from '../icons.js';
+function escapeHtml(s) {
+    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+function focusRing(accent = 'var(--panel-accent)') {
+    return `box-shadow: 0 0 0 2px ${accent}; outline: none;`;
+}
+export function renderShell(cfg) {
+    const { theme, commandbarEnabled, commandbarSessions, fsRoots, terminalCfg, renderer, scrollback } = cfg;
+    const shellCSS = `
   *, *::before, *::after { box-sizing: border-box; }
   html, body {
     background: var(--page-bg); color: var(--page-fg);
@@ -6,7 +18,7 @@ import{cssVarsStyle as g}from"../theme.js";import{commandbarCSS as x,commandbarH
     font-family: var(--font-sans); margin: 0; padding: 0;
   }
 
-  /* \u2500\u2500 Fixed header \u2500\u2500 */
+  /* ── Fixed header ── */
   .fixed-header {
     position: fixed; top: 0; left: 0; right: 0; z-index: 200;
     height: 48px;
@@ -23,15 +35,16 @@ import{cssVarsStyle as g}from"../theme.js";import{commandbarCSS as x,commandbarH
   .fixed-header .brand a { color: inherit; text-decoration: none; }
   .header-actions { display: flex; align-items: center; gap: 4px; }
 
-  /* \u2500\u2500 App layout \u2500\u2500 */
+  /* ── App layout ── */
   .app-layout {
     display: flex;
-    height: 100vh;
+    height: 100dvh;
+    overflow: hidden;
     padding-top: 48px;
     transition: height 0.05s;
   }
 
-  /* \u2500\u2500 Sidebar \u2500\u2500 */
+  /* ── Sidebar ── */
   .sidebar {
     flex: 0 0 250px;
     display: flex;
@@ -62,9 +75,9 @@ import{cssVarsStyle as g}from"../theme.js";import{commandbarCSS as x,commandbarH
   }
   .sidebar-footer .mode-btn:hover { color: var(--panel-accent); background: color-mix(in srgb, var(--panel-accent) 8%, transparent); }
   .sidebar-footer .mode-btn.active { color: var(--panel-accent); background: color-mix(in srgb, var(--panel-accent) 10%, transparent); }
-  .sidebar-footer .mode-btn:focus-visible { ${a()} }
+  .sidebar-footer .mode-btn:focus-visible { ${focusRing()} }
 
-  /* \u2500\u2500 Sidebar session mode \u2500\u2500 */
+  /* ── Sidebar session mode ── */
   .session-item {
     display: flex; align-items: center; gap: 8px;
     padding: 10px 12px; border-radius: 10px;
@@ -84,7 +97,7 @@ import{cssVarsStyle as g}from"../theme.js";import{commandbarCSS as x,commandbarH
   }
   .session-item:hover .session-edit-btn { display: flex; align-items: center; }
   .session-edit-btn:hover { color: var(--panel-accent); background: color-mix(in srgb, var(--panel-accent) 8%, transparent); }
-  .session-edit-btn:focus-visible { ${a()} }
+  .session-edit-btn:focus-visible { ${focusRing()} }
 
   .sidebar-section-label {
     font-size: var(--text-xs); text-transform: uppercase; letter-spacing: 0.05em;
@@ -101,10 +114,10 @@ import{cssVarsStyle as g}from"../theme.js";import{commandbarCSS as x,commandbarH
     color: var(--panel-accent); border-color: var(--panel-accent);
     background: color-mix(in srgb, var(--panel-accent) 6%, transparent);
   }
-  .new-session-sidebar-btn:focus-visible { ${a()} }
+  .new-session-sidebar-btn:focus-visible { ${focusRing()} }
   .new-session-sidebar-btn svg { width: 16px; height: 16px; fill: currentColor; }
 
-  /* \u2500\u2500 Sidebar files mode \u2500\u2500 */
+  /* ── Sidebar files mode ── */
   .file-tree-item {
     display: flex; align-items: center; gap: 6px;
     padding: 6px 10px; border-radius: 8px; cursor: pointer;
@@ -120,7 +133,7 @@ import{cssVarsStyle as g}from"../theme.js";import{commandbarCSS as x,commandbarH
   .file-tree-info { font-size: var(--text-xs); color: var(--panel-muted); padding: 12px; line-height: 1.5; }
   .file-tree-info code { background: color-mix(in srgb, var(--panel-accent) 8%, transparent); padding: 2px 6px; border-radius: 4px; }
 
-  /* \u2500\u2500 Main area \u2500\u2500 */
+  /* ── Main area ── */
   .main-area {
     flex: 1;
     display: flex;
@@ -134,7 +147,7 @@ import{cssVarsStyle as g}from"../theme.js";import{commandbarCSS as x,commandbarH
     text-align: center; line-height: 1.6; padding: 24px;
   }
 
-  /* \u2500\u2500 File editor in main area \u2500\u2500 */
+  /* ── File editor in main area ── */
   .file-editor-toolbar {
     display: flex; align-items: center; gap: 8px;
     padding: 10px 16px; border-bottom: 1px solid var(--panel-border);
@@ -166,7 +179,7 @@ import{cssVarsStyle as g}from"../theme.js";import{commandbarCSS as x,commandbarH
   }
   .file-editor-new input:focus { border-color: var(--panel-accent); }
 
-  /* \u2500\u2500 Buttons \u2500\u2500 */
+  /* ── Buttons ── */
   .btn {
     display: inline-flex; align-items: center; justify-content: center;
     min-height: 36px; padding: 6px 14px; border-radius: 8px;
@@ -175,13 +188,13 @@ import{cssVarsStyle as g}from"../theme.js";import{commandbarCSS as x,commandbarH
     color: var(--page-fg); transition: opacity 0.15s; text-decoration: none;
   }
   .btn:hover { opacity: 0.85; }
-  .btn:focus-visible { ${a()} }
+  .btn:focus-visible { ${focusRing()} }
   .btn.primary { background: var(--panel-accent); border-color: var(--panel-accent); color: var(--panel-accent-on); font-weight: 500; }
   .btn.primary:hover { opacity: 0.9; }
   .btn.danger { color: #b91c1c; border-color: color-mix(in srgb, #b91c1c 30%, transparent); }
   .btn svg { width: 16px; height: 16px; fill: currentColor; }
 
-  /* \u2500\u2500 Settings popover \u2500\u2500 */
+  /* ── Settings popover ── */
   .popover-backdrop {
     display: none; position: fixed; inset: 0; z-index: 400;
   }
@@ -223,7 +236,7 @@ import{cssVarsStyle as g}from"../theme.js";import{commandbarCSS as x,commandbarH
   .theme-option .theme-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
   .theme-option .theme-check { margin-left: auto; width: 14px; height: 14px; }
 
-  /* \u2500\u2500 Session edit popover \u2500\u2500 */
+  /* ── Session edit popover ── */
   .session-popover {
     position: fixed; z-index: 600;
     background: var(--panel-bg); border: 1px solid var(--panel-border);
@@ -249,7 +262,7 @@ import{cssVarsStyle as g}from"../theme.js";import{commandbarCSS as x,commandbarH
   .sp-actions { display: flex; gap: 6px; margin-top: 0; }
   .sp-divider { border: none; border-top: 1px solid var(--panel-border); margin: 10px 0; }
 
-  /* \u2500\u2500 Status indicator for terminal \u2500\u2500 */
+  /* ── Status indicator for terminal ── */
   .terminal-status {
     display: flex; align-items: center; gap: 6px;
     font-size: var(--text-xs); color: var(--panel-muted);
@@ -260,7 +273,7 @@ import{cssVarsStyle as g}from"../theme.js";import{commandbarCSS as x,commandbarH
   }
   .status-dot.connected { background: #16a34a; }
 
-  /* \u2500\u2500 Terminal container \u2500\u2500 */
+  /* ── Terminal container ── */
   #terminal-container {
     flex: 1; overflow: hidden;
   }
@@ -270,7 +283,7 @@ import{cssVarsStyle as g}from"../theme.js";import{commandbarCSS as x,commandbarH
     outline-offset: -2px;
   }
 
-  /* \u2500\u2500 Mobile key toolbar \u2500\u2500 */
+  /* ── Mobile key toolbar ── */
   .mobile-keys {
     display: none; flex-wrap: wrap; gap: 4px;
     padding: 6px 8px; border-top: 1px solid var(--panel-border);
@@ -284,11 +297,37 @@ import{cssVarsStyle as g}from"../theme.js";import{commandbarCSS as x,commandbarH
     touch-action: manipulation; user-select: none;
   }
   .mobile-keys button:active { opacity: 0.55; }
+  .mobile-keys .mk-input {
+    display: flex; gap: 4px; flex: 1 1 100%;
+  }
+  .mobile-keys .mk-input textarea {
+    flex: 1; resize: none; box-sizing: border-box;
+    min-height: 38px; max-height: 80px;
+    background: var(--terminal-bg, rgba(0,0,0,0.28));
+    color: var(--page-fg);
+    border: 1px solid var(--panel-border);
+    border-radius: 8px; padding: 6px 10px;
+    font-family: var(--font-mono); font-size: var(--text-base); line-height: 1.4;
+    outline: none;
+  }
+  .mobile-keys .mk-input textarea:focus {
+    border-color: var(--panel-accent);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--panel-accent) 12%, transparent);
+  }
+  .mobile-keys .mk-input textarea::placeholder { color: var(--panel-muted); opacity: 0.6; }
+  .mobile-keys .mk-input button {
+    min-width: 44px;
+    border: 1px solid var(--panel-success); color: var(--panel-success);
+    background: var(--page-bg);
+  }
+  .mobile-keys .mk-input button:hover {
+    background: color-mix(in srgb, var(--panel-success) 12%, transparent);
+  }
   @media (max-width: 640px) {
     .mobile-keys { display: flex; }
   }
 
-  /* \u2500\u2500 File list view (when no root selected) \u2500\u2500 */
+  /* ── File list view (when no root selected) ── */
   .file-roots-list { list-style: none; padding: 0; margin: 16px; }
   .file-roots-list li {
     display: flex; align-items: center; gap: 10px;
@@ -300,17 +339,27 @@ import{cssVarsStyle as g}from"../theme.js";import{commandbarCSS as x,commandbarH
   .file-roots-list li:hover { border-color: var(--panel-accent); }
   .file-roots-list li svg { width: 20px; height: 20px; flex-shrink: 0; fill: var(--panel-accent); }
 
-  /* \u2500\u2500 Commandbar \u2500\u2500 */
-  ${t?x():""}
-  ${y()}
-  ${v()}
+  /* ── Commandbar ── */
+  ${commandbarEnabled ? commandbarCSS() : ''}
+  ${reducedMotion()}
+  ${newSessionModalCSS()}
   @media (max-width: 640px) {
     .app-layout { flex-direction: column; }
     .sidebar { flex: 0 0 auto; border-right: none; border-bottom: 1px solid var(--panel-border); transition: max-height 0.2s; }
     .sidebar.collapsed .sidebar-content { display: none; }
     .sidebar.collapsed { max-height: 48px; overflow: hidden; }
   }
-  `,k=JSON.stringify(e.terminal).replace(/</g,"\\u003c"),b=JSON.stringify({terminal:l,scrollback:p,theme:e.terminal,renderer:i,fsRoots:d,agentsEnabled:r,commandbarEnabled:t}).replace(/</g,"\\u003c");return`<!DOCTYPE html>
+  `;
+    const terminalThemeJson = JSON.stringify(theme.terminal).replace(/</g, '\\u003c');
+    const shellConfigJson = JSON.stringify({
+        terminal: terminalCfg,
+        scrollback,
+        theme: theme.terminal,
+        renderer,
+        fsRoots,
+        commandbarEnabled,
+    }).replace(/</g, '\\u003c');
+    return /* html */ `<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
@@ -318,8 +367,8 @@ import{cssVarsStyle as g}from"../theme.js";import{commandbarCSS as x,commandbarH
 <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 <title>tmux-weblink</title>
 <style>
-  ${g(e.shell)}
-  ${c}
+  ${cssVarsStyle(theme.shell)}
+  ${shellCSS}
 </style>
 </head>
 <body>
@@ -344,7 +393,7 @@ import{cssVarsStyle as g}from"../theme.js";import{commandbarCSS as x,commandbarH
 <header class="fixed-header">
   <div class="brand"><a href="/">tmux<span>-weblink</span></a></div>
   <div class="header-actions">
-    ${t?`<button class="header-btn" id="cmdbar-btn" title="Search" aria-label="Search">${o("search")}</button>`:""}
+    ${commandbarEnabled ? `<button class="header-btn" id="cmdbar-btn" title="Search" aria-label="Search">${icon('search')}</button>` : ''}
   </div>
 </header>
 
@@ -352,9 +401,9 @@ import{cssVarsStyle as g}from"../theme.js";import{commandbarCSS as x,commandbarH
   <aside class="sidebar">
     <div class="sidebar-content" id="sidebar-content"></div>
     <div class="sidebar-footer">
-      <button class="mode-btn active" id="mode-sessions" title="Sessions">${o("sessions",'width="20" height="20"')}</button>
-      <button class="mode-btn" id="mode-files" title="Files">${o("folder",'width="20" height="20"')}</button>
-      <button class="mode-btn" id="mode-settings" title="Settings">${o("settings",'width="20" height="20"')}</button>
+      <button class="mode-btn active" id="mode-sessions" title="Sessions">${icon('sessions', 'width="20" height="20"')}</button>
+      <button class="mode-btn" id="mode-files" title="Files">${icon('folder', 'width="20" height="20"')}</button>
+      <button class="mode-btn" id="mode-settings" title="Settings">${icon('settings', 'width="20" height="20"')}</button>
     </div>
   </aside>
 
@@ -380,18 +429,21 @@ import{cssVarsStyle as g}from"../theme.js";import{commandbarCSS as x,commandbarH
       </div>
     </div>
     <div class="mobile-keys" id="mobile-keys">
+      <div class="mk-input">
+        <textarea id="mk-input" placeholder="Type or voice input…" autocapitalize="off" autocomplete="off" autocorrect="off" spellcheck="false" rows="1"></textarea>
+        <button id="mk-send" type="button" title="Send (Enter)">&#9166;</button>
+      </div>
       <button data-key="esc">ESC</button>
       <button data-key="tab">Tab</button>
       <button data-key="s-tab">S-Tab</button>
-      <button data-key="up">\u2191</button>
-      <button data-key="down">\u2193</button>
-      <button data-key="left">\u2190</button>
-      <button data-key="right">\u2192</button>
-      <button data-key="space">\u2423</button>
-      <button data-key="ctrl-c">Ctrl-C</button>
-      <button data-key="ctrl-d">Ctrl-D</button>
-      <button data-key="enter">\u21B5 Enter</button>
+      <button data-key="up">↑</button>
+      <button data-key="down">↓</button>
+      <button data-key="left">←</button>
+      <button data-key="right">→</button>
+      <button data-key="space">␣</button>
+      <button data-key="enter">↵ Enter</button>
       <button data-key="exit">Exit</button>
+      <button data-key="yes">Yes</button>
     </div>
   </main>
 </div>
@@ -401,28 +453,26 @@ import{cssVarsStyle as g}from"../theme.js";import{commandbarCSS as x,commandbarH
 <div class="settings-popover" id="settings-popover">
   <div class="settings-item">
     <span>Command bar</span>
-    <button class="toggle${t?" on":""}" id="set-commandbar"></button>
+    <button class="toggle${commandbarEnabled ? ' on' : ''}" id="set-commandbar"></button>
   </div>
   <div class="settings-item">
-    <span>Agents page</span>
-    <button class="toggle${r?" on":""}" id="set-agents"></button>
   </div>
   <hr class="settings-divider" />
   <div class="settings-item">
     <span>Terminal renderer</span>
-    <span style="font-size:var(--text-xs);color:var(--panel-muted)">${i==="ghostty"?"Ghostty":"xterm.js"}</span>
+    <span style="font-size:var(--text-xs);color:var(--panel-muted)">${renderer === 'ghostty' ? 'Ghostty' : 'xterm.js'}</span>
   </div>
   <hr class="settings-divider" />
   <div style="padding:4px 0">
-    <button class="theme-option" data-theme="vscode" title="VS Code"><span class="theme-dot" style="background:#007acc"></span>VS Code${e.template==="vscode"?'<span class="theme-check">\u2713</span>':""}</button>
-    <button class="theme-option" data-theme="ghostty" title="Ghostty"><span class="theme-dot" style="background:#ff5f00"></span>Ghostty${e.template==="ghostty"?'<span class="theme-check">\u2713</span>':""}</button>
-    <button class="theme-option" data-theme="warm-clay" title="Warm Clay"><span class="theme-dot" style="background:#b86b52"></span>Warm Clay${e.template==="warm-clay"?'<span class="theme-check">\u2713</span>':""}</button>
-    <button class="theme-option" data-theme="dark-cove" title="Dark Cove"><span class="theme-dot" style="background:#7aa2f7"></span>Dark Cove${e.template==="dark-cove"?'<span class="theme-check">\u2713</span>':""}</button>
+    <button class="theme-option" data-theme="vscode" title="VS Code"><span class="theme-dot" style="background:#007acc"></span>VS Code${theme.template === 'vscode' ? '<span class="theme-check">✓</span>' : ''}</button>
+    <button class="theme-option" data-theme="ghostty" title="Ghostty"><span class="theme-dot" style="background:#ff5f00"></span>Ghostty${theme.template === 'ghostty' ? '<span class="theme-check">✓</span>' : ''}</button>
+    <button class="theme-option" data-theme="warm-clay" title="Warm Clay"><span class="theme-dot" style="background:#b86b52"></span>Warm Clay${theme.template === 'warm-clay' ? '<span class="theme-check">✓</span>' : ''}</button>
+    <button class="theme-option" data-theme="dark-cove" title="Dark Cove"><span class="theme-dot" style="background:#7aa2f7"></span>Dark Cove${theme.template === 'dark-cove' ? '<span class="theme-check">✓</span>' : ''}</button>
   </div>
   <hr class="settings-divider" />
   <div class="settings-item" style="cursor:pointer" id="set-plugins-link">
     <a href="/settings" style="color:inherit;text-decoration:none">Plugins & Settings</a>
-    <span style="font-size:var(--text-xs);color:var(--panel-muted)">\u2192</span>
+    <span style="font-size:var(--text-xs);color:var(--panel-muted)">→</span>
   </div>
 </div>
 
@@ -444,21 +494,21 @@ import{cssVarsStyle as g}from"../theme.js";import{commandbarCSS as x,commandbarH
 })();
 </script>
 
-${h()}
-${t?m():""}
+${newSessionModalHTML()}
+${commandbarEnabled ? commandbarHTML() : ''}
 
 <script>
-window.__TMUX_WEB_SHELL__ = ${b};
+window.__TMUX_WEB_SHELL__ = ${shellConfigJson};
 </script>
 <script type="module">
 await import('/assets/shell-client.js');
-${t?f(s,[]):""}
+${commandbarEnabled ? commandbarScript(commandbarSessions, []) : ''}
 // Wrapper: refresh sidebar list, then open session
 window.__onSessionCreated = async function(name) {
   await window.__refreshSidebar();
   window.__openSession(name);
 };
-${u("__onSessionCreated")}
+${newSessionModalScript('__onSessionCreated')}
 </script>
 <script>
 // Sync app-layout height to visual viewport so mobile keyboard doesn't overlap
@@ -472,4 +522,5 @@ ${u("__onSessionCreated")}
 })();
 </script>
 </body>
-</html>`}export{_ as renderShell};
+</html>`;
+}

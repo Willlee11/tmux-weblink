@@ -1,1 +1,28 @@
-import{darkCoveTheme as t}from"./dark-cove.js";import{ghosttyTheme as m}from"./ghostty.js";import{vscodeTheme as h}from"./vscode.js";import{warmClayTheme as T}from"./warm-clay.js";import{darkCoveTheme as w}from"./dark-cove.js";import{ghosttyTheme as k}from"./ghostty.js";import{vscodeTheme as v}from"./vscode.js";import{warmClayTheme as l}from"./warm-clay.js";const o={vscode:h,ghostty:m,"warm-clay":T,"dark-cove":t},f=Object.keys(o);function a(){return o}function d(e){const r=o[e];if(!r)throw new Error(`unknown theme template: ${e}`);return structuredClone(r)}function i(e){return e==="vscode"||e==="ghostty"||e==="warm-clay"||e==="dark-cove"}export{f as THEME_TEMPLATE_IDS,w as darkCoveTheme,a as getThemeTemplates,k as ghosttyTheme,i as isThemeTemplateId,d as resolveTheme,v as vscodeTheme,l as warmClayTheme};
+import { darkCoveTheme } from './dark-cove.js';
+import { ghosttyTheme } from './ghostty.js';
+import { vscodeTheme } from './vscode.js';
+import { warmClayTheme } from './warm-clay.js';
+export { darkCoveTheme } from './dark-cove.js';
+export { ghosttyTheme } from './ghostty.js';
+export { vscodeTheme } from './vscode.js';
+export { warmClayTheme } from './warm-clay.js';
+const TEMPLATES = {
+    vscode: vscodeTheme,
+    ghostty: ghosttyTheme,
+    'warm-clay': warmClayTheme,
+    'dark-cove': darkCoveTheme,
+};
+export const THEME_TEMPLATE_IDS = Object.keys(TEMPLATES);
+export function getThemeTemplates() {
+    return TEMPLATES;
+}
+export function resolveTheme(templateId) {
+    const theme = TEMPLATES[templateId];
+    if (!theme) {
+        throw new Error(`unknown theme template: ${templateId}`);
+    }
+    return structuredClone(theme);
+}
+export function isThemeTemplateId(value) {
+    return value === 'vscode' || value === 'ghostty' || value === 'warm-clay' || value === 'dark-cove';
+}

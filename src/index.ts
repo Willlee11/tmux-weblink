@@ -25,7 +25,7 @@ try {
 	}
 } catch {}
 import { listSessions } from "./sessions.js";
-import { renderLanding, renderTerminal, renderLoginPage, renderNotesIndex, renderNotesPage, renderSettings, renderThemeSettings, renderScheduleIndex, renderAgentsIndex, renderHistoryIndex, renderQuickCommandsPage, renderFilesIndex, renderShell } from "./frontend.js";
+import { renderLoginPage, renderNotesIndex, renderNotesPage, renderSettings, renderThemeSettings, renderScheduleIndex, renderHistoryIndex, renderQuickCommandsPage, renderFilesIndex, renderShell } from "./frontend.js";
 import { loadSecurityConfig, saveSecurityConfig, type TmuxWebSecurityConfig, type SecurityConfig } from "./lib/security-config.js";
 import { hashPassword, verifyPassword, validatePassword, TokenStore, type StoredToken } from "./lib/auth.js";
 import { RateLimiter, type RateLimitResult } from "./lib/rateLimiter.js";
@@ -73,15 +73,6 @@ import {
 	killSession,
 	TmuxWindowsError,
 } from "./lib/tmux-windows.js";
-import { getActivePaneInfo } from "./lib/tmux-panes.js";
-import { recordWatchedPane } from "./lib/watched-panes.js";
-import {
-	probeWatchedPanes,
-	startBackgroundWatch,
-	getCachedAgentStatuses,
-	requestProbe,
-} from "./lib/agents-watch.js";
-
 loadDotEnv();
 
 const terminalBufferConfig = readTerminalBufferConfig();
@@ -323,8 +314,6 @@ db.data.quickCommands ??= [];
 const settings = await readSettings();
 let activeTheme = await readActiveTheme();
 const commandbarEnabled = settings.commandbar === true;
-const agentsEnabled = settings.agents === true;
-const agentsBackgroundWatch = agentsEnabled && settings.agentsBackgroundWatch === true;
 const terminalRenderer = resolveTerminalRenderer(startupArgs, settings.terminalRenderer);
 const scheduleHistoryDays = clampHistoryDays(settings.scheduleHistoryDays);
 const extsDir   = path.join(process.cwd(), "extensions");
@@ -341,25 +330,6 @@ const scheduler = new SchedulerService({
 });
 
 await scheduler.restoreFromDb();
-
-// Record the session's current active pane into the watch list (most-recent
-// first, capped at 10). No-op unless the agents feature is enabled. Fire-and-
-// forget: navigation must never block or fail on this.
-function recordActivePane(session: string): void {
-	if (!agentsEnabled) return;
-	try {
-		const pane = getActivePaneInfo(session);
-		if (!pane) return;
-		void recordWatchedPane({
-			paneId: pane.paneId,
-			sessionName: session,
-			windowIndex: pane.windowIndex,
-			paneIndex: pane.paneIndex,
-		}).catch(() => {});
-	} catch {
-		// tmux unavailable / session gone — ignore.
-	}
-}
 
 const app = new Hono();
 
@@ -461,7 +431,6 @@ app.get("/", requireAuthOrRedirect(), (c) => {
 		theme: activeTheme,
 		commandbarEnabled,
 		commandbarSessions,
-		agentsEnabled,
 		fsRoots: roots,
 		terminalCfg: terminalBufferConfig,
 		renderer: terminalRenderer,
@@ -469,29 +438,10 @@ app.get("/", requireAuthOrRedirect(), (c) => {
 	}));
 });
 
-app.get("/s/:session", requireAuthOrRedirect(), async (c) => {
-	const session = decodeURIComponent(c.req.param("session"));
-	await recordSessionAccess(session);
-	// Focus event: snapshot this session's windows (+ worktree flags) to lowdb so
-	// the sidebar can list them without spawning tmux per session.
-	captureAndStoreWindows(session);
-	const sessions = listSessions();
-	const accessMap = getSessionAccessMap();
-	const commandbarSessions = commandbarEnabled ? buildCommandbarSessions(sessions, accessMap) : [];
-	return c.html(renderTerminal(session, extensions, {
-		commandbarEnabled,
-		commandbarSessions,
-		quickCommands: commandbarEnabled ? listQuickCommands() : [],
-		agentsEnabled,
-		terminal: terminalBufferConfig,
-		theme: activeTheme,
-		renderer: terminalRenderer,
-	}));
-});
 
 app.get("/notes", requireAuthOrRedirect(), (c) => {
 	const commandbarSessions = commandbarEnabled ? buildCommandbarSessions(listSessions(), getSessionAccessMap()) : [];
-	return c.html(renderNotesIndex(db.data.notes, activeTheme, commandbarEnabled, commandbarSessions, agentsEnabled));
+	return c.html(renderNotesIndex(db.data.notes, activeTheme, commandbarEnabled, commandbarSessions));
 });
 
 app.get("/notes/:session", requireAuthOrRedirect(), (c) => {
@@ -502,31 +452,26 @@ app.get("/notes/:session", requireAuthOrRedirect(), (c) => {
 
 app.get("/schedule", requireAuthOrRedirect(), (c) => {
 	const commandbarSessions = commandbarEnabled ? buildCommandbarSessions(listSessions(), getSessionAccessMap()) : [];
-	return c.html(renderScheduleIndex(scheduler.list(), scheduler.listTriggered(), activeTheme, scheduleHistoryDays, commandbarEnabled, commandbarSessions, agentsEnabled));
+	return c.html(renderScheduleIndex(scheduler.list(), scheduler.listTriggered(), activeTheme, scheduleHistoryDays, commandbarEnabled, commandbarSessions));
 });
 
-app.get("/agents", requireAuthOrRedirect(), (c) => {
-	if (!agentsEnabled) return c.redirect("/settings", 303);
-	const commandbarSessions = commandbarEnabled ? buildCommandbarSessions(listSessions(), getSessionAccessMap()) : [];
-	return c.html(renderAgentsIndex(activeTheme, commandbarEnabled, commandbarSessions));
-});
 
 app.get("/history", requireAuthOrRedirect(), (c) => {
 	const sessions = listSessions();
 	const commandbarSessions = commandbarEnabled ? buildCommandbarSessions(sessions, getSessionAccessMap()) : [];
 	const liveSessionNames = new Set(sessions.map((s) => s.name));
-	return c.html(renderHistoryIndex(listWindowHistory(), activeTheme, commandbarEnabled, commandbarSessions, agentsEnabled, liveSessionNames));
+	return c.html(renderHistoryIndex(listWindowHistory(), activeTheme, commandbarEnabled, commandbarSessions, liveSessionNames));
 });
 
 app.get("/quick-commands", requireAuthOrRedirect(), (c) => {
 	const commandbarSessions = commandbarEnabled ? buildCommandbarSessions(listSessions(), getSessionAccessMap()) : [];
-	return c.html(renderQuickCommandsPage(listQuickCommands(), activeTheme, commandbarEnabled, commandbarSessions, agentsEnabled));
+	return c.html(renderQuickCommandsPage(listQuickCommands(), activeTheme, commandbarEnabled, commandbarSessions));
 });
 
 app.get("/files", requireAuthOrRedirect(), (c) => {
 	const commandbarSessions = commandbarEnabled ? buildCommandbarSessions(listSessions(), getSessionAccessMap()) : [];
 	const roots = resolveFsRoots();
-	return c.html(renderFilesIndex(activeTheme, commandbarEnabled, commandbarSessions, agentsEnabled, roots));
+	return c.html(renderFilesIndex(activeTheme, commandbarEnabled, commandbarSessions, roots));
 });
 
 app.post("/api/history/clear", requireAuth(), async (c) => {
@@ -570,13 +515,6 @@ app.delete("/api/quick-commands/:id", requireAuth(), async (c) => {
 	return c.json({ ok: true });
 });
 
-app.get("/api/agents", requireAuth(), async (c) => {
-	if (!agentsEnabled) return c.json({ error: "agents page disabled" }, 403);
-	// When the background watcher runs, serve its cache (no re-probe). Otherwise
-	// probe on demand for this request.
-	const statuses = agentsBackgroundWatch ? getCachedAgentStatuses() : await probeWatchedPanes();
-	return c.json(statuses);
-});
 
 // ── Auth API (password endpoint is public; token management requires auth) ───
 
@@ -714,8 +652,6 @@ app.post("/settings", requireAuth(), async (c) => {
 	await writeSettings({
 		...current,
 		commandbar: body.commandbar !== undefined,
-		agents: body.agents !== undefined,
-		agentsBackgroundWatch: body.agentsBackgroundWatch !== undefined,
 		terminalRenderer: renderer,
 		defaultView,
 		scheduleHistoryDays: historyDays,
@@ -1143,7 +1079,6 @@ app.post("/api/session/:session/select-window", requireAuth(), async (c) => {
 
 	try {
 		selectSessionWindow(session, windowIndex);
-		recordActivePane(session);
 		return c.json({ ok: true });
 	} catch (err) {
 		if (err instanceof TmuxWindowsError) {
@@ -1192,7 +1127,6 @@ app.post("/api/session/:session/new-window", requireAuth(), (c) => {
 	const session = decodeURIComponent(c.req.param("session"));
 	try {
 		newSessionWindow(session);
-		recordActivePane(session);
 		captureAndStoreWindows(session);
 		return c.json({ ok: true });
 	} catch (err) {
@@ -1243,10 +1177,7 @@ const server = serve({ fetch: app.fetch, port, hostname: '0.0.0.0' }, (info) => 
 	console.log(`tmux-web running at http://${info.port}`);
 });
 
-// Optional always-on agent watcher: a single interval that probes only the
 // watched panes and caches the result for /api/agents. Off unless enabled.
-if (agentsBackgroundWatch) startBackgroundWatch();
-
 const wss = new WebSocketServer({ noServer: true });
 
 function rejectUpgrade(socket: import("net").Socket, code: number, message: string): void {
@@ -1329,7 +1260,6 @@ wss.on("connection", (ws: WebSocket, _req: import("http").IncomingMessage, sessi
 			paneTarget = sessionName;
 		}
 
-		recordActivePane(sessionName);
 
 		if (!isAlternateScreen(paneTarget)) {
 			try {
@@ -1377,8 +1307,6 @@ wss.on("connection", (ws: WebSocket, _req: import("http").IncomingMessage, sessi
 			lastActiveIndex = activeIndex;
 			lastWindowKey = windowKey;
 			if (structural) {
-				recordActivePane(sessionName);
-				requestProbe();
 			}
 		});
 

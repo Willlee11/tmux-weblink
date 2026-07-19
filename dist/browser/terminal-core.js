@@ -1,4 +1,640 @@
-const pt="https://esm.sh/ghostty-web@0.4.0",wt=/\x1b\](?:10|11|110|111|104)(?:;[^\x07\x1b]*)?\x1b?(?:\\|\x07)/g;function M(a){return a.replace(wt,"")}let E;function gt(){return E||(document.querySelector("link[data-tmux-web-xterm-css]")?E=Promise.resolve():(E=new Promise(e=>{const r=document.createElement("link");r.rel="stylesheet",r.href="/assets/xterm.css",r.setAttribute("data-tmux-web-xterm-css",""),r.addEventListener("load",()=>e(),{once:!0}),r.addEventListener("error",()=>e(),{once:!0}),document.head.appendChild(r)}),E))}class Y{terminal;fitAddon;container;constructor(e,r,i){this.container=e,this.terminal=r,this.fitAddon=i,this.terminal.loadAddon(this.fitAddon),this.terminal.open(e)}static async create(e,r,i){const[{Terminal:s},{FitAddon:m}]=await Promise.all([import("@xterm/xterm"),import("@xterm/addon-fit"),gt()]),g=new s({fontSize:14,fontFamily:"'JetBrains Mono', 'SF Mono', 'Menlo', monospace",cursorBlink:!0,cursorStyle:"bar",scrollback:r,convertEol:!1,theme:i});return new Y(e,g,new m)}get cols(){return this.terminal.cols}get rows(){return this.terminal.rows}write(e){return new Promise(r=>this.terminal.write(e,r))}reset(){this.terminal.reset()}scrollToBottom(){this.terminal.scrollToBottom()}scrollToLine(e){this.terminal.scrollToLine(Math.max(0,e))}isNearScrollbackTop(){return this.terminal.buffer.active.viewportY<=1}viewportY(){return this.terminal.buffer.active.viewportY}baseY(){return this.terminal.buffer.active.baseY}fit(){const e=N(this.container);return e.width<=0||e.height<=0?!1:(this.fitAddon.fit(),!0)}focus(){this.terminal.focus()}pasteText(e){this.terminal.paste(e)}input(e){this.terminal.input(e,!1)}onData(e){this.terminal.onData(e),this.terminal.onBinary(e)}onResize(e){this.terminal.onResize(e)}onScroll(e){this.terminal.onScroll(e)}attachCustomKeyEventHandler(e){this.terminal.attachCustomKeyEventHandler(e)}isFocused(){const e=document.activeElement;return!!e&&(e===this.container||this.container.contains(e))}}class R{terminal;container;colsValue=80;rowsValue=24;charW=0;charH=0;resizeCallbacks=[];constructor(e,r){this.container=e,this.terminal=r,this.terminal.open(e)}static async create(e,r,i){const s=await import(pt);await s.init();const m=new s.Terminal({fontSize:14,fontFamily:"'JetBrains Mono', 'SF Mono', 'Menlo', monospace",cursorBlink:!0,cursorStyle:"bar",scrollback:r,convertEol:!1,theme:i});return new R(e,m)}get cols(){return this.colsValue}get rows(){return this.rowsValue}write(e){return new Promise(r=>this.terminal.write(e,r))}reset(){this.terminal.reset()}scrollToBottom(){this.terminal.scrollToBottom?.()}scrollToLine(e){this.terminal.scrollToLine?.(Math.max(0,e))}isNearScrollbackTop(){const e=this.terminal.buffer?.active;return e?e.viewportY>=e.baseY:!1}viewportY(){return this.terminal.buffer?.active?.viewportY??0}baseY(){return this.terminal.buffer?.active?.baseY??0}fit(){const e=N(this.container);if(e.width<=0||e.height<=0)return!1;this.updateCellMetrics(!this.charW||!this.charH);const r=Math.floor(e.width/this.charW),i=Math.floor(e.height/this.charH);if(r<10||i<5)return!1;if(r!==this.colsValue||i!==this.rowsValue){this.colsValue=r,this.rowsValue=i,this.terminal.resize(r,i);for(const s of this.resizeCallbacks)s({cols:r,rows:i})}return!0}focus(){(this.terminal.textarea||this.container.querySelector("textarea")||this.container)?.focus?.()}pasteText(e){const r=this.terminal.getMode?.(2004)??!1;this.input(r?"\x1B[200~"+e+"\x1B[201~":e)}input(e){this.terminal.input?.(e,!1)}onData(e){this.terminal.onData(r=>e(r))}onResize(e){this.resizeCallbacks.push(e)}onScroll(e){this.terminal.onScroll(e)}attachCustomKeyEventHandler(e){this.terminal.attachCustomKeyEventHandler(e)}isFocused(){const e=document.activeElement;return!!e&&(e===this.container||e===this.terminal.textarea||this.container.contains(e))}updateCellMetrics(e=!1){const r=this.container.querySelector("canvas");if(r instanceof HTMLElement&&r.offsetWidth>0&&r.offsetHeight>0&&this.colsValue>0&&this.rowsValue>0){const i=r.offsetWidth/this.colsValue,s=r.offsetHeight/this.rowsValue;(e||!this.charW||!this.charH)&&(this.charW=i,this.charH=s)}(!this.charW||!this.charH)&&(this.charW=9,this.charH=18)}}function N(a){const e=a.getBoundingClientRect(),r=window.visualViewport;return r?{width:Math.min(e.width,r.width),height:Math.max(0,Math.min(e.height,r.height-Math.max(0,e.top)))}:e}function vt(a,e,r){return a.innerHTML="",a.classList.add("terminal-pending"),(async()=>{let i;if(r.renderer==="ghostty")try{i=await R.create(a,r.scrollback,r.theme)}catch{console.error("[tmux-web] ghostty-web failed; falling back to xterm.js"),i=await Y.create(a,r.scrollback,r.theme)}else i=await Y.create(a,r.scrollback,r.theme);let s,m=0,g,l=null,C=0,p="connecting",L=0,S=!1,k=[],w="",P=!1,y=1e3,F=!1,h="",f;const J=(location.protocol==="https:"?"wss:":"ws:")+"//"+location.host+"/ws/"+encodeURIComponent(e),G="/api/session/"+encodeURIComponent(e)+"/upload",Q=/^((?!chrome|android|crios|fxios|edgios).)*safari/i.test(navigator.userAgent);function Z(){return k.join("")+w}async function $(t,n=0){const o=t?i.viewportY():0,u=t?i.baseY():0,d=M(Z());if(i.reset(),!d){t||i.scrollToBottom();return}await i.write(d),t?i.scrollToLine(u+o+n):i.scrollToBottom()}function v(t){s?.readyState===WebSocket.OPEN&&s.send(JSON.stringify(t))}function tt(t){let n;try{n=JSON.parse(t)}catch{p==="live"&&(w+=t,i.write(M(t)));return}if(n.type==="auth.required"){const o=localStorage.getItem("tmux-web-token");o?v({type:"auth.token",token:o}):location.href="/login?returnTo="+encodeURIComponent(location.pathname+location.search);return}if(n.type==="auth.ok"){n.token&&localStorage.setItem("tmux-web-token",n.token),y=1e3,b(),v({type:"resize",cols:i.cols,rows:i.rows}),c();return}if(n.type==="auth.failed"){if(n.permanentLock||n.retryAfterMs&&n.retryAfterMs>6e4){localStorage.removeItem("tmux-web-token"),location.href="/login?error="+encodeURIComponent(n.message);return}return}if(n.type==="snapshot"&&typeof n.data=="string"){const o=M(n.data);k=[o],w="",L=typeof n.lines=="number"?n.lines:r.terminal.initialLines,p="live",i.reset(),i.write(o).then(()=>i.scrollToBottom());return}if(n.type==="window_changed"&&typeof n.activeIndex=="number"){const o=new URL(location.href);o.searchParams.get("window")!==String(n.activeIndex)&&(o.searchParams.set("window",String(n.activeIndex)),history.replaceState(history.state,"",o)),window.dispatchEvent(new CustomEvent("tmux:windows",{detail:n.windows}));return}if(n.type==="history"&&typeof n.data=="string"){S=!1,n.lines>0&&n.data&&(k.unshift(n.data),L+=n.lines,$(!0,n.lines));return}if(n.type==="data"&&typeof n.data=="string"){const o=M(n.data);if(p==="connecting"){p="live",w=o,i.write(o);return}p==="live"&&(w+=o,i.write(o))}}function W(){let t=J;const n=localStorage.getItem("tmux-web-token");n&&(t+=(t.includes("?")?"&":"?")+"token="+encodeURIComponent(n)),s=new WebSocket(t),s.onopen=()=>{p="connecting",L=0,S=!1,k=[],w="",i.reset(),y=1e3},s.onmessage=o=>{typeof o.data=="string"&&tt(o.data)},s.onclose=()=>{P||(p="connecting",setTimeout(()=>{y=Math.min(y*2,1e4),P||W()},y))},s.onerror=()=>s?.close()}function T(t){v({type:"input",data:t})}function I(){h&&(T(h),h="")}function b(){return i.fit()}function z(){a.classList.remove("terminal-pending")}function c(){m&&cancelAnimationFrame(m),g&&clearTimeout(g),b(),m=requestAnimationFrame(()=>{m=0,b()&&z()}),g=setTimeout(()=>{b()&&z()},120)}function et(){c(),setTimeout(c,50),setTimeout(c,150),setTimeout(c,300)}function A(t){return typeof t=="string"&&t.startsWith("image/")}function V(t){return t?.files?.length?t.files[0]??null:null}function nt(t){if(!t?.items)return null;for(let n=0;n<t.items.length;n++){const o=t.items[n];if(o?.kind==="file"&&A(o.type))return o.getAsFile()}return null}async function rt(t){const n=new FormData,o=t instanceof File&&t.name?t.name:"upload";n.append("file",t,o);const u=localStorage.getItem("tmux-web-token"),d={};u&&(d.Authorization="Bearer "+u);const B=await fetch(G,{method:"POST",body:n,headers:d});if(!B.ok){let j="upload failed";try{const q=await B.json();q.error&&(j=q.error)}catch{}throw new Error(j)}const _=await B.json();if(!_.path)throw new Error("no path in response");return _.path}async function H(t){try{const n=await rt(t);T(n)}catch{}}a.addEventListener("compositionstart",()=>{F=!0},!0),a.addEventListener("compositionend",t=>{F=!1,clearTimeout(f),f=void 0,h="",t.data&&T(t.data)},!0),i.onData(t=>{if(!F){if(h&&t.startsWith(h)&&t.length>h.length){h=t,clearTimeout(f),f=setTimeout(()=>{I(),f=void 0},40);return}h&&(clearTimeout(f),f=void 0,I()),clearTimeout(f),h=t,f=setTimeout(()=>{I(),f=void 0},15)}}),i.onResize(({cols:t,rows:n})=>v({type:"resize",cols:t,rows:n})),i.onScroll(()=>{p!=="live"||S||!i.isNearScrollbackTop()||(S=!0,v({type:"load_history",before:L}))}),i.attachCustomKeyEventHandler(t=>t.type!=="keydown"?!0:(t.ctrlKey||t.metaKey)&&t.code==="KeyV"?(t.preventDefault(),(async()=>{try{if(navigator.clipboard?.read){const n=await navigator.clipboard.read();for(const o of n)for(const u of o.types)if(A(u)){const d=await o.getType(u);await H(d);return}}}catch{}try{const n=await navigator.clipboard?.readText();n&&i.pasteText(O(n))}catch{}})(),!1):!0);let D=0;function O(t){return t.split(`\r
-`).join(`
-`).split(`
-`).join("\r")}async function it(t){const n=nt(t.clipboardData);if(n){t.preventDefault(),t.stopPropagation();const d=Date.now();if(d-D<50)return;D=d,await H(n);return}const o=t.clipboardData?.getData("text/plain");if(!o)return;t.preventDefault(),t.stopPropagation();const u=Date.now();u-D<50||(D=u,i.pasteText(O(o)))}let x=0;function ot(t){t.preventDefault(),x++,V(t.dataTransfer)&&a.classList.add("terminal-drag-over")}function at(t){t.preventDefault(),t.dataTransfer&&(t.dataTransfer.dropEffect="copy")}function st(t){t.preventDefault(),x--,x<=0&&(x=0,a.classList.remove("terminal-drag-over"))}async function lt(t){t.preventDefault(),x=0,a.classList.remove("terminal-drag-over");const n=V(t.dataTransfer);n&&await H(n)}function K(t){!Q||t.key!=="Escape"||t.defaultPrevented||t.repeat||t.metaKey||t.ctrlKey||t.altKey||i.isFocused()&&(t.preventDefault(),t.stopPropagation(),T("\x1B"))}a.addEventListener("paste",it),a.addEventListener("dragenter",ot),a.addEventListener("dragover",at),a.addEventListener("dragleave",st),a.addEventListener("drop",lt),document.addEventListener("keydown",K,!0);function ct(t){if(t.touches.length!==1){l=null;return}const n=t.touches[0];n&&(l={startX:n.clientX,startY:n.clientY,lastX:n.clientX,lastY:n.clientY,scrolling:!1},t.stopPropagation())}function ut(t){if(!l||t.touches.length!==1)return;const n=t.touches[0];if(!n)return;const o=n.clientY-l.startY,u=n.clientX-l.startX;if(!l.scrolling){if(Math.abs(o)<8||Math.abs(o)<Math.abs(u))return;l.scrolling=!0,C=Date.now()+500}t.preventDefault(),t.stopPropagation(),mt(-(n.clientY-l.lastY),n.clientX,n.clientY),l.lastX=n.clientX,l.lastY=n.clientY}function ft(t){if(!l)return;const n=l.scrolling;l=null,t.stopPropagation(),n?(C=Date.now()+500,t.preventDefault()):i.focus()}function ht(t){l=null,t.stopPropagation()}function dt(t){t.pointerType==="touch"&&Date.now()<C&&(t.preventDefault(),t.stopPropagation())}function mt(t,n,o){(a.querySelector(".xterm-screen")??a).dispatchEvent(new WheelEvent("wheel",{deltaY:t,deltaMode:WheelEvent.DOM_DELTA_PIXEL,clientX:n,clientY:o,bubbles:!0,cancelable:!0}))}a.addEventListener("touchstart",ct,{passive:!0,capture:!0}),a.addEventListener("touchmove",ut,{passive:!1,capture:!0}),a.addEventListener("touchend",ft,{passive:!1,capture:!0}),a.addEventListener("touchcancel",ht,{passive:!0,capture:!0}),a.addEventListener("pointerup",dt,!0);function U(){c()}window.addEventListener("resize",U),window.visualViewport?.addEventListener("resize",c),window.visualViewport?.addEventListener("scroll",c);const X=new ResizeObserver(()=>c());return X.observe(a),document.fonts?.ready.then(()=>{c(),setTimeout(c,50),setTimeout(c,200)}),a.addEventListener("focusin",et,!0),requestAnimationFrame(()=>{b()&&z(),W(),c()}),{destroy(){if(P=!0,clearTimeout(f),f=void 0,s){try{s.close(1e3,"session switch")}catch{}s=void 0}a.innerHTML="",a.classList.remove("terminal-pending"),window.removeEventListener("resize",U),X.disconnect(),document.removeEventListener("keydown",K,!0)},focus(){i.focus()},sendInput(t){T(t)}}})()}export{vt as initTerminal};
+const GHOSTTY_WEB_URL = 'https://esm.sh/ghostty-web@0.4.0';
+const OSC_COLOR_RE = /\x1b\](?:10|11|110|111|104)(?:;[^\x07\x1b]*)?\x1b?(?:\\|\x07)/g;
+function stripOscColorSequences(data) {
+    return data.replace(OSC_COLOR_RE, '');
+}
+let xtermCssPromise;
+function ensureXtermCss() {
+    if (xtermCssPromise)
+        return xtermCssPromise;
+    const existing = document.querySelector('link[data-tmux-web-xterm-css]');
+    if (existing)
+        return (xtermCssPromise = Promise.resolve());
+    xtermCssPromise = new Promise((resolve) => {
+        const link = document.createElement('link');
+        link.rel = 'stylesheet';
+        link.href = '/assets/xterm.css';
+        link.setAttribute('data-tmux-web-xterm-css', '');
+        link.addEventListener('load', () => resolve(), { once: true });
+        link.addEventListener('error', () => resolve(), { once: true });
+        document.head.appendChild(link);
+    });
+    return xtermCssPromise;
+}
+class XtermAdapter {
+    terminal;
+    fitAddon;
+    container;
+    constructor(container, terminal, fitAddon) {
+        this.container = container;
+        this.terminal = terminal;
+        this.fitAddon = fitAddon;
+        this.terminal.loadAddon(this.fitAddon);
+        this.terminal.open(container);
+    }
+    static async create(container, scrollback, theme) {
+        const [{ Terminal }, { FitAddon }] = await Promise.all([
+            import('@xterm/xterm'),
+            import('@xterm/addon-fit'),
+            ensureXtermCss(),
+        ]);
+        const terminal = new Terminal({
+            fontSize: 14,
+            fontFamily: "'JetBrains Mono', 'SF Mono', 'Menlo', monospace",
+            cursorBlink: true,
+            cursorStyle: 'bar',
+            scrollback,
+            convertEol: false,
+            theme,
+        });
+        return new XtermAdapter(container, terminal, new FitAddon());
+    }
+    get cols() { return this.terminal.cols; }
+    get rows() { return this.terminal.rows; }
+    write(data) { return new Promise((resolve) => this.terminal.write(data, resolve)); }
+    reset() { this.terminal.reset(); }
+    scrollToBottom() { this.terminal.scrollToBottom(); }
+    scrollToLine(line) { this.terminal.scrollToLine(Math.max(0, line)); }
+    isNearScrollbackTop() { return this.terminal.buffer.active.viewportY <= 1; }
+    viewportY() { return this.terminal.buffer.active.viewportY; }
+    baseY() { return this.terminal.buffer.active.baseY; }
+    fit() {
+        const rect = getTerminalViewportRect(this.container);
+        if (rect.width <= 0 || rect.height <= 0)
+            return false;
+        this.fitAddon.fit();
+        return true;
+    }
+    focus() { this.terminal.focus(); }
+    pasteText(text) { this.terminal.paste(text); }
+    input(data) { this.terminal.input(data, false); }
+    onData(callback) { this.terminal.onData(callback); this.terminal.onBinary(callback); }
+    onResize(callback) { this.terminal.onResize(callback); }
+    onScroll(callback) { this.terminal.onScroll(callback); }
+    attachCustomKeyEventHandler(callback) { this.terminal.attachCustomKeyEventHandler(callback); }
+    isFocused() {
+        const active = document.activeElement;
+        return !!active && (active === this.container || this.container.contains(active));
+    }
+}
+class GhosttyAdapter {
+    terminal;
+    container;
+    colsValue = 80;
+    rowsValue = 24;
+    charW = 0;
+    charH = 0;
+    resizeCallbacks = [];
+    constructor(container, terminal) {
+        this.container = container;
+        this.terminal = terminal;
+        this.terminal.open(container);
+    }
+    static async create(container, scrollback, theme) {
+        const mod = await import(GHOSTTY_WEB_URL);
+        await mod.init();
+        const terminal = new mod.Terminal({
+            fontSize: 14, fontFamily: "'JetBrains Mono', 'SF Mono', 'Menlo', monospace",
+            cursorBlink: true, cursorStyle: 'bar', scrollback, convertEol: false, theme,
+        });
+        return new GhosttyAdapter(container, terminal);
+    }
+    get cols() { return this.colsValue; }
+    get rows() { return this.rowsValue; }
+    write(data) { return new Promise((resolve) => this.terminal.write(data, resolve)); }
+    reset() { this.terminal.reset(); }
+    scrollToBottom() { this.terminal.scrollToBottom?.(); }
+    scrollToLine(line) { this.terminal.scrollToLine?.(Math.max(0, line)); }
+    isNearScrollbackTop() {
+        const buf = this.terminal.buffer?.active;
+        return buf ? buf.viewportY >= buf.baseY : false;
+    }
+    viewportY() { return this.terminal.buffer?.active?.viewportY ?? 0; }
+    baseY() { return this.terminal.buffer?.active?.baseY ?? 0; }
+    fit() {
+        const rect = getTerminalViewportRect(this.container);
+        if (rect.width <= 0 || rect.height <= 0)
+            return false;
+        this.updateCellMetrics(!this.charW || !this.charH);
+        const cols = Math.floor(rect.width / this.charW);
+        const rows = Math.floor(rect.height / this.charH);
+        if (cols < 10 || rows < 5)
+            return false;
+        if (cols !== this.colsValue || rows !== this.rowsValue) {
+            this.colsValue = cols;
+            this.rowsValue = rows;
+            this.terminal.resize(cols, rows);
+            for (const cb of this.resizeCallbacks)
+                cb({ cols, rows });
+        }
+        return true;
+    }
+    focus() {
+        const el = this.terminal.textarea || this.container.querySelector('textarea') || this.container;
+        el?.focus?.();
+    }
+    pasteText(text) {
+        const bracketed = this.terminal.getMode?.(2004) ?? false;
+        this.input(bracketed ? '\x1b[200~' + text + '\x1b[201~' : text);
+    }
+    input(data) { this.terminal.input?.(data, false); }
+    onData(callback) { this.terminal.onData((data) => callback(data)); }
+    onResize(callback) { this.resizeCallbacks.push(callback); }
+    onScroll(callback) { this.terminal.onScroll(callback); }
+    attachCustomKeyEventHandler(callback) { this.terminal.attachCustomKeyEventHandler(callback); }
+    isFocused() {
+        const active = document.activeElement;
+        return !!active && (active === this.container || active === this.terminal.textarea || this.container.contains(active));
+    }
+    updateCellMetrics(force = false) {
+        const canvas = this.container.querySelector('canvas');
+        if (canvas instanceof HTMLElement && canvas.offsetWidth > 0 && canvas.offsetHeight > 0 && this.colsValue > 0 && this.rowsValue > 0) {
+            const nextW = canvas.offsetWidth / this.colsValue;
+            const nextH = canvas.offsetHeight / this.rowsValue;
+            if (force || !this.charW || !this.charH) {
+                this.charW = nextW;
+                this.charH = nextH;
+            }
+        }
+        if (!this.charW || !this.charH) {
+            this.charW = 9;
+            this.charH = 18;
+        }
+    }
+}
+function getTerminalViewportRect(el) {
+    const rect = el.getBoundingClientRect();
+    const vv = window.visualViewport;
+    if (!vv)
+        return rect;
+    return {
+        width: Math.min(rect.width, vv.width),
+        height: Math.max(0, Math.min(rect.height, vv.height - Math.max(0, rect.top))),
+    };
+}
+export function initTerminal(container, sessionName, cfg) {
+    container.innerHTML = '';
+    container.classList.add('terminal-pending');
+    return (async () => {
+        let term;
+        if (cfg.renderer === 'ghostty') {
+            try {
+                term = await GhosttyAdapter.create(container, cfg.scrollback, cfg.theme);
+            }
+            catch {
+                console.error('[tmux-web] ghostty-web failed; falling back to xterm.js');
+                term = await XtermAdapter.create(container, cfg.scrollback, cfg.theme);
+            }
+        }
+        else {
+            term = await XtermAdapter.create(container, cfg.scrollback, cfg.theme);
+        }
+        let ws;
+        let fitRaf = 0;
+        let fitTimer;
+        let touchGesture = null;
+        let suppressTouchClickUntil = 0;
+        let phase = 'connecting';
+        let serverHistoryLoaded = 0;
+        let historyLoading = false;
+        let historyParts = [];
+        let liveSuffix = '';
+        let destroyed = false;
+        let reconnectDelay = 1000;
+        const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const wsUrl = proto + '//' + location.host + '/ws/' + encodeURIComponent(sessionName);
+        const uploadUrl = '/api/session/' + encodeURIComponent(sessionName) + '/upload';
+        const isSafari = /^((?!chrome|android|crios|fxios|edgios).)*safari/i.test(navigator.userAgent);
+        function fullLoadedText() {
+            return historyParts.join('') + liveSuffix;
+        }
+        async function rewriteTerminal(preserveScroll, addedLines = 0) {
+            const viewportY = preserveScroll ? term.viewportY() : 0;
+            const baseY = preserveScroll ? term.baseY() : 0;
+            const text = stripOscColorSequences(fullLoadedText());
+            term.reset();
+            if (!text) {
+                if (!preserveScroll)
+                    term.scrollToBottom();
+                return;
+            }
+            await term.write(text);
+            if (preserveScroll)
+                term.scrollToLine(baseY + viewportY + addedLines);
+            else
+                term.scrollToBottom();
+        }
+        function sendJSON(obj) {
+            if (ws?.readyState === WebSocket.OPEN)
+                ws.send(JSON.stringify(obj));
+        }
+        function handleServerMessage(raw) {
+            let msg;
+            try {
+                msg = JSON.parse(raw);
+            }
+            catch {
+                if (phase === 'live') {
+                    liveSuffix += raw;
+                    void term.write(stripOscColorSequences(raw));
+                }
+                return;
+            }
+            if (msg.type === 'auth.required') {
+                const token = localStorage.getItem('tmux-web-token');
+                if (token)
+                    sendJSON({ type: 'auth.token', token });
+                else
+                    location.href = '/login?returnTo=' + encodeURIComponent(location.pathname + location.search);
+                return;
+            }
+            if (msg.type === 'auth.ok') {
+                if (msg.token)
+                    localStorage.setItem('tmux-web-token', msg.token);
+                reconnectDelay = 1000;
+                fitTerminal();
+                sendJSON({ type: 'resize', cols: term.cols, rows: term.rows });
+                scheduleFit();
+                return;
+            }
+            if (msg.type === 'auth.failed') {
+                if (msg.permanentLock || (msg.retryAfterMs && msg.retryAfterMs > 60_000)) {
+                    localStorage.removeItem('tmux-web-token');
+                    location.href = '/login?error=' + encodeURIComponent(msg.message);
+                    return;
+                }
+                return;
+            }
+            if (msg.type === 'snapshot' && typeof msg.data === 'string') {
+                const data = stripOscColorSequences(msg.data);
+                historyParts = [data];
+                liveSuffix = '';
+                serverHistoryLoaded = typeof msg.lines === 'number' ? msg.lines : cfg.terminal.initialLines;
+                phase = 'live';
+                term.reset();
+                void term.write(data).then(() => term.scrollToBottom());
+                return;
+            }
+            if (msg.type === 'window_changed' && typeof msg.activeIndex === 'number') {
+                const url = new URL(location.href);
+                if (url.searchParams.get('window') !== String(msg.activeIndex)) {
+                    url.searchParams.set('window', String(msg.activeIndex));
+                    history.replaceState(history.state, '', url);
+                }
+                window.dispatchEvent(new CustomEvent('tmux:windows', { detail: msg.windows }));
+                return;
+            }
+            if (msg.type === 'history' && typeof msg.data === 'string') {
+                historyLoading = false;
+                if (msg.lines > 0 && msg.data) {
+                    historyParts.unshift(msg.data);
+                    serverHistoryLoaded += msg.lines;
+                    void rewriteTerminal(true, msg.lines);
+                }
+                return;
+            }
+            if (msg.type === 'data' && typeof msg.data === 'string') {
+                const data = stripOscColorSequences(msg.data);
+                if (phase === 'connecting') {
+                    phase = 'live';
+                    liveSuffix = data;
+                    void term.write(data);
+                    return;
+                }
+                if (phase === 'live') {
+                    liveSuffix += data;
+                    void term.write(data);
+                }
+            }
+        }
+        function connect() {
+            let url = wsUrl;
+            const token = localStorage.getItem('tmux-web-token');
+            if (token)
+                url += (url.includes('?') ? '&' : '?') + 'token=' + encodeURIComponent(token);
+            ws = new WebSocket(url);
+            ws.onopen = () => {
+                phase = 'connecting';
+                serverHistoryLoaded = 0;
+                historyLoading = false;
+                historyParts = [];
+                liveSuffix = '';
+                term.reset();
+                reconnectDelay = 1000;
+            };
+            ws.onmessage = (event) => {
+                if (typeof event.data === 'string')
+                    handleServerMessage(event.data);
+            };
+            ws.onclose = () => {
+                if (destroyed)
+                    return;
+                phase = 'connecting';
+                setTimeout(() => {
+                    reconnectDelay = Math.min(reconnectDelay * 2, 10000);
+                    if (!destroyed)
+                        connect();
+                }, reconnectDelay);
+            };
+            ws.onerror = () => ws?.close();
+        }
+        function sendTerminalInput(data) {
+            sendJSON({ type: 'input', data });
+        }
+        function fitTerminal() { return term.fit(); }
+        function revealTerminal() { container.classList.remove('terminal-pending'); }
+        function scheduleFit() {
+            if (fitRaf)
+                cancelAnimationFrame(fitRaf);
+            if (fitTimer)
+                clearTimeout(fitTimer);
+            fitTerminal();
+            fitRaf = requestAnimationFrame(() => {
+                fitRaf = 0;
+                if (fitTerminal())
+                    revealTerminal();
+            });
+            fitTimer = setTimeout(() => {
+                if (fitTerminal())
+                    revealTerminal();
+            }, 120);
+        }
+        function scheduleKeyboardFit() {
+            scheduleFit();
+            setTimeout(scheduleFit, 50);
+            setTimeout(scheduleFit, 150);
+            setTimeout(scheduleFit, 300);
+        }
+        function isImageMime(type) {
+            return typeof type === 'string' && type.startsWith('image/');
+        }
+        function getFirstFileFromDataTransfer(dt) {
+            if (!dt?.files?.length)
+                return null;
+            return dt.files[0] ?? null;
+        }
+        function getImageFileFromClipboardData(cd) {
+            if (!cd?.items)
+                return null;
+            for (let i = 0; i < cd.items.length; i++) {
+                const item = cd.items[i];
+                if (item?.kind === 'file' && isImageMime(item.type))
+                    return item.getAsFile();
+            }
+            return null;
+        }
+        async function uploadImageBlob(blob) {
+            const fd = new FormData();
+            const filename = blob instanceof File && blob.name ? blob.name : 'upload';
+            fd.append('file', blob, filename);
+            const token = localStorage.getItem('tmux-web-token');
+            const headers = {};
+            if (token)
+                headers['Authorization'] = 'Bearer ' + token;
+            const res = await fetch(uploadUrl, { method: 'POST', body: fd, headers });
+            if (!res.ok) {
+                let err = 'upload failed';
+                try {
+                    const j = await res.json();
+                    if (j.error)
+                        err = j.error;
+                }
+                catch { }
+                throw new Error(err);
+            }
+            const j = await res.json();
+            if (!j.path)
+                throw new Error('no path in response');
+            return j.path;
+        }
+        async function ingestImageBlob(blob) {
+            try {
+                const filePath = await uploadImageBlob(blob);
+                sendTerminalInput(filePath);
+            }
+            catch { }
+        }
+        // Event handlers
+        term.onData((data) => sendTerminalInput(data));
+        term.onResize(({ cols, rows }) => sendJSON({ type: 'resize', cols, rows }));
+        term.onScroll(() => {
+            if (phase !== 'live' || historyLoading || !term.isNearScrollbackTop())
+                return;
+            historyLoading = true;
+            sendJSON({ type: 'load_history', before: serverHistoryLoaded });
+        });
+        term.attachCustomKeyEventHandler((event) => {
+            if (event.type !== 'keydown')
+                return true;
+            if ((event.ctrlKey || event.metaKey) && event.code === 'KeyV') {
+                event.preventDefault();
+                void (async () => {
+                    try {
+                        if (navigator.clipboard?.read) {
+                            const items = await navigator.clipboard.read();
+                            for (const item of items) {
+                                for (const type of item.types) {
+                                    if (isImageMime(type)) {
+                                        const blob = await item.getType(type);
+                                        await ingestImageBlob(blob);
+                                        return;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    catch { }
+                    try {
+                        const text = await navigator.clipboard?.readText();
+                        if (text)
+                            term.pasteText(normalizePasteText(text));
+                    }
+                    catch { }
+                })();
+                return false;
+            }
+            return true;
+        });
+        let lastPasteAt = 0;
+        function normalizePasteText(text) {
+            return text.split('\r\n').join('\n').split('\n').join('\r');
+        }
+        async function handlePasteEvent(event) {
+            const imageFile = getImageFileFromClipboardData(event.clipboardData);
+            if (imageFile) {
+                event.preventDefault();
+                event.stopPropagation();
+                const now = Date.now();
+                if (now - lastPasteAt < 50)
+                    return;
+                lastPasteAt = now;
+                await ingestImageBlob(imageFile);
+                return;
+            }
+            const text = event.clipboardData?.getData('text/plain');
+            if (!text)
+                return;
+            event.preventDefault();
+            event.stopPropagation();
+            const now = Date.now();
+            if (now - lastPasteAt < 50)
+                return;
+            lastPasteAt = now;
+            term.pasteText(normalizePasteText(text));
+        }
+        let terminalDragDepth = 0;
+        function handleDragEnter(event) {
+            event.preventDefault();
+            terminalDragDepth++;
+            if (getFirstFileFromDataTransfer(event.dataTransfer))
+                container.classList.add('terminal-drag-over');
+        }
+        function handleDragOver(event) {
+            event.preventDefault();
+            if (event.dataTransfer)
+                event.dataTransfer.dropEffect = 'copy';
+        }
+        function handleDragLeave(event) {
+            event.preventDefault();
+            terminalDragDepth--;
+            if (terminalDragDepth <= 0) {
+                terminalDragDepth = 0;
+                container.classList.remove('terminal-drag-over');
+            }
+        }
+        async function handleDrop(event) {
+            event.preventDefault();
+            terminalDragDepth = 0;
+            container.classList.remove('terminal-drag-over');
+            const file = getFirstFileFromDataTransfer(event.dataTransfer);
+            if (file)
+                await ingestImageBlob(file);
+        }
+        function handleSafariEscape(event) {
+            if (!isSafari || event.key !== 'Escape')
+                return;
+            if (event.defaultPrevented || event.repeat || event.metaKey || event.ctrlKey || event.altKey)
+                return;
+            if (!term.isFocused())
+                return;
+            event.preventDefault();
+            event.stopPropagation();
+            sendTerminalInput('\x1b');
+        }
+        container.addEventListener('paste', handlePasteEvent);
+        container.addEventListener('dragenter', handleDragEnter);
+        container.addEventListener('dragover', handleDragOver);
+        container.addEventListener('dragleave', handleDragLeave);
+        container.addEventListener('drop', handleDrop);
+        document.addEventListener('keydown', handleSafariEscape, true);
+        // Touch scrolling
+        function handleTouchStart(event) {
+            if (event.touches.length !== 1) {
+                touchGesture = null;
+                return;
+            }
+            const touch = event.touches[0];
+            if (!touch)
+                return;
+            touchGesture = { startX: touch.clientX, startY: touch.clientY, lastX: touch.clientX, lastY: touch.clientY, scrolling: false };
+            event.stopPropagation();
+        }
+        function handleTouchMove(event) {
+            if (!touchGesture || event.touches.length !== 1)
+                return;
+            const touch = event.touches[0];
+            if (!touch)
+                return;
+            const totalDy = touch.clientY - touchGesture.startY;
+            const totalDx = touch.clientX - touchGesture.startX;
+            if (!touchGesture.scrolling) {
+                if (Math.abs(totalDy) < 8 || Math.abs(totalDy) < Math.abs(totalDx))
+                    return;
+                touchGesture.scrolling = true;
+                suppressTouchClickUntil = Date.now() + 500;
+            }
+            event.preventDefault();
+            event.stopPropagation();
+            dispatchTerminalWheel(-(touch.clientY - touchGesture.lastY), touch.clientX, touch.clientY);
+            touchGesture.lastX = touch.clientX;
+            touchGesture.lastY = touch.clientY;
+        }
+        function handleTouchEnd(event) {
+            if (!touchGesture)
+                return;
+            const wasScrolling = touchGesture.scrolling;
+            touchGesture = null;
+            event.stopPropagation();
+            if (!wasScrolling)
+                term.focus();
+            else {
+                suppressTouchClickUntil = Date.now() + 500;
+                event.preventDefault();
+            }
+        }
+        function handleTouchCancel(event) {
+            touchGesture = null;
+            event.stopPropagation();
+        }
+        function handlePointerUp(event) {
+            if (event.pointerType === 'touch' && Date.now() < suppressTouchClickUntil) {
+                event.preventDefault();
+                event.stopPropagation();
+            }
+        }
+        function dispatchTerminalWheel(deltaY, clientX, clientY) {
+            const target = container.querySelector('.xterm-screen') ?? container;
+            target.dispatchEvent(new WheelEvent('wheel', {
+                deltaY, deltaMode: WheelEvent.DOM_DELTA_PIXEL, clientX, clientY,
+                bubbles: true, cancelable: true,
+            }));
+        }
+        container.addEventListener('touchstart', handleTouchStart, { passive: true, capture: true });
+        container.addEventListener('touchmove', handleTouchMove, { passive: false, capture: true });
+        container.addEventListener('touchend', handleTouchEnd, { passive: false, capture: true });
+        container.addEventListener('touchcancel', handleTouchCancel, { passive: true, capture: true });
+        container.addEventListener('pointerup', handlePointerUp, true);
+        function handleResize() { scheduleFit(); }
+        window.addEventListener('resize', handleResize);
+        window.visualViewport?.addEventListener('resize', scheduleFit);
+        window.visualViewport?.addEventListener('scroll', scheduleFit);
+        const resizeObserver = new ResizeObserver(() => scheduleFit());
+        resizeObserver.observe(container);
+        document.fonts?.ready.then(() => {
+            scheduleFit();
+            setTimeout(scheduleFit, 50);
+            setTimeout(scheduleFit, 200);
+        });
+        container.addEventListener('focusin', scheduleKeyboardFit, true);
+        // Start
+        requestAnimationFrame(() => {
+            if (fitTerminal())
+                revealTerminal();
+            connect();
+            scheduleFit();
+        });
+        return {
+            destroy() {
+                destroyed = true;
+                if (ws) {
+                    try {
+                        ws.close(1000, 'session switch');
+                    }
+                    catch { }
+                    ws = undefined;
+                }
+                container.innerHTML = '';
+                container.classList.remove('terminal-pending');
+                window.removeEventListener('resize', handleResize);
+                resizeObserver.disconnect();
+                document.removeEventListener('keydown', handleSafariEscape, true);
+            },
+            focus() {
+                term.focus();
+            },
+            sendInput(data) {
+                sendTerminalInput(data);
+            },
+        };
+    })();
+}

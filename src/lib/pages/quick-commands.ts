@@ -41,7 +41,7 @@ export function renderQuickCommandsPage(
 	theme: TmuxWebTheme,
 	commandbarEnabled = false,
 	commandbarSessions: CommandbarSession[] = [],
-	agentsEnabled = false,
+	
 ): string {
 	const commandsJson = JSON.stringify(commands).replace(/</g, '\\u003c');
 	const body = commands.length
@@ -208,7 +208,7 @@ ${sharedHeader({ commandbarEnabled, title: 'Quick Commands', themeTemplate: them
 
 <div class="page-wrap">
   <div class="page-layout">
-    ${sharedSidebar({ activePage: 'quickCommands', agentsEnabled, refreshHref: '/quick-commands' })}
+    ${sharedSidebar({ activePage: 'quickCommands', refreshHref: '/quick-commands' })}
     <main class="main-panel">
       <p class="intro">Configure reusable snippets that can be pasted into the active tmux pane from the terminal commandbar.</p>
       <p class="quick-error" id="quick-error"></p>

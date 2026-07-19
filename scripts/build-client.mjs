@@ -12,7 +12,6 @@ await mkdir(assetsDir, { recursive: true });
 
 const result = await esbuild.build({
 	entryPoints: [
-		join(root, 'src', 'browser', 'terminal-client.ts'),
 		join(root, 'src', 'browser', 'shell-client.ts'),
 	],
 	outdir: assetsDir,

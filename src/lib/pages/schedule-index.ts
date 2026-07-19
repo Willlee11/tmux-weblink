@@ -72,7 +72,6 @@ export function renderScheduleIndex(
 	retentionDays = 7,
 	commandbarEnabled = false,
 	commandbarSessions: CommandbarSession[] = [],
-	agentsEnabled = false,
 ): string {
 	const sorted = [...tasks].sort((a, b) => a.fireAt - b.fireAt);
 
@@ -258,7 +257,7 @@ ${sharedHeader({ commandbarEnabled, title: 'Scheduled', themeTemplate: theme.tem
 
 <div class="page-wrap">
   <div class="page-layout">
-    ${sharedSidebar({ activePage: 'schedule', agentsEnabled, refreshHref: '/schedule' })}
+    ${sharedSidebar({ activePage: 'schedule', refreshHref: '/schedule' })}
     <main class="main-panel">
       <div class="page-tab-bar">
         <button class="page-tab active" data-tab="upcoming">Upcoming</button>

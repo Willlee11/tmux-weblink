@@ -1,2 +1,65 @@
-import*as e from"node:fs";import*as c from"node:path";import{getConfigRoot as y,getDataRoot as f}from"./state-paths.js";import{atomicWriteFileSync as l}from"./atomicWrite.js";const t=c.join(y(),"tmux-web","security.json"),u=f(),s={tokenTtlDays:365,allowedOrigins:[],maxConnectionsPerIp:10,trustProxy:!1,maxTotalSessions:50,allowRemoteSetup:!1,authTimeoutMs:3e4},n={passwordHash:null,security:{...s},_version:1};function m(){const r=c.dirname(t);e.existsSync(r)||e.mkdirSync(r,{recursive:!0,mode:448}),e.existsSync(u)||e.mkdirSync(u,{recursive:!0,mode:448})}function g(){m();let r;try{r=e.readFileSync(t,"utf-8")}catch(o){if(o.code==="ENOENT")return d(n),{...n,security:{...s}};throw new Error(`Failed to read security config at ${t}: ${o.message}`)}let i;try{i=JSON.parse(r)}catch(o){const a=`${t}.corrupt-${Date.now()}`;try{e.renameSync(t,a)}catch{}throw new Error(`security.json was corrupt (saved aside as ${a}): ${o.message}`)}return{...n,...i,security:{...s,...i.security||{}}}}function d(r){m(),l(t,JSON.stringify(r,null,2)+`
-`,384)}export{s as DEFAULT_SECURITY,g as loadSecurityConfig,d as saveSecurityConfig};
+import * as fs from 'node:fs';
+import * as path from 'node:path';
+import { getConfigRoot, getDataRoot } from './state-paths.js';
+import { atomicWriteFileSync } from './atomicWrite.js';
+const SECURITY_FILE = path.join(getConfigRoot(), 'tmux-web', 'security.json');
+const DATA_DIR = getDataRoot();
+const DEFAULT_SECURITY = {
+    tokenTtlDays: 365,
+    allowedOrigins: [],
+    maxConnectionsPerIp: 10,
+    trustProxy: false,
+    maxTotalSessions: 50,
+    allowRemoteSetup: false,
+    authTimeoutMs: 30_000,
+};
+const DEFAULT_CONFIG = {
+    passwordHash: null,
+    security: { ...DEFAULT_SECURITY },
+    _version: 1,
+};
+function ensureConfigDir() {
+    const dir = path.dirname(SECURITY_FILE);
+    if (!fs.existsSync(dir)) {
+        fs.mkdirSync(dir, { recursive: true, mode: 0o700 });
+    }
+    if (!fs.existsSync(DATA_DIR)) {
+        fs.mkdirSync(DATA_DIR, { recursive: true, mode: 0o700 });
+    }
+}
+export function loadSecurityConfig() {
+    ensureConfigDir();
+    let raw;
+    try {
+        raw = fs.readFileSync(SECURITY_FILE, 'utf-8');
+    }
+    catch (err) {
+        if (err.code === 'ENOENT') {
+            saveSecurityConfig(DEFAULT_CONFIG);
+            return { ...DEFAULT_CONFIG, security: { ...DEFAULT_SECURITY } };
+        }
+        throw new Error(`Failed to read security config at ${SECURITY_FILE}: ${err.message}`);
+    }
+    let parsed;
+    try {
+        parsed = JSON.parse(raw);
+    }
+    catch (err) {
+        const aside = `${SECURITY_FILE}.corrupt-${Date.now()}`;
+        try {
+            fs.renameSync(SECURITY_FILE, aside);
+        }
+        catch { }
+        throw new Error(`security.json was corrupt (saved aside as ${aside}): ${err.message}`);
+    }
+    return {
+        ...DEFAULT_CONFIG,
+        ...parsed,
+        security: { ...DEFAULT_SECURITY, ...(parsed.security || {}) },
+    };
+}
+export function saveSecurityConfig(config) {
+    ensureConfigDir();
+    atomicWriteFileSync(SECURITY_FILE, JSON.stringify(config, null, 2) + '\n', 0o600);
+}
+export { DEFAULT_SECURITY };

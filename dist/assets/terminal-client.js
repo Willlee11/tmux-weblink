@@ -1,1 +1,0 @@
-import{a as t}from"./chunk-7KLKPQJJ.js";var e=window.__TMUX_WEB_TERMINAL__;if(!e)throw new Error("missing tmux-web terminal config");var r=document.getElementById("terminal-container");if(!r)throw new Error("missing terminal container");var{sessionName:o,...m}=e;t(r,o,m).then(n=>{window.tmuxWeb={sendInput:i=>n.sendInput(i),focusTerminal:()=>n.focus()}});
