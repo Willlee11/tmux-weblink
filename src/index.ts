@@ -63,6 +63,7 @@ import {
 } from "./lib/tmux-capture.js";
 import { readTerminalBufferConfig } from "./lib/terminal-config.js";
 import { ImageUploadError, saveUploadedImage } from "./lib/image-upload.js";
+import { getSystemStatus } from "./lib/system-monitor.js";
 import {
 	listSessionWindows,
 	selectSessionWindow,
@@ -727,7 +728,11 @@ app.post("/api/theme", requireAuth(), async (c) => {
 	return c.json({ ok: true, active: activeTheme.template });
 });
 
-app.get("/api/sessions", requireAuth(), (c) => {
+app.get("/api/system/status", requireAuth(), (c) => {
+		return c.json(getSystemStatus());
+	});
+
+	app.get("/api/sessions", requireAuth(), (c) => {
 	if (!commandbarEnabled) return c.json({ error: "commandbar disabled" }, 404);
 	return c.json(buildCommandbarSessions(listSessions(), getSessionAccessMap()));
 });

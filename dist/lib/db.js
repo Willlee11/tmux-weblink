@@ -1,8 +1,1 @@
-import { Low } from 'lowdb';
-import { JSONFile } from 'lowdb/node';
-import { mkdirSync } from 'node:fs';
-import { join } from 'node:path';
-import { getDataRoot } from './state-paths.js';
-const dbDir = getDataRoot();
-mkdirSync(dbDir, { recursive: true });
-export const db = new Low(new JSONFile(join(dbDir, 'db.json')), { notes: [], scheduledTasks: [], triggeredTasks: [], sessionAccess: [], pinnedViews: [], watchedPanes: [], windowLabels: [], sessionWindows: [], windowHistory: [], quickCommands: [] });
+import{Low as s}from"lowdb";import{JSONFile as e}from"lowdb/node";import{mkdirSync as i}from"node:fs";import{join as r}from"node:path";import{getDataRoot as n}from"./state-paths.js";const o=n();i(o,{recursive:!0});const a=new s(new e(r(o,"db.json")),{notes:[],scheduledTasks:[],triggeredTasks:[],sessionAccess:[],pinnedViews:[],watchedPanes:[],windowLabels:[],sessionWindows:[],windowHistory:[],quickCommands:[]});export{a as db};

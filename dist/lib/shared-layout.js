@@ -1,18 +1,4 @@
-import { commandbarButtonHTML } from './commandbar.js';
-import { escapeHtml } from './html.js';
-import { icon, iconPath } from './icons.js';
-const THEME_OPTIONS = [
-    { id: 'vscode', name: 'VS Code', dot: '#007acc' },
-    { id: 'ghostty', name: 'Ghostty', dot: '#ff5f00' },
-    { id: 'warm-clay', name: 'Warm Clay', dot: '#b86b52' },
-    { id: 'dark-cove', name: 'Dark Cove', dot: '#7aa2f7' },
-];
-function focusRing(accent = 'var(--panel-accent)') {
-    return `box-shadow: 0 0 0 2px ${accent}; outline: none;`;
-}
-/** Reduced-motion helper: disables transform transitions. */
-export function reducedMotion(extra = '') {
-    return `
+import{commandbarButtonHTML as w}from"./commandbar.js";import{escapeHtml as c}from"./html.js";import{icon as a,iconPath as o}from"./icons.js";const d=[{id:"vscode",name:"VS Code",dot:"#007acc"},{id:"ghostty",name:"Ghostty",dot:"#ff5f00"},{id:"warm-clay",name:"Warm Clay",dot:"#b86b52"},{id:"dark-cove",name:"Dark Cove",dot:"#7aa2f7"}];function r(t="var(--panel-accent)"){return`box-shadow: 0 0 0 2px ${t}; outline: none;`}function y(t=""){return`
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after {
       animation-duration: 0.01ms !important;
@@ -20,33 +6,21 @@ export function reducedMotion(extra = '') {
       transition-duration: 0.01ms !important;
       scroll-behavior: auto !important;
     }
-    ${extra}
-  }`;
-}
-/** HTML for the theme switcher popover trigger (used in fixed header + terminal header). */
-export function themeSwitcherButtonHTML(currentTemplate = 'vscode') {
-    const current = THEME_OPTIONS.find((o) => o.id === currentTemplate) ?? THEME_OPTIONS[0];
-    const options = THEME_OPTIONS.map((o) => {
-        const active = o.id === currentTemplate;
-        return `<button type="button" class="theme-option${active ? ' active' : ''}" data-theme="${o.id}" role="menuitem">
-      <span class="theme-dot" style="background:${o.dot}"></span>
-      ${escapeHtml(o.name)}
-      ${active ? icon('check', 'class="theme-check" aria-hidden="true"') : ''}
-    </button>`;
-    }).join('\n');
-    return `<div class="theme-switcher" id="theme-switcher">
+    ${t}
+  }`}function k(t="vscode"){const n=d.find(e=>e.id===t)??d[0],i=d.map(e=>{const s=e.id===t;return`<button type="button" class="theme-option${s?" active":""}" data-theme="${e.id}" role="menuitem">
+      <span class="theme-dot" style="background:${e.dot}"></span>
+      ${c(e.name)}
+      ${s?a("check",'class="theme-check" aria-hidden="true"'):""}
+    </button>`}).join(`
+`);return`<div class="theme-switcher" id="theme-switcher">
     <button type="button" class="theme-switcher-btn" aria-label="Theme" aria-haspopup="true" aria-expanded="false">
-      <span class="theme-dot" style="background:${current.dot}"></span>
-      <span>${escapeHtml(current.name)}</span>
+      <span class="theme-dot" style="background:${n.dot}"></span>
+      <span>${c(n.name)}</span>
     </button>
     <div class="theme-switcher-popover" role="menu">
-      ${options}
+      ${i}
     </div>
-  </div>`;
-}
-/** Inline JS IIFE that opens the theme popover, POSTs a selection, and reloads. */
-export function themeSwitcherScript() {
-    return `(function() {
+  </div>`}function I(){return`(function() {
   const switcher = document.getElementById('theme-switcher');
   if (!switcher) return;
   const btn = switcher.querySelector('.theme-switcher-btn');
@@ -73,15 +47,11 @@ export function themeSwitcherScript() {
   document.addEventListener('click', (e) => {
     if (switcher.classList.contains('open') && !switcher.contains(e.target)) close();
   });
-})();`;
-}
-/** Base CSS for the fixed header, two-column layout, sidebar, and new-session modal. */
-export function sharedLayoutCSS(extraCSS = '') {
-    return `
+})();`}function B(t=""){return`
   *, *::before, *::after { box-sizing: border-box; }
   html, body { background: var(--page-bg); color: var(--page-fg); min-height: 100%; font-family: var(--font-sans); margin: 0; padding: 0; }
 
-  /* ── Fixed header ── */
+  /* \u2500\u2500 Fixed header \u2500\u2500 */
   .fixed-header {
     position: fixed; top: 0; left: 0; right: 0; z-index: 200;
     background: color-mix(in srgb, var(--panel-bg) 92%, transparent);
@@ -105,10 +75,10 @@ export function sharedLayoutCSS(extraCSS = '') {
     font-size: var(--text-sm); text-decoration: none;
   }
   .header-btn:hover, .icon-btn:hover { color: var(--panel-accent); background: color-mix(in srgb, var(--panel-accent) 8%, transparent); }
-  .header-btn:focus-visible, .icon-btn:focus-visible { ${focusRing()} }
+  .header-btn:focus-visible, .icon-btn:focus-visible { ${r()} }
   .header-btn svg, .icon-btn svg { width: 18px; height: 18px; fill: currentColor; flex-shrink: 0; }
 
-  /* ── Theme switcher popover ── */
+  /* \u2500\u2500 Theme switcher popover \u2500\u2500 */
   .theme-switcher { position: relative; }
   .theme-switcher-btn {
     display: flex; align-items: center; justify-content: center; gap: 6px;
@@ -118,7 +88,7 @@ export function sharedLayoutCSS(extraCSS = '') {
     font-size: var(--text-sm); text-decoration: none; font-family: inherit;
   }
   .theme-switcher-btn:hover { color: var(--panel-accent); background: color-mix(in srgb, var(--panel-accent) 8%, transparent); }
-  .theme-switcher-btn:focus-visible { ${focusRing()} }
+  .theme-switcher-btn:focus-visible { ${r()} }
   .theme-switcher-btn svg { width: 18px; height: 18px; fill: currentColor; flex-shrink: 0; }
   .theme-switcher-popover {
     position: absolute; top: calc(100% + 6px); right: 0;
@@ -134,22 +104,22 @@ export function sharedLayoutCSS(extraCSS = '') {
     color: var(--page-fg); font-size: var(--text-sm); cursor: pointer; text-align: left; font-family: inherit;
   }
   .theme-option:hover { background: color-mix(in srgb, var(--panel-accent) 8%, transparent); color: var(--panel-accent); }
-  .theme-option:focus-visible { ${focusRing()} }
+  .theme-option:focus-visible { ${r()} }
   .theme-option.active { color: var(--panel-accent); font-weight: 500; }
   .theme-dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
   .theme-check { width: 16px; height: 16px; margin-left: auto; color: var(--panel-accent); }
 
-  /* ── Page layout ── */
+  /* \u2500\u2500 Page layout \u2500\u2500 */
   .page-wrap { padding-top: 56px; }
   .page-layout {
     display: flex; gap: 24px; max-width: 1120px; margin: 0 auto; padding: 24px 16px;
     align-items: flex-start;
   }
 
-  /* ── Main content panel ── */
+  /* \u2500\u2500 Main content panel \u2500\u2500 */
   .main-panel { flex: 1; min-width: 0; }
 
-  /* ── Action sidebar ── */
+  /* \u2500\u2500 Action sidebar \u2500\u2500 */
   .action-sidebar {
     flex: 0 0 220px; max-width: 220px; min-width: 180px;
     margin-right: 0; position: sticky; top: 80px;
@@ -168,7 +138,7 @@ export function sharedLayoutCSS(extraCSS = '') {
     text-align: left;
   }
   .sidebar-btn:hover { background: color-mix(in srgb, var(--panel-accent) 8%, transparent); color: var(--panel-accent); }
-  .sidebar-btn:focus-visible { ${focusRing()} }
+  .sidebar-btn:focus-visible { ${r()} }
   .sidebar-btn.primary {
     background: var(--panel-accent); border-color: var(--panel-accent); color: var(--panel-accent-on);
     font-weight: 500; margin-bottom: 16px; justify-content: center;
@@ -181,7 +151,7 @@ export function sharedLayoutCSS(extraCSS = '') {
   .sidebar-btn svg { width: 18px; height: 18px; fill: currentColor; flex-shrink: 0; }
   .sidebar-divider { border: none; border-top: 1px solid var(--panel-border); margin: 14px 0; }
 
-  /* ── New session modal ── */
+  /* \u2500\u2500 New session modal \u2500\u2500 */
   .modal-backdrop {
     display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.3);
     z-index: 500; align-items: center; justify-content: center;
@@ -227,14 +197,14 @@ export function sharedLayoutCSS(extraCSS = '') {
     color: var(--page-fg); transition: opacity 0.15s;
   }
   .modal-btn:hover { opacity: 0.85; }
-  .modal-btn:focus-visible { ${focusRing()} }
+  .modal-btn:focus-visible { ${r()} }
   .modal-btn.confirm {
     background: var(--panel-accent); border-color: var(--panel-accent);
     color: var(--panel-accent-on); font-weight: 500;
   }
   .modal-btn.confirm:hover { opacity: 0.9; }
 
-  /* ── Mobile ── */
+  /* \u2500\u2500 Mobile \u2500\u2500 */
   @media (max-width: 560px) {
     .page-layout { flex-direction: column; padding: 16px; gap: 0; }
     .action-sidebar { max-width: 100%; min-width: 0; width: 100%; margin-right: 0; position: static; order: -1; }
@@ -246,13 +216,8 @@ export function sharedLayoutCSS(extraCSS = '') {
     .header-btn, .theme-switcher-btn { padding: 8px; }
   }
 
-  ${reducedMotion()}
-  ${extraCSS}`;
-}
-/** Fixed header HTML. Title defaults to "TMUX Sessions". */
-export function sharedHeader(opts) {
-    const { commandbarEnabled, title = 'TMUX Sessions', themeTemplate = 'vscode' } = opts;
-    return `<script>
+  ${y()}
+  ${t}`}function T(t){const{commandbarEnabled:n,title:i="TMUX Sessions",themeTemplate:e="vscode"}=t;return`<script>
 (function() {
   const token = localStorage.getItem('tmux-web-token');
   if (token) {
@@ -271,61 +236,40 @@ export function sharedHeader(opts) {
 <header class="fixed-header">
   <div class="brand"><a href="/" aria-label="Go to home">tmux<span>-weblink</span></a></div>
   <div class="header-actions">
-    ${commandbarEnabled ? commandbarButtonHTML('Search') : ''}
+    ${n?w("Search"):""}
     <button class="header-btn" id="notes-toggle" title="Global notes" aria-label="Global notes">
-      ${icon('notes')}
+      ${a("notes")}
       <span>Notes</span>
     </button>
-    ${themeSwitcherButtonHTML(themeTemplate)}
+    ${k(e)}
     <a class="header-btn" href="/settings" title="Settings">
-      ${icon('settings')}
+      ${a("settings")}
       <span>Settings</span>
     </a>
   </div>
 </header>
-<script>${themeSwitcherScript()}</script>`;
-}
-/** Sidebar HTML with the current page indicated. */
-export function sharedSidebar(opts) {
-    const { activePage, refreshHref } = opts;
-    function btn(page, href, iconPathString, label, extra = '') {
-        const isCurrent = page !== null && page === activePage;
-        const cls = isCurrent ? 'sidebar-btn current' : 'sidebar-btn';
-        return `<a href="${href}" class="${cls}"${extra}>
-        <svg viewBox="0 0 24 24" fill="currentColor">${iconPathString}</svg>
-        ${label}
-      </a>`;
-    }
-    const sessionsIcon = iconPath('sessions');
-    const notesIcon = iconPath('notes');
-    const scheduleIcon = iconPath('schedule');
-    const historyIcon = iconPath('history');
-    const quickCommandsIcon = iconPath('quick-commands');
-    const filesIcon = iconPath('file');
-    const refreshIcon = iconPath('refresh');
-    return `<aside class="action-sidebar">
+<script>${I()}</script>`}function M(t){const{activePage:n,refreshHref:i}=t;function e(l,x,f,g,v=""){return`<a href="${x}" class="${l!==null&&l===n?"sidebar-btn current":"sidebar-btn"}"${v}>
+        <svg viewBox="0 0 24 24" fill="currentColor">${f}</svg>
+        ${g}
+      </a>`}const s=o("sessions"),p=o("notes"),m=o("schedule"),b=o("history"),u=o("quick-commands"),h=o("file"),E=o("refresh");return`<aside class="action-sidebar">
       <p class="sidebar-label">Actions</p>
       <button class="sidebar-btn primary" id="new-session-btn">
-        ${icon('add')}
+        ${a("add")}
         New Session
       </button>
       <hr class="sidebar-divider">
-      ${btn('home', '/', sessionsIcon, 'Sessions')}
-      ${btn('notes', '/notes', notesIcon, 'All Notes')}
-      ${btn('schedule', '/schedule', scheduleIcon, 'Scheduled')}
-      ${btn('files', '/files', filesIcon, 'Files')}
-      ${btn('history', '/history', historyIcon, 'History')}
-      ${btn('quickCommands', '/quick-commands', quickCommandsIcon, 'Quick Commands')}
+      ${e("home","/",s,"Sessions")}
+      ${e("notes","/notes",p,"All Notes")}
+      ${e("schedule","/schedule",m,"Scheduled")}
+      ${e("files","/files",h,"Files")}
+      ${e("history","/history",b,"History")}
+      ${e("quickCommands","/quick-commands",u,"Quick Commands")}
       <hr class="sidebar-divider">
-      <a href="${refreshHref}" class="sidebar-btn">
-        ${icon('refresh')}
+      <a href="${i}" class="sidebar-btn">
+        ${a("refresh")}
         Refresh
       </a>
-    </aside>`;
-}
-/** New session modal HTML (hidden by default). */
-export function newSessionModalCSS() {
-    return `  /* ── New session modal ── */
+    </aside>`}function A(){return`  /* \u2500\u2500 New session modal \u2500\u2500 */
   .modal-backdrop {
     display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.3);
     z-index: 500; align-items: center; justify-content: center;
@@ -370,16 +314,13 @@ export function newSessionModalCSS() {
     color: var(--page-fg); transition: opacity 0.15s;
   }
   .modal-btn:hover { opacity: 0.85; }
-  .modal-btn:focus-visible { ${focusRing()} }
+  .modal-btn:focus-visible { ${r()} }
   .modal-btn.confirm {
     background: var(--panel-accent); border-color: var(--panel-accent);
     color: var(--panel-accent-on); font-weight: 500;
   }
   .modal-btn.confirm:hover { opacity: 0.9; }
-`;
-}
-export function newSessionModalHTML() {
-    return `<div class="modal-backdrop" id="new-session-modal" role="dialog" aria-modal="true" aria-label="Create new tmux session">
+`}function D(){return`<div class="modal-backdrop" id="new-session-modal" role="dialog" aria-modal="true" aria-label="Create new tmux session">
   <div class="modal-panel">
     <h2>New Session</h2>
     <div class="modal-field">
@@ -397,11 +338,7 @@ export function newSessionModalHTML() {
       <button class="modal-btn confirm" id="ns-submit">Create</button>
     </div>
   </div>
-</div>`;
-}
-/** Inline JS IIFE for the new session modal. */
-export function newSessionModalScript(onCreatedExpr) {
-    return `(function() {
+</div>`}function j(t){return`(function() {
   const modal = document.getElementById('new-session-modal');
   const openBtn = document.getElementById('new-session-btn');
   const cancelBtn = document.getElementById('ns-cancel');
@@ -410,7 +347,7 @@ export function newSessionModalScript(onCreatedExpr) {
   const dirInput = document.getElementById('ns-dir');
   const dirList = document.getElementById('ns-dir-list');
   const errorEl = document.getElementById('ns-error');
-  const onCreated = '${onCreatedExpr ?? ''}';
+  const onCreated = '${t??""}';
 
   function openModal() {
     modal.classList.add('open');
@@ -489,7 +426,7 @@ export function newSessionModalScript(onCreatedExpr) {
     const dir = dirInput.value.trim();
     if (!name) { showError('Session name is required.'); nameInput.focus(); return; }
     submitBtn.disabled = true;
-    submitBtn.textContent = 'Creating…';
+    submitBtn.textContent = 'Creating\u2026';
     errorEl.style.display = 'none';
     try {
       const res = await fetch('/api/sessions/new', {
@@ -526,5 +463,4 @@ export function newSessionModalScript(onCreatedExpr) {
     }
     if (e.key === 'Enter') submit();
   });
-})();`;
-}
+})();`}export{A as newSessionModalCSS,D as newSessionModalHTML,j as newSessionModalScript,y as reducedMotion,T as sharedHeader,B as sharedLayoutCSS,M as sharedSidebar,k as themeSwitcherButtonHTML,I as themeSwitcherScript};

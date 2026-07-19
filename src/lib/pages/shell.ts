@@ -51,6 +51,34 @@ export function renderShell(cfg: ShellConfig): string {
   .fixed-header .brand a { color: inherit; text-decoration: none; }
   .header-actions { display: flex; align-items: center; gap: 4px; }
 
+  /* ── System status in header ── */
+  .sys-status {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 11px; font-family: var(--font-mono);
+    color: var(--panel-muted); cursor: default;
+    margin: 0 12px;
+  }
+  .sys-status .mem-bar {
+    width: 40px; height: 6px;
+    background: color-mix(in srgb, var(--panel-muted) 20%, transparent);
+    border-radius: 3px; overflow: hidden;
+  }
+  .sys-status .mem-bar-fill {
+    height: 100%; border-radius: 3px;
+    transition: width 0.5s ease;
+  }
+  .sys-status .mem-bar-fill.low { background: var(--panel-success, #16a34a); }
+  .sys-status .mem-bar-fill.mid { background: #eab308; }
+  .sys-status .mem-bar-fill.high { background: #ef4444; }
+  .sys-status .mem-text { min-width: 3ch; text-align: right; }
+  .sys-status .cpu-text { color: color-mix(in srgb, var(--panel-muted) 70%, transparent); }
+  @media (max-width: 720px) {
+    .sys-status .cpu-text { display: none; }
+  }
+  @media (max-width: 540px) {
+    .sys-status { display: none; }
+  }
+
   /* ── App layout ── */
   .app-layout {
     display: flex;
@@ -410,6 +438,11 @@ export function renderShell(cfg: ShellConfig): string {
 
 <header class="fixed-header">
   <div class="brand"><a href="/">tmux<span>-weblink</span></a></div>
+  <div class="sys-status" id="sys-status">
+    <span class="mem-text" id="sys-mem-text">--</span>
+    <span class="mem-bar"><span class="mem-bar-fill" id="sys-mem-bar" style="width:0%"></span></span>
+    <span class="cpu-text" id="sys-cpu-text">--</span>
+  </div>
   <div class="header-actions">
     ${commandbarEnabled ? `<button class="header-btn" id="cmdbar-btn" title="Search" aria-label="Search">${icon('search')}</button>` : ''}
   </div>
@@ -537,6 +570,26 @@ ${newSessionModalScript('__onSessionCreated')}
   function sync(){ el.style.height = vv.height + 'px'; }
   vv.addEventListener('resize', sync);
   sync();
+})();
+</script>
+<script>
+(function(){
+  var memText = document.getElementById('sys-mem-text');
+  var memBar  = document.getElementById('sys-mem-bar');
+  var cpuText = document.getElementById('sys-cpu-text');
+  if (!memText) return;
+  function poll(){
+    fetch('/api/system/status').then(function(r){ return r.json(); }).then(function(s){
+      var p = s.memory.percent;
+      memText.textContent = p + '%';
+      memBar.style.width = p + '%';
+      memBar.className = 'mem-bar-fill ' + (p >= 85 ? 'high' : p >= 70 ? 'mid' : 'low');
+      var load = s.cpu.loadAvg[0];
+      cpuText.textContent = 'CPU ' + (load < 10 ? load.toFixed(1) : Math.round(load));
+    }).catch(function(){});
+  }
+  poll();
+  setInterval(poll, 5000);
 })();
 </script>
 </body>

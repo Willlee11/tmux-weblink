@@ -1,5 +1,4 @@
-export function drawerResizeCSS() {
-    return `
+function d(){return`
   .resizable-drawer {
     min-width: min(280px, calc(100vw - 48px));
     max-width: calc(100vw - 48px);
@@ -18,23 +17,15 @@ export function drawerResizeCSS() {
     box-shadow: 0 0 10px rgba(125, 211, 252, 0.45);
   }
   body.drawer-resizing { cursor: col-resize; user-select: none; }
-  body.drawer-resizing iframe { pointer-events: none; }`;
-}
-export function drawerResizeHandleHTML() {
-    return `<div class="drawer-resize-handle" title="Resize drawer"></div>`;
-}
-export function drawerResizeScript(drawerId, storageKey, defaultWidth) {
-    const drawerIdJson = JSON.stringify(drawerId);
-    const storageKeyJson = JSON.stringify(storageKey);
-    return `
+  body.drawer-resizing iframe { pointer-events: none; }`}function a(){return'<div class="drawer-resize-handle" title="Resize drawer"></div>'}function o(e,t,n){const i=JSON.stringify(e),r=JSON.stringify(t);return`
 (function() {
-  const drawer = document.getElementById(${drawerIdJson});
+  const drawer = document.getElementById(${i});
   if (!drawer) return;
   const handle = drawer.querySelector('.drawer-resize-handle');
   if (!handle) return;
 
-  const storageKey = ${storageKeyJson};
-  const defaultWidth = ${defaultWidth};
+  const storageKey = ${r};
+  const defaultWidth = ${n};
   const minWidth = 280;
 
   function maxWidth() {
@@ -99,20 +90,15 @@ export function drawerResizeScript(drawerId, storageKey, defaultWidth) {
     const width = clampWidth(drawer.getBoundingClientRect().width || defaultWidth);
     drawer.style.width = width + 'px';
   });
-}());`;
-}
-export function drawerResizeScriptLeft(drawerId, storageKey, defaultWidth) {
-    const drawerIdJson = JSON.stringify(drawerId);
-    const storageKeyJson = JSON.stringify(storageKey);
-    return `
+}());`}function s(e,t,n){const i=JSON.stringify(e),r=JSON.stringify(t);return`
 (function() {
-  const drawer = document.getElementById(${drawerIdJson});
+  const drawer = document.getElementById(${i});
   if (!drawer) return;
   const handle = drawer.querySelector('.drawer-resize-handle');
   if (!handle) return;
 
-  const storageKey = ${storageKeyJson};
-  const defaultWidth = ${defaultWidth};
+  const storageKey = ${r};
+  const defaultWidth = ${n};
   const minWidth = 280;
 
   function maxWidth() {
@@ -177,5 +163,4 @@ export function drawerResizeScriptLeft(drawerId, storageKey, defaultWidth) {
     const width = clampWidth(drawer.getBoundingClientRect().width || defaultWidth);
     drawer.style.width = width + 'px';
   });
-}());`;
-}
+}());`}export{d as drawerResizeCSS,a as drawerResizeHandleHTML,o as drawerResizeScript,s as drawerResizeScriptLeft};
