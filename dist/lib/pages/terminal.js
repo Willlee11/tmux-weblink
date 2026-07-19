@@ -1,4 +1,4 @@
-import{cssVarsStyle as w}from"../theme.js";import{escapeHtml as i,escapeAttr as c}from"../html.js";import{notesDrawerCSS as v,notesDrawerHTML as y,notesDrawerScript as $}from"../notes-drawer.js";import{schedulerDrawerCSS as k,schedulerDrawerHTML as S,schedulerDrawerScript as L}from"../scheduler-drawer.js";import{windowsDrawerCSS as D,windowsDrawerHTML as E,windowsDrawerScript as F}from"../windows-drawer.js";import{sessionsDrawerCSS as M,sessionsDrawerHTML as I,sessionsDrawerScript as T}from"../sessions-drawer.js";import{mobileToolbarCSS as C,mobileToolbarHTML as B,mobileToolbarScript as O}from"../mobile-toolbar.js";import{icon as m,extIcon as W}from"../icons.js";import{commandbarButtonHTML as z,commandbarCSS as H,commandbarHTML as P,commandbarScript as R}from"../commandbar.js";import{drawerResizeCSS as A,drawerResizeHandleHTML as h,drawerResizeScript as x}from"../drawer-resize.js";import{themeSwitcherButtonHTML as j,themeSwitcherScript as J}from"../shared-layout.js";function _(){return`
+import{cssVarsStyle as w}from"../theme.js";import{escapeHtml as i,escapeAttr as c}from"../html.js";import{notesDrawerCSS as v,notesDrawerHTML as y,notesDrawerScript as $}from"../notes-drawer.js";import{schedulerDrawerCSS as k,schedulerDrawerHTML as S,schedulerDrawerScript as L}from"../scheduler-drawer.js";import{windowsDrawerCSS as F,windowsDrawerHTML as E,windowsDrawerScript as D}from"../windows-drawer.js";import{sessionsDrawerCSS as I,sessionsDrawerHTML as M,sessionsDrawerScript as T}from"../sessions-drawer.js";import{mobileToolbarCSS as B,mobileToolbarHTML as C,mobileToolbarScript as N}from"../mobile-toolbar.js";import{icon as m,extIcon as O}from"../icons.js";import{commandbarButtonHTML as z,commandbarCSS as W,commandbarHTML as P,commandbarScript as H}from"../commandbar.js";import{drawerResizeCSS as R,drawerResizeHandleHTML as h,drawerResizeScript as x}from"../drawer-resize.js";import{themeSwitcherButtonHTML as j,themeSwitcherScript as A}from"../shared-layout.js";function _(){return`
   .ext-backdrop {
     position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 999;
     opacity: 0; pointer-events: none; transition: opacity 0.2s ease;
@@ -18,7 +18,7 @@ import{cssVarsStyle as w}from"../theme.js";import{escapeHtml as i,escapeAttr as 
     transform: translateX(100%); transition: transform 0.25s ease;
   }
   .ext-panel.open { transform: translateX(0); }
-  ${A()}
+  ${R()}
   .ext-drawer .drawer-header,
   .ext-panel .drawer-header {
     display: flex; justify-content: space-between; align-items: center;
@@ -35,27 +35,27 @@ import{cssVarsStyle as w}from"../theme.js";import{escapeHtml as i,escapeAttr as 
   .ext-panel .drawer-header button:hover { color: var(--panel-accent); }
   .ext-drawer iframe { flex: 1; border: none; width: 100%; height: 0; }
   .ext-panel iframe { flex: 1; border: none; width: 100%; height: 100%; }
-`}function U(e){const n=e.id;return`
-<div id="ext-${n}-backdrop" class="ext-backdrop"></div>
-<div id="ext-${n}-drawer" class="ext-drawer resizable-drawer">
+`}function J(e){const a=e.id;return`
+<div id="ext-${a}-backdrop" class="ext-backdrop"></div>
+<div id="ext-${a}-drawer" class="ext-drawer resizable-drawer">
   ${h()}
   <div class="drawer-header">
     <span>${i(e.icon)} ${i(e.name)}</span>
-    <button id="ext-${n}-close">&times;</button>
+    <button id="ext-${a}-close">&times;</button>
   </div>
-  <iframe id="ext-${n}-frame" src="/ext/${n}/ui/index.html"></iframe>
-</div>`}function X(e){const n=e.id,t=e.panel;if(!t)return"";const r=t.title??e.name;return`
-<div id="ext-${n}-panel-backdrop" class="ext-backdrop"></div>
-<div id="ext-${n}-panel" class="ext-panel resizable-drawer">
+  <iframe id="ext-${a}-frame" src="/ext/${a}/ui/index.html"></iframe>
+</div>`}function U(e){const a=e.id,t=e.panel;if(!t)return"";const r=t.title??e.name;return`
+<div id="ext-${a}-panel-backdrop" class="ext-backdrop"></div>
+<div id="ext-${a}-panel" class="ext-panel resizable-drawer">
   ${h()}
   <div class="drawer-header">
     <span>${i(e.icon)} ${i(r)}</span>
-    <button id="ext-${n}-panel-close">&times;</button>
+    <button id="ext-${a}-panel-close">&times;</button>
   </div>
-  <iframe id="ext-${n}-panel-frame" src="/ext/${n}/ui/${c(t.entry)}"></iframe>
-</div>`}function V(e,n){const t=e.id,r=JSON.stringify(e.config),o=e.panel?.entry??null,d=e.panel?.defaultWidth??960;return`
+  <iframe id="ext-${a}-panel-frame" src="/ext/${a}/ui/${c(t.entry)}"></iframe>
+</div>`}function X(e,a){const t=e.id,r=JSON.stringify(e.config),o=e.panel?.entry??null,s=e.panel?.defaultWidth??960;return`
 ${x(`ext-${t}-drawer`,`tmux-web:drawer-width:ext:${t}`,360)}
-${o?x(`ext-${t}-panel`,`tmux-web:panel-width:ext:${t}`,d):""}
+${o?x(`ext-${t}-panel`,`tmux-web:panel-width:ext:${t}`,s):""}
 (function() {
   const backdrop = document.getElementById('ext-${t}-backdrop');
   const drawer   = document.getElementById('ext-${t}-drawer');
@@ -113,7 +113,7 @@ ${o?x(`ext-${t}-panel`,`tmux-web:panel-width:ext:${t}`,d):""}
 
   function sendMessages(targetFrame) {
     if (!targetFrame || !targetFrame.contentWindow) return;
-    targetFrame.contentWindow.postMessage({ type: 'ext:context', context: { session: ${JSON.stringify(n)}, host: location.origin } }, '*');
+    targetFrame.contentWindow.postMessage({ type: 'ext:context', context: { session: ${JSON.stringify(a)}, host: location.origin } }, '*');
     targetFrame.contentWindow.postMessage({ type: 'ext:config',  config: cfg }, '*');
   }
 
@@ -150,7 +150,7 @@ ${o?x(`ext-${t}-panel`,`tmux-web:panel-width:ext:${t}`,d):""}
       sendMessages(panelFrame);
     }
   });
-}());`}function re(e,n=[],t){const r=n.filter(a=>a.slot==="sidebar"),{commandbarEnabled:o=!1,commandbarSessions:d=[],quickCommands:g=[],agentsEnabled:b=!1,theme:s,renderer:f="xterm"}=t,l=t.terminal??{initialLines:1e3,historyChunk:500,syncIdleMs:200,syncMaxMs:3e3},u=l.initialLines+2*l.historyChunk,p=[{label:"Switch window",meta:`Windows in ${e}`,subView:"windows"},{label:"Quick Commands",meta:"Paste configured command",subView:"quickCommands"},{label:"Send Command",meta:"Send input to active window",clickTargetId:"type-toggle"},{label:"Open sessions sidebar",meta:"Recent and pinned sessions",clickTargetId:"sessions-toggle"},{label:"Open notes",meta:`Notes for ${e}`,clickTargetId:"notes-toggle"},{label:"Open scheduler",meta:`Schedule command in ${e}`,clickTargetId:"sched-toggle"}];return b&&p.push({label:"View All Agents",meta:"Running agents",href:"/agents"}),`<!DOCTYPE html>
+}());`}function V(e,a=[],t){const r=a.filter(n=>n.slot==="sidebar"),{commandbarEnabled:o=!1,commandbarSessions:s=[],quickCommands:g=[],agentsEnabled:b=!1,theme:d,renderer:f="xterm"}=t,l=t.terminal??{initialLines:1e3,historyChunk:500,syncIdleMs:200,syncMaxMs:3e3},u=l.initialLines+2*l.historyChunk,p=[{label:"Switch window",meta:`Windows in ${e}`,subView:"windows"},{label:"Quick Commands",meta:"Paste configured command",subView:"quickCommands"},{label:"Send Command",meta:"Send input to active window",clickTargetId:"type-toggle"},{label:"Open sessions sidebar",meta:"Recent and pinned sessions",clickTargetId:"sessions-toggle"},{label:"Open notes",meta:`Notes for ${e}`,clickTargetId:"notes-toggle"},{label:"Open scheduler",meta:`Schedule command in ${e}`,clickTargetId:"sched-toggle"}];return b&&p.push({label:"View All Agents",meta:"Running agents",href:"/agents"}),`<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
@@ -158,7 +158,7 @@ ${o?x(`ext-${t}-panel`,`tmux-web:panel-width:ext:${t}`,d):""}
 <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 <title>tmux: ${i(e)}</title>
 <style>
-  ${w(s.shell)}
+  ${w(d.shell)}
   html, body { background: var(--page-bg); color: var(--page-fg); height: 100%; width: 100%; overflow: hidden; }
   body { display: flex; flex-direction: column; }
   header {
@@ -266,12 +266,12 @@ ${o?x(`ext-${t}-panel`,`tmux-web:panel-width:ext:${t}`,d):""}
   @media (max-width: 380px) {
     header .status { display: none; }
   }
-  ${o?H():""}
+  ${o?W():""}
   ${v()}
   ${k()}
-  ${D()}
-  ${M()}
-  ${C()}
+  ${F()}
+  ${I()}
+  ${B()}
   ${_()}
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after {
@@ -294,29 +294,29 @@ ${o?x(`ext-${t}-panel`,`tmux-web:panel-width:ext:${t}`,d):""}
   <button class="sched-btn" id="sched-toggle" title="Schedule command" aria-label="Schedule command">
     ${m("schedule")}
   </button>
-  ${r.map(a=>`<button class="ext-btn" id="ext-${a.id}-toggle" title="${c(a.name)}" aria-label="${c(a.name)}">${W(a.id,a.icon)}</button>`).join(`
+  ${r.map(n=>`<button class="ext-btn" id="ext-${n.id}-toggle" title="${c(n.name)}" aria-label="${c(n.name)}">${O(n.id,n.icon)}</button>`).join(`
   `)}
-  ${j(s.template)}
+  ${j(d.template)}
   <div class="status">
     <div class="dot" id="status-dot"></div>
     <span id="status-text">connecting</span>
   </div>
 </header>
-<script>${J()}</script>
+<script>${A()}</script>
 <div id="terminal-container" class="terminal-pending"></div>
-${B()}
+${C()}
 ${o?P():""}
 ${y(`Notes - ${e}`)}
 ${S(`Scheduler - ${e}`)}
 ${E(`Windows - ${e}`)}
-${I()}
-${r.map(a=>U(a)).join(`
+${M()}
+${r.map(n=>J(n)).join(`
 `)}
-${r.map(a=>X(a)).join(`
+${r.map(n=>U(n)).join(`
 `)}
 
 <script type="module">
-window.__TMUX_WEB_TERMINAL__ = ${JSON.stringify({sessionName:e,terminal:l,scrollback:u,theme:s.terminal,renderer:f}).replace(/</g,"\\u003c")};
+window.__TMUX_WEB_TERMINAL__ = ${JSON.stringify({sessionName:e,terminal:l,scrollback:u,theme:d.terminal,renderer:f}).replace(/</g,"\\u003c")};
 await import('/assets/terminal-client.js');
 
 // ========== NOTES ==========
@@ -326,7 +326,7 @@ ${$(`session:${e}`)}
 ${L(e)}
 
 // ========== WINDOWS ==========
-${F(e)}
+${D(e)}
 
 // ========== SESSIONS SIDEBAR ==========
 ${T(e)}
@@ -345,10 +345,10 @@ ${T(e)}
 }
 
 // ========== MOBILE TOOLBAR ==========
-${O(e)}
+${N(e)}
 
 // ========== COMMANDBAR ==========
-${o?R(d,p,{sessionName:e},g):""}
+${o?H(s,p,{sessionName:e},g):""}
 
 // ========== NOTES ==========
 // (notes and scheduler scripts already included above; extensions below)
@@ -357,8 +357,8 @@ ${o?R(d,p,{sessionName:e},g):""}
 ${r.length>0?`<script>
 // Extension bootstrap: plain script (not module) so it runs before the module
 // awaits terminal-client import, avoiding a race where iframes load during that await.
-${r.map(a=>V(a,e)).join(`
+${r.map(n=>X(n,e)).join(`
 `)}
 </script>`:""}
 </body>
-</html>`}export{re as renderTerminal};
+</html>`}export{V as renderTerminal};

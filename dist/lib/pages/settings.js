@@ -108,7 +108,6 @@ function flashes(saved, error) {
 export function renderSettings(opts) {
     const { settings, renderer, rendererOverridden, theme, plugins, saved = false, error } = opts;
     const commandbarOn = settings.commandbar === true;
-    const agentsOn = settings.agents === true;
     const savedRenderer = settings.terminalRenderer ?? 'xterm';
     const defaultView = settings.defaultView ?? 'default';
     const scheduleHistoryDays = settings.scheduleHistoryDays ?? 7;
@@ -142,12 +141,6 @@ export function renderSettings(opts) {
       <h2>Command bar</h2>
       <p class="desc">⌘K session search + quick actions.</p>
       <label class="row"><input type="checkbox" name="commandbar" ${commandbarOn ? 'checked' : ''} /> Enable command bar</label>
-    </div>
-
-    <div class="section">
-      <h2>Agents page</h2>
-      <p class="desc">Watch AI agents (Claude, Codex, OpenCode, Cursor) running in the last 10 panes you viewed, at <code>/agents</code>. Off by default.</p>
-      <label class="row"><input type="checkbox" name="agents" ${agentsOn ? 'checked' : ''} /> Enable agents page</label>
     </div>
 
     <div class="section">

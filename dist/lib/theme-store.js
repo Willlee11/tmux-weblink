@@ -23,7 +23,7 @@ export async function writeActiveTheme(theme) {
     await writeFile(THEME_PATH, JSON.stringify(theme, null, 2) + '\n');
 }
 export async function readActiveTheme() {
-    const defaultTheme = resolveTheme('vscode');
+    const defaultTheme = resolveTheme('warm-clay');
     let raw;
     try {
         raw = JSON.parse(await readFile(THEME_PATH, 'utf-8'));

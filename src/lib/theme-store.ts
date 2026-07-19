@@ -34,7 +34,7 @@ export async function writeActiveTheme(theme: TmuxWebTheme): Promise<void> {
 }
 
 export async function readActiveTheme(): Promise<TmuxWebTheme> {
-	const defaultTheme = resolveTheme('vscode');
+	const defaultTheme = resolveTheme('warm-clay');
 	let raw: unknown;
 	try {
 		raw = JSON.parse(await readFile(THEME_PATH, 'utf-8')) as unknown;

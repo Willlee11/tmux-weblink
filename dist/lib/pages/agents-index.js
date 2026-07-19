@@ -1,4 +1,4 @@
-import{cssVarsStyle as s}from"../theme.js";import{AGENT_LABELS as o}from"../agent-detect.js";import{commandbarCSS as i,commandbarHTML as l,commandbarScript as p}from"../commandbar.js";import{notesDrawerCSS as c,notesDrawerHTML as d,notesDrawerScript as g}from"../notes-drawer.js";import{sharedLayoutCSS as m,sharedHeader as u,sharedSidebar as x,newSessionModalHTML as f,newSessionModalScript as b}from"../shared-layout.js";function k(a,e=!1,t=[]){const n=JSON.stringify(o).replace(/</g,"\\u003c"),r=`
+import{cssVarsStyle as r}from"../theme.js";import{AGENT_LABELS as o}from"../agent-detect.js";import{commandbarCSS as i,commandbarHTML as l,commandbarScript as p}from"../commandbar.js";import{notesDrawerCSS as c,notesDrawerHTML as d,notesDrawerScript as m}from"../notes-drawer.js";import{sharedLayoutCSS as g,sharedHeader as u,sharedSidebar as b,newSessionModalHTML as x,newSessionModalScript as f}from"../shared-layout.js";function h(a,e=!1,t=[]){const n=JSON.stringify(o).replace(/</g,"\\u003c"),s=`
   .sub { font-size: var(--text-sm); color: var(--panel-muted); margin-bottom: 24px; line-height: 1.5; }
   .agent {
     display: flex; align-items: center; gap: 12px; text-decoration: none;
@@ -34,8 +34,8 @@ import{cssVarsStyle as s}from"../theme.js";import{AGENT_LABELS as o}from"../agen
 <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 <title>Agents - tmux-web</title>
 <style>
-  ${s(a.shell)}
-  ${m(r)}
+  ${r(a.shell)}
+  ${g(s)}
 </style>
 </head>
 <body>
@@ -44,7 +44,7 @@ ${u({commandbarEnabled:e,title:"Agents",themeTemplate:a.template})}
 
 <div class="page-wrap">
   <div class="page-layout">
-    ${x({activePage:"agents",agentsEnabled:!0,refreshHref:"/agents"})}
+    ${b({activePage:"agents",agentsEnabled:!0,refreshHref:"/agents"})}
     <main class="main-panel">
       <p class="sub">AI agents in the last panes you viewed. Updates automatically.</p>
       <div id="agents-list">
@@ -54,14 +54,14 @@ ${u({commandbarEnabled:e,title:"Agents",themeTemplate:a.template})}
   </div>
 </div>
 
-${f()}
+${x()}
 ${e?l():""}
 ${d("Notes - Global")}
 
 <script type="module">
-${g("__global__")}
+${m("__global__")}
 ${e?p(t,[]):""}
-${b()}
+${f()}
 </script>
 
 <script type="module">
@@ -102,4 +102,4 @@ poll();
 setInterval(poll, 2500);
 </script>
 </body>
-</html>`}export{k as renderAgentsIndex};
+</html>`}export{h as renderAgentsIndex};

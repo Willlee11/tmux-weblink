@@ -1,8 +1,8 @@
-import{cssVarsStyle as w}from"../theme.js";import{notesDrawerCSS as b,notesDrawerHTML as v,notesDrawerScript as x}from"../notes-drawer.js";import{escapeHtml as $}from"../html.js";import{commandbarCSS as y,commandbarHTML as S,commandbarScript as M}from"../commandbar.js";import{sharedLayoutCSS as k,sharedHeader as T,sharedSidebar as C,newSessionModalHTML as A,newSessionModalScript as D}from"../shared-layout.js";function H(o){const s=Date.now()-o;if(s<0)return"just now";const a=Math.floor(s/1e3),n=Math.floor(a/60),t=Math.floor(n/60),e=Math.floor(t/24),i=Math.floor(e/7),c=Math.floor(e/30),l=Math.floor(e/365),r=new Intl.RelativeTimeFormat("en",{numeric:"auto"});return a<45?"just now":n<60?r.format(-n,"minute"):t<24?r.format(-t,"hour"):e<7?r.format(-e,"day"):i<5?r.format(-i,"week"):c<12?r.format(-c,"month"):r.format(-l,"year")}function L(o,s,a){if(s==="default")return o;const n=[],t=[];for(const e of o)a.has(e.name)?n.push(e):t.push(e);return n.sort((e,i)=>(a.get(i.name)??0)-(a.get(e.name)??0)),[...n,...t]}function z(o,s,a){const n=`${o.windows} window${o.windows!==1?"s":""}`,t=o.attached?" \xB7 attached":"";if(s==="default")return`${n}${t}`;const e=a.get(o.name);return e?`${n}${t} \xB7 ${H(e)}`:`${n}${t}`}function F(o,s){const{view:a,accessMap:n,commandbarEnabled:t=!1,commandbarSessions:e=[],agentsEnabled:i=!1,theme:c}=s,l=L(o,a,n),r=[{label:"Open notes",meta:"Global notes",clickTargetId:"notes-toggle"}];i&&r.push({label:"View All Agents",meta:"Running agents",href:"/agents"});const p=l.map(m=>`<a href="/s/${encodeURIComponent(m.name)}" class="session-row">
+import{cssVarsStyle as h}from"../theme.js";import{notesDrawerCSS as w,notesDrawerHTML as u,notesDrawerScript as v}from"../notes-drawer.js";import{escapeHtml as $}from"../html.js";import{commandbarCSS as y,commandbarHTML as S,commandbarScript as M}from"../commandbar.js";import{sharedLayoutCSS as k,sharedHeader as T,sharedSidebar as C,newSessionModalHTML as D,newSessionModalScript as H}from"../shared-layout.js";function L(o){const s=Date.now()-o;if(s<0)return"just now";const t=Math.floor(s/1e3),n=Math.floor(t/60),a=Math.floor(n/60),e=Math.floor(a/24),i=Math.floor(e/7),l=Math.floor(e/30),c=Math.floor(e/365),r=new Intl.RelativeTimeFormat("en",{numeric:"auto"});return t<45?"just now":n<60?r.format(-n,"minute"):a<24?r.format(-a,"hour"):e<7?r.format(-e,"day"):i<5?r.format(-i,"week"):l<12?r.format(-l,"month"):r.format(-c,"year")}function z(o,s,t){if(s==="default")return o;const n=[],a=[];for(const e of o)t.has(e.name)?n.push(e):a.push(e);return n.sort((e,i)=>(t.get(i.name)??0)-(t.get(e.name)??0)),[...n,...a]}function E(o,s,t){const n=`${o.windows} window${o.windows!==1?"s":""}`,a=o.attached?" \xB7 attached":"";if(s==="default")return`${n}${a}`;const e=t.get(o.name);return e?`${n}${a} \xB7 ${L(e)}`:`${n}${a}`}function j(o,s){const{view:t,accessMap:n,commandbarEnabled:a=!1,commandbarSessions:e=[],agentsEnabled:i=!1,theme:l}=s,c=z(o,t,n),r=[{label:"Open notes",meta:"Global notes",clickTargetId:"notes-toggle"}];i&&r.push({label:"View All Agents",meta:"Running agents",href:"/agents"});const p=c.map(m=>`<a href="/s/${encodeURIComponent(m.name)}" class="session-row">
       <span class="name">${$(m.name)}</span>
-      <span class="meta">${z(m,a,n)}</span>
+      <span class="meta">${E(m,t,n)}</span>
     </a>`).join(`
-`),d=o.length===0?'<p class="empty">No tmux sessions found.<br>Create one with <code>tmux new -s mysession</code><br>or use the <strong>New Session</strong> button.</p>':"",f=a==="recent"?"/?view=recent":"/",g=a==="default"?" active":"",u=a==="recent"?" active":"",h=`
+`),d=o.length===0?'<p class="empty">No tmux sessions found.<br>Create one with <code>tmux new -s mysession</code><br>or use the <strong>New Session</strong> button.</p>':"",f=t==="recent"?"/?view=recent":"/",g=t==="default"?" active":"",b=t==="recent"?" active":"",x=`
   .session-row {
     display: flex; justify-content: space-between; align-items: center;
     padding: 18px 22px; border: 1px solid var(--panel-border); border-radius: 16px;
@@ -34,8 +34,8 @@ import{cssVarsStyle as w}from"../theme.js";import{notesDrawerCSS as b,notesDrawe
     .session-row { flex-direction: column; align-items: flex-start; gap: 6px; padding: 16px 18px; }
     .session-row .meta { text-align: left; margin-top: 0; }
   }
-  ${t?y():""}
-  ${b()}`;return`<!DOCTYPE html>
+  ${a?y():""}
+  ${w()}`;return`<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
@@ -43,13 +43,13 @@ import{cssVarsStyle as w}from"../theme.js";import{notesDrawerCSS as b,notesDrawe
 <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 <title>tmux-weblink</title>
 <style>
-  ${w(c.shell)}
-  ${k(h)}
+  ${h(l.shell)}
+  ${k(x)}
 </style>
 </head>
 <body>
 
-${T({commandbarEnabled:t,title:"TMUX Sessions",themeTemplate:c.template})}
+${T({commandbarEnabled:a,title:"TMUX Sessions",themeTemplate:l.template})}
 
 <div class="page-wrap">
   <div class="page-layout">
@@ -57,7 +57,7 @@ ${T({commandbarEnabled:t,title:"TMUX Sessions",themeTemplate:c.template})}
     <main class="main-panel">
       <nav class="view-tabs">
         <a href="/" class="tab${g}">Default</a>
-        <a href="/?view=recent" class="tab${u}">Last Updated</a>
+        <a href="/?view=recent" class="tab${b}">Last Updated</a>
       </nav>
       ${p}
       ${d}
@@ -65,14 +65,14 @@ ${T({commandbarEnabled:t,title:"TMUX Sessions",themeTemplate:c.template})}
   </div>
 </div>
 
-${A()}
-${t?S():""}
-${v("Notes - Global")}
+${D()}
+${a?S():""}
+${u("Notes - Global")}
 
 <script type="module">
-${x("__global__")}
-${t?M(e,r):""}
-${D()}
+${v("__global__")}
+${a?M(e,r):""}
+${H()}
 </script>
 </body>
-</html>`}export{F as renderLanding};
+</html>`}export{j as renderLanding};

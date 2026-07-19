@@ -1,4 +1,4 @@
-import{icon as e}from"./icons.js";function n(){return`
+import{icon as e}from"./icons.js";function t(){return`
   #mobile-toolbar { display: none; }
   @media (max-width: 560px) {
     #mobile-toolbar {
@@ -150,7 +150,7 @@ import{icon as e}from"./icons.js";function n(){return`
     border-color: var(--panel-success); color: var(--panel-success);
   }
 
-  `}function a(){return`
+  `}function o(){return`
 <div id="mobile-toolbar">
   <div class="tb-input">
     <textarea id="tb-input" placeholder="Type or voice input\u2026" autocapitalize="off" autocomplete="off" autocorrect="off" spellcheck="false" rows="1"></textarea>
@@ -178,7 +178,7 @@ import{icon as e}from"./icons.js";function n(){return`
     <button id="type-send" type="button">Send</button>
     <button id="type-send-enter" type="button">Send &#9166;</button>
   </div>
-</div>`}function r(t){return`(function() {
+</div>`}function n(a){return`(function() {
   const typeBtn = document.getElementById('type-toggle');
   const modal = document.getElementById('type-modal');
   const backdrop = document.getElementById('type-backdrop');
@@ -295,4 +295,4 @@ import{icon as e}from"./icons.js";function n(){return`
 
     tbSend.addEventListener('click', sendTb);
   }
-})();`}export{n as mobileToolbarCSS,a as mobileToolbarHTML,r as mobileToolbarScript};
+})();`}export{t as mobileToolbarCSS,o as mobileToolbarHTML,n as mobileToolbarScript};
