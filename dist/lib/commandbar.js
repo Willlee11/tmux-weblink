@@ -1,20 +1,4 @@
-import { icon } from './icons.js';
-export function buildCommandbarSessions(sessions, accessMap) {
-    return sessions
-        .map((session) => ({
-        ...session,
-        lastAccessedAt: accessMap.get(session.name),
-    }))
-        .sort((a, b) => {
-        const ar = a.lastAccessedAt ?? 0;
-        const br = b.lastAccessedAt ?? 0;
-        if (ar !== br)
-            return br - ar;
-        return a.name.localeCompare(b.name);
-    });
-}
-export function commandbarCSS() {
-    return `
+import{icon as c}from"./icons.js";function m(n,s){return n.map(e=>({...e,lastAccessedAt:s.get(e.name)})).sort((e,t)=>{const i=e.lastAccessedAt??0,a=t.lastAccessedAt??0;return i!==a?a-i:e.name.localeCompare(t.name)})}function l(){return`
   .cmdbar-btn {
     display: inline-flex; align-items: center; justify-content: center;
     background: none; color: var(--panel-muted);
@@ -110,39 +94,26 @@ export function commandbarCSS() {
   }
   @media (prefers-reduced-motion: reduce) {
     .cmdbar-backdrop, .cmdbar-panel { transition-duration: 0.01ms !important; }
-  }`;
-}
-export function commandbarButtonHTML(label = 'Sessions') {
-    return `<button class="cmdbar-btn" id="cmdbar-open" title="${label} (⌘K)" aria-label="${label} (⌘K)">
-    <span class="cmdbar-shortcut">⌘K</span>
-  </button>`;
-}
-export function commandbarHTML() {
-    return `
+  }`}function u(n="Sessions"){return`<button class="cmdbar-btn" id="cmdbar-open" title="${n} (\u2318K)" aria-label="${n} (\u2318K)">
+    <span class="cmdbar-shortcut">\u2318K</span>
+  </button>`}function p(){return`
 <div class="cmdbar-backdrop" id="cmdbar-backdrop"></div>
 <div class="cmdbar-panel" id="cmdbar-panel" role="dialog" aria-modal="true" aria-label="Switch tmux session">
   <div class="cmdbar-search">
-    ${icon('search')}
+    ${c("search")}
     <input id="cmdbar-input" type="search" placeholder="Filter tmux sessions" autocomplete="off" spellcheck="false" />
   </div>
   <div class="cmdbar-list" id="cmdbar-list"></div>
   <div class="cmdbar-footer">
     <span id="cmdbar-count">Recent sessions</span>
-    <span id="cmdbar-hint">Enter opens · Esc closes</span>
+    <span id="cmdbar-hint">Enter opens \xB7 Esc closes</span>
   </div>
-</div>`;
-}
-export function commandbarScript(sessions, actions = [], context = {}, quickCommands = []) {
-    const sessionsJson = JSON.stringify(sessions).replace(/</g, '\\u003c');
-    const actionsJson = JSON.stringify(actions).replace(/</g, '\\u003c');
-    const sessionNameJson = JSON.stringify(context.sessionName ?? null).replace(/</g, '\\u003c');
-    const quickCommandsJson = JSON.stringify(quickCommands).replace(/</g, '\\u003c');
-    return `
+</div>`}function f(n,s=[],e={},t=[]){const i=JSON.stringify(n).replace(/</g,"\\u003c"),a=JSON.stringify(s).replace(/</g,"\\u003c"),o=JSON.stringify(e.sessionName??null).replace(/</g,"\\u003c"),r=JSON.stringify(t).replace(/</g,"\\u003c");return`
 (function() {
-  const initialSessions = ${sessionsJson};
-  const actions = ${actionsJson}.map((action) => ({ ...action, kind: 'action' }));
-  const sessionName = ${sessionNameJson};
-  const quickCommands = ${quickCommandsJson}.map((command) => ({ ...command, kind: 'quickCommand' }));
+  const initialSessions = ${i};
+  const actions = ${a}.map((action) => ({ ...action, kind: 'action' }));
+  const sessionName = ${o};
+  const quickCommands = ${r}.map((command) => ({ ...command, kind: 'quickCommand' }));
   let sessions = initialSessions;
   let visible = [];
   let activeIndex = 0;
@@ -189,7 +160,7 @@ export function commandbarScript(sessions, actions = [], context = {}, quickComm
     if (session.attached) parts.push('attached');
     const recent = relativeTime(session.lastAccessedAt);
     if (recent) parts.push(recent);
-    return parts.join(' · ');
+    return parts.join(' \xB7 ');
   }
 
   function windowDisplayName(win) {
@@ -208,13 +179,13 @@ export function commandbarScript(sessions, actions = [], context = {}, quickComm
   function updateChrome() {
     if (view === 'windows') {
       input.placeholder = WINDOWS_PLACEHOLDER;
-      hint.textContent = 'Enter switches · r renames · ← back · Esc closes';
+      hint.textContent = 'Enter switches \xB7 r renames \xB7 \u2190 back \xB7 Esc closes';
     } else if (view === 'quickCommands') {
       input.placeholder = QUICK_COMMANDS_PLACEHOLDER;
-      hint.textContent = 'Enter pastes · ← back · Esc closes';
+      hint.textContent = 'Enter pastes \xB7 \u2190 back \xB7 Esc closes';
     } else {
       input.placeholder = ROOT_PLACEHOLDER;
-      hint.textContent = 'Enter opens · Esc closes';
+      hint.textContent = 'Enter opens \xB7 Esc closes';
     }
   }
 
@@ -259,7 +230,7 @@ export function commandbarScript(sessions, actions = [], context = {}, quickComm
     activeIndex = Math.min(activeIndex, Math.max(0, visible.length - 1));
     count.textContent = query
       ? visible.length + ' result' + (visible.length === 1 ? '' : 's')
-      : 'Actions · Recent sessions';
+      : 'Actions \xB7 Recent sessions';
 
     if (!visible.length) {
       list.innerHTML = '<div class="cmdbar-empty">No sessions found</div>';
@@ -581,5 +552,4 @@ export function commandbarScript(sessions, actions = [], context = {}, quickComm
   }, true);
 
   render();
-}());`;
-}
+}());`}export{m as buildCommandbarSessions,u as commandbarButtonHTML,l as commandbarCSS,p as commandbarHTML,f as commandbarScript};

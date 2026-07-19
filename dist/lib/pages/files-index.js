@@ -1,11 +1,5 @@
-import { cssVarsStyle } from '../theme.js';
-import { escapeHtml } from '../html.js';
-import { commandbarCSS, commandbarHTML, commandbarScript, } from '../commandbar.js';
-import { sharedLayoutCSS, sharedHeader, sharedSidebar, newSessionModalHTML, newSessionModalScript, } from '../shared-layout.js';
-export function renderFilesIndex(theme, commandbarEnabled = false, commandbarSessions = [], agentsEnabled = false, roots) {
-    const configured = roots.length > 0;
-    const rootList = roots.map((r) => `<li>${escapeHtml(r)}</li>`).join('\n');
-    const pageSpecificCSS = `
+import{cssVarsStyle as d}from"../theme.js";import{escapeHtml as c}from"../html.js";import{commandbarCSS as f,commandbarHTML as p,commandbarScript as m}from"../commandbar.js";import{sharedLayoutCSS as u,sharedHeader as v,sharedSidebar as b,newSessionModalHTML as y,newSessionModalScript as h}from"../shared-layout.js";function k(a,e=!1,r=[],o=!1,t){const n=t.length>0,s=t.map(l=>`<li>${c(l)}</li>`).join(`
+`),i=`
   .files-empty { font-size: var(--text-sm); color: var(--panel-muted); line-height: 1.7; margin-top: 12px; }
   .files-empty code { background: color-mix(in srgb, var(--panel-accent) 8%, transparent); padding: 3px 7px; border-radius: 6px; font-size: var(--text-xs); }
   .files-roots { list-style: none; padding: 0; margin: 0; }
@@ -21,8 +15,7 @@ export function renderFilesIndex(theme, commandbarEnabled = false, commandbarSes
   .files-roots li:hover { border-color: var(--panel-accent); transform: translateY(-1px); box-shadow: 0 4px 20px color-mix(in srgb, var(--panel-accent) 8%, transparent); }
   .files-roots li svg { width: 20px; height: 20px; flex-shrink: 0; color: var(--panel-accent); }
   .files-info { font-size: var(--text-sm); color: var(--panel-muted); margin-bottom: 16px; line-height: 1.6; }
-  ${commandbarEnabled ? commandbarCSS() : ''}`;
-    return /* html */ `<!DOCTYPE html>
+  ${e?f():""}`;return`<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
@@ -30,23 +23,23 @@ export function renderFilesIndex(theme, commandbarEnabled = false, commandbarSes
 <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 <title>Files - tmux-web</title>
 <style>
-  ${cssVarsStyle(theme.shell)}
-  ${sharedLayoutCSS(pageSpecificCSS)}
+  ${d(a.shell)}
+  ${u(i)}
 </style>
 </head>
 <body>
 
-${sharedHeader({ commandbarEnabled, title: 'Files', themeTemplate: theme.template })}
+${v({commandbarEnabled:e,title:"Files",themeTemplate:a.template})}
 
 <div class="page-wrap">
   <div class="page-layout">
-    ${sharedSidebar({ activePage: 'files', agentsEnabled, refreshHref: '/files' })}
+    ${b({activePage:"files",agentsEnabled:o,refreshHref:"/files"})}
     <main class="main-panel">
 
-      ${configured ? `
+      ${n?`
       <p class="files-info">Browse and edit files from the configured directories below.</p>
       <div class="files-roots">
-        ${rootList}
+        ${s}
       </div>
       <div id="file-browser" style="display:none">
         <div id="fb-path" style="font-size:var(--text-sm);font-family:var(--font-mono);color:var(--panel-muted);margin-bottom:12px;word-break:break-all"></div>
@@ -65,7 +58,7 @@ ${sharedHeader({ commandbarEnabled, title: 'Files', themeTemplate: theme.templat
           <button id="fb-new-btn" class="modal-btn confirm">New File</button>
         </div>
       </div>
-      ` : `
+      `:`
       <p class="files-empty">File access is not configured. Set the <code>TMUX_WEB_FS_ROOTS</code> environment variable to enable file browsing.</p>
       `}
 
@@ -73,11 +66,11 @@ ${sharedHeader({ commandbarEnabled, title: 'Files', themeTemplate: theme.templat
   </div>
 </div>
 
-${newSessionModalHTML()}
-${commandbarEnabled ? commandbarHTML() : ''}
+${y()}
+${e?p():""}
 
 <script type="module">
-${configured ? `const ROOTS = ${JSON.stringify(roots)};
+${n?`const ROOTS = ${JSON.stringify(t)};
 
 const tree = document.getElementById('fb-tree');
 const editor = document.getElementById('fb-editor');
@@ -104,7 +97,7 @@ function addTreeItem(parent, name, fullPath, isDir) {
   const el = document.createElement('div');
   el.style.cssText = 'padding:6px 10px;cursor:pointer;border-radius:8px;display:flex;align-items:center;gap:8px;transition:background 0.1s';
   el.style.cssText += ';color:var(--page-fg)';
-  el.textContent = isDir ? '📁 ' + name : name;
+  el.textContent = isDir ? '\u{1F4C1} ' + name : name;
   el.title = fullPath;
   el.addEventListener('mouseenter', () => { el.style.background = 'color-mix(in srgb, var(--panel-accent) 8%, transparent)'; });
   el.addEventListener('mouseleave', () => { el.style.background = 'transparent'; });
@@ -262,10 +255,9 @@ newBtn.addEventListener('click', async () => {
 document.querySelectorAll('.files-roots li').forEach(el => {
   el.addEventListener('click', () => loadDir(el.textContent));
 });
-` : ''}
-${commandbarEnabled ? commandbarScript(commandbarSessions, []) : ''}
-${newSessionModalScript()}
+`:""}
+${e?m(r,[]):""}
+${h()}
 </script>
 </body>
-</html>`;
-}
+</html>`}export{k as renderFilesIndex};

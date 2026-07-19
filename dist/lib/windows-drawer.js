@@ -1,8 +1,4 @@
-import { closeOtherDrawersExcept, wrapDrawerScript } from './drawer-script.js';
-import { drawerResizeCSS, drawerResizeHandleHTML, drawerResizeScript } from './drawer-resize.js';
-import { escapeHtml } from './html.js';
-export function windowsDrawerCSS() {
-    return `
+import{closeOtherDrawersExcept as n,wrapDrawerScript as t}from"./drawer-script.js";import{drawerResizeCSS as o,drawerResizeHandleHTML as r,drawerResizeScript as i}from"./drawer-resize.js";import{escapeHtml as s}from"./html.js";function c(){return`
   #windows-backdrop {
     position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 999;
     opacity: 0; pointer-events: none; transition: opacity 0.2s ease;
@@ -15,7 +11,7 @@ export function windowsDrawerCSS() {
     transform: translateX(100%); transition: transform 0.25s ease;
   }
   #windows-drawer.open { transform: translateX(0); }
-  ${drawerResizeCSS()}
+  ${o()}
   #windows-error {
     padding: 8px 16px; font-size: var(--text-xs); color: #cc6666;
     font-family: var(--font-mono); flex-shrink: 0;
@@ -93,26 +89,20 @@ export function windowsDrawerCSS() {
     .windows-row { min-height: 52px; padding: 14px 16px; }
     .windows-row-name { font-size: var(--text-base); }
     .windows-row-edit { opacity: 0.6; }
-  }`;
-}
-export function windowsDrawerHTML(title) {
-    return `
+  }`}function l(e){return`
 <div id="windows-backdrop"></div>
 <div id="windows-drawer" class="resizable-drawer">
-  ${drawerResizeHandleHTML()}
+  ${r()}
   <div class="drawer-header">
-    <span>${escapeHtml(title)}</span>
+    <span>${s(e)}</span>
     <button id="windows-new-btn" title="New window">+</button>
     <button id="windows-close">&times;</button>
   </div>
   <div id="windows-error"></div>
   <div id="windows-list"></div>
-</div>`;
-}
-export function windowsDrawerScript(sessionName) {
-    return wrapDrawerScript('windows', `
-${drawerResizeScript('windows-drawer', 'tmux-web:drawer-width:windows', 360)}
-const WIN_SESSION = ${JSON.stringify(sessionName)};
+</div>`}function p(e){return t("windows",`
+${i("windows-drawer","tmux-web:drawer-width:windows",360)}
+const WIN_SESSION = ${JSON.stringify(e)};
 const windowsDrawer = document.getElementById('windows-drawer');
 const windowsBackdrop = document.getElementById('windows-backdrop');
 const windowsList = document.getElementById('windows-list');
@@ -306,7 +296,7 @@ function stopWindowsRefresh() {
 }
 
 async function openWindowsDrawer() {
-  ${closeOtherDrawersExcept('windows')}
+  ${n("windows")}
   clearWindowsError();
   windowsDrawer.classList.add('open');
   windowsBackdrop.classList.add('open');
@@ -371,5 +361,4 @@ window.addEventListener('popstate', () => {
   else closeWindowsDrawer();
 });
 
-if (new URLSearchParams(location.search).get('tab') === 'windows') openWindowsDrawer();`, 'closeWindowsDrawer');
-}
+if (new URLSearchParams(location.search).get('tab') === 'windows') openWindowsDrawer();`,"closeWindowsDrawer")}export{c as windowsDrawerCSS,l as windowsDrawerHTML,p as windowsDrawerScript};

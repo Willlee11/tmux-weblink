@@ -1,80 +1,8 @@
-import { cssVarsStyle } from '../theme.js';
-import { notesDrawerCSS, notesDrawerHTML, notesDrawerScript } from '../notes-drawer.js';
-import { escapeHtml } from '../html.js';
-import { commandbarCSS, commandbarHTML, commandbarScript, } from '../commandbar.js';
-import { sharedLayoutCSS, sharedHeader, sharedSidebar, newSessionModalHTML, newSessionModalScript, } from '../shared-layout.js';
-function formatRelativeTime(ts) {
-    const diffMs = Date.now() - ts;
-    if (diffMs < 0)
-        return 'just now';
-    const seconds = Math.floor(diffMs / 1000);
-    const minutes = Math.floor(seconds / 60);
-    const hours = Math.floor(minutes / 60);
-    const days = Math.floor(hours / 24);
-    const weeks = Math.floor(days / 7);
-    const months = Math.floor(days / 30);
-    const years = Math.floor(days / 365);
-    const rtf = new Intl.RelativeTimeFormat('en', { numeric: 'auto' });
-    if (seconds < 45)
-        return 'just now';
-    if (minutes < 60)
-        return rtf.format(-minutes, 'minute');
-    if (hours < 24)
-        return rtf.format(-hours, 'hour');
-    if (days < 7)
-        return rtf.format(-days, 'day');
-    if (weeks < 5)
-        return rtf.format(-weeks, 'week');
-    if (months < 12)
-        return rtf.format(-months, 'month');
-    return rtf.format(-years, 'year');
-}
-function sortSessionsForView(sessions, view, accessMap) {
-    if (view === 'default')
-        return sessions;
-    const accessed = [];
-    const unvisited = [];
-    for (const s of sessions) {
-        if (accessMap.has(s.name))
-            accessed.push(s);
-        else
-            unvisited.push(s);
-    }
-    accessed.sort((a, b) => (accessMap.get(b.name) ?? 0) - (accessMap.get(a.name) ?? 0));
-    return [...accessed, ...unvisited];
-}
-function sessionMeta(s, view, accessMap) {
-    const windows = `${s.windows} window${s.windows !== 1 ? 's' : ''}`;
-    const attached = s.attached ? ' · attached' : '';
-    if (view === 'default')
-        return `${windows}${attached}`;
-    const accessedAt = accessMap.get(s.name);
-    if (accessedAt)
-        return `${windows}${attached} · ${formatRelativeTime(accessedAt)}`;
-    return `${windows}${attached}`;
-}
-export function renderLanding(sessions, opts) {
-    const { view, accessMap, commandbarEnabled = false, commandbarSessions = [], agentsEnabled = false, theme } = opts;
-    const sorted = sortSessionsForView(sessions, view, accessMap);
-    const commandbarActions = [
-        { label: 'Open notes', meta: 'Global notes', clickTargetId: 'notes-toggle' },
-    ];
-    if (agentsEnabled) {
-        commandbarActions.push({ label: 'View All Agents', meta: 'Running agents', href: '/agents' });
-    }
-    const rows = sorted
-        .map((s) => `<a href="/s/${encodeURIComponent(s.name)}" class="session-row">
-      <span class="name">${escapeHtml(s.name)}</span>
-      <span class="meta">${sessionMeta(s, view, accessMap)}</span>
-    </a>`)
-        .join('\n');
-    const empty = sessions.length === 0
-        ? `<p class="empty">No tmux sessions found.<br>Create one with <code>tmux new -s mysession</code><br>or use the <strong>New Session</strong> button.</p>`
-        : '';
-    const refreshHref = view === 'recent' ? '/?view=recent' : '/';
-    const defaultActive = view === 'default' ? ' active' : '';
-    const recentActive = view === 'recent' ? ' active' : '';
-    const pageSpecificCSS = `
+import{cssVarsStyle as w}from"../theme.js";import{notesDrawerCSS as b,notesDrawerHTML as v,notesDrawerScript as x}from"../notes-drawer.js";import{escapeHtml as $}from"../html.js";import{commandbarCSS as y,commandbarHTML as S,commandbarScript as M}from"../commandbar.js";import{sharedLayoutCSS as k,sharedHeader as T,sharedSidebar as C,newSessionModalHTML as A,newSessionModalScript as D}from"../shared-layout.js";function H(o){const s=Date.now()-o;if(s<0)return"just now";const a=Math.floor(s/1e3),n=Math.floor(a/60),t=Math.floor(n/60),e=Math.floor(t/24),i=Math.floor(e/7),c=Math.floor(e/30),l=Math.floor(e/365),r=new Intl.RelativeTimeFormat("en",{numeric:"auto"});return a<45?"just now":n<60?r.format(-n,"minute"):t<24?r.format(-t,"hour"):e<7?r.format(-e,"day"):i<5?r.format(-i,"week"):c<12?r.format(-c,"month"):r.format(-l,"year")}function L(o,s,a){if(s==="default")return o;const n=[],t=[];for(const e of o)a.has(e.name)?n.push(e):t.push(e);return n.sort((e,i)=>(a.get(i.name)??0)-(a.get(e.name)??0)),[...n,...t]}function z(o,s,a){const n=`${o.windows} window${o.windows!==1?"s":""}`,t=o.attached?" \xB7 attached":"";if(s==="default")return`${n}${t}`;const e=a.get(o.name);return e?`${n}${t} \xB7 ${H(e)}`:`${n}${t}`}function F(o,s){const{view:a,accessMap:n,commandbarEnabled:t=!1,commandbarSessions:e=[],agentsEnabled:i=!1,theme:c}=s,l=L(o,a,n),r=[{label:"Open notes",meta:"Global notes",clickTargetId:"notes-toggle"}];i&&r.push({label:"View All Agents",meta:"Running agents",href:"/agents"});const p=l.map(m=>`<a href="/s/${encodeURIComponent(m.name)}" class="session-row">
+      <span class="name">${$(m.name)}</span>
+      <span class="meta">${z(m,a,n)}</span>
+    </a>`).join(`
+`),d=o.length===0?'<p class="empty">No tmux sessions found.<br>Create one with <code>tmux new -s mysession</code><br>or use the <strong>New Session</strong> button.</p>':"",f=a==="recent"?"/?view=recent":"/",g=a==="default"?" active":"",u=a==="recent"?" active":"",h=`
   .session-row {
     display: flex; justify-content: space-between; align-items: center;
     padding: 18px 22px; border: 1px solid var(--panel-border); border-radius: 16px;
@@ -106,9 +34,8 @@ export function renderLanding(sessions, opts) {
     .session-row { flex-direction: column; align-items: flex-start; gap: 6px; padding: 16px 18px; }
     .session-row .meta { text-align: left; margin-top: 0; }
   }
-  ${commandbarEnabled ? commandbarCSS() : ''}
-  ${notesDrawerCSS()}`;
-    return /* html */ `<!DOCTYPE html>
+  ${t?y():""}
+  ${b()}`;return`<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
@@ -116,37 +43,36 @@ export function renderLanding(sessions, opts) {
 <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 <title>tmux-weblink</title>
 <style>
-  ${cssVarsStyle(theme.shell)}
-  ${sharedLayoutCSS(pageSpecificCSS)}
+  ${w(c.shell)}
+  ${k(h)}
 </style>
 </head>
 <body>
 
-${sharedHeader({ commandbarEnabled, title: 'TMUX Sessions', themeTemplate: theme.template })}
+${T({commandbarEnabled:t,title:"TMUX Sessions",themeTemplate:c.template})}
 
 <div class="page-wrap">
   <div class="page-layout">
-    ${sharedSidebar({ activePage: 'home', agentsEnabled, refreshHref })}
+    ${C({activePage:"home",agentsEnabled:i,refreshHref:f})}
     <main class="main-panel">
       <nav class="view-tabs">
-        <a href="/" class="tab${defaultActive}">Default</a>
-        <a href="/?view=recent" class="tab${recentActive}">Last Updated</a>
+        <a href="/" class="tab${g}">Default</a>
+        <a href="/?view=recent" class="tab${u}">Last Updated</a>
       </nav>
-      ${rows}
-      ${empty}
+      ${p}
+      ${d}
     </main>
   </div>
 </div>
 
-${newSessionModalHTML()}
-${commandbarEnabled ? commandbarHTML() : ''}
-${notesDrawerHTML('Notes - Global')}
+${A()}
+${t?S():""}
+${v("Notes - Global")}
 
 <script type="module">
-${notesDrawerScript('__global__')}
-${commandbarEnabled ? commandbarScript(commandbarSessions, commandbarActions) : ''}
-${newSessionModalScript()}
+${x("__global__")}
+${t?M(e,r):""}
+${D()}
 </script>
 </body>
-</html>`;
-}
+</html>`}export{F as renderLanding};

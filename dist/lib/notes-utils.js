@@ -1,5 +1,4 @@
-export function notesUtilsScript() {
-    return `
+function e(){return`
 function linkifyHTML(text) {
   const urlRe = /https?:\\/\\/[^\\s<>"]+/g;
   return text.replace(urlRe, (url) =>
@@ -13,5 +12,4 @@ function escapeHTML(text) {
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;');
-}`;
-}
+}`}export{e as notesUtilsScript};

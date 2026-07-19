@@ -516,11 +516,11 @@ export function initTerminal(
 			_composing = false;
 			clearTimeout(_inputTimer);
 			_inputTimer = undefined;
+			_inputBuf = '';
 			// Send the final composed text once — this is the only send needed.
 			if (e.data) {
 				sendTerminalInput(e.data);
 			}
-			_inputBuf = '';
 		}, true);
 
 		// ── Event handlers ──
@@ -530,7 +530,9 @@ export function initTerminal(
 
 			// Part B: incremental pattern detection (voice input that bypasses composition events).
 			// When the new data starts with the previously buffered data and is longer,
-			// it's the same voice input being extended (e.g., "如果" → "如果使" → "如果使用").
+			// it's the same voice input being extended (e.g., "但" → "但是你" → "但是你看").
+			// This pattern is characteristic of IME voice input that directly writes to the textarea
+			// without going through standard composition events.
 			if (_inputBuf && data.startsWith(_inputBuf) && data.length > _inputBuf.length) {
 				_inputBuf = data;
 				clearTimeout(_inputTimer);
@@ -541,13 +543,22 @@ export function initTerminal(
 				return;
 			}
 
-			// Normal typing: flush any pending buffer immediately, then send this keystroke.
+			// If we had a pending buffer that wasn't a voice increment, flush it.
 			if (_inputBuf) {
 				clearTimeout(_inputTimer);
 				_inputTimer = undefined;
 				flushInputBuf();
 			}
-			sendTerminalInput(data);
+
+			// Short initial debounce: if this is the first onData, wait briefly before
+			// sending — the next event might reveal it as a voice input prefix.
+			// Without this, the first voice input chunk leaks through immediately.
+			clearTimeout(_inputTimer);
+			_inputBuf = data;
+			_inputTimer = setTimeout(() => {
+				flushInputBuf();
+				_inputTimer = undefined;
+			}, 15);
 		});
 
 		term.onResize(({ cols, rows }) => sendJSON({ type: 'resize', cols, rows }));

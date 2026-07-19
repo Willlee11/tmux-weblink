@@ -1,18 +1,16 @@
-import { vscodeTheme } from './themes/vscode.js';
-export function cssVarsStyle(shell = vscodeTheme.shell) {
-    return `
+import{vscodeTheme as n}from"./themes/vscode.js";function a(e=n.shell){return`
   @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap');
   :root {
-    --page-bg: ${shell.pageBg};
-    --page-fg: ${shell.pageFg};
-    --panel-bg: ${shell.panelBg};
-    --panel-border: ${shell.panelBorder};
-    --panel-muted: ${shell.panelMuted};
-    --panel-accent: ${shell.panelAccent};
-    --panel-accent-on: ${shell.panelAccentOn};
-    --panel-success: ${shell.panelSuccess};
-    --terminal-bg: ${shell.terminalBg};
-    --header-gradient: ${shell.headerGradient ?? 'none'};
+    --page-bg: ${e.pageBg};
+    --page-fg: ${e.pageFg};
+    --panel-bg: ${e.panelBg};
+    --panel-border: ${e.panelBorder};
+    --panel-muted: ${e.panelMuted};
+    --panel-accent: ${e.panelAccent};
+    --panel-accent-on: ${e.panelAccentOn};
+    --panel-success: ${e.panelSuccess};
+    --terminal-bg: ${e.terminalBg};
+    --header-gradient: ${e.headerGradient??"none"};
 
     /* Typography */
     --font-sans: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
@@ -27,5 +25,4 @@ export function cssVarsStyle(shell = vscodeTheme.shell) {
   }
   * { margin: 0; padding: 0; box-sizing: border-box; }
   html { font-family: var(--font-sans); font-size: 16px; line-height: 1.5; }
-  body { font-family: var(--font-sans); }`;
-}
+  body { font-family: var(--font-sans); }`}export{a as cssVarsStyle};

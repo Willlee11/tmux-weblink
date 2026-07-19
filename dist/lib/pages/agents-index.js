@@ -1,11 +1,4 @@
-import { cssVarsStyle } from '../theme.js';
-import { AGENT_LABELS } from '../agent-detect.js';
-import { commandbarCSS, commandbarHTML, commandbarScript } from '../commandbar.js';
-import { notesDrawerCSS, notesDrawerHTML, notesDrawerScript } from '../notes-drawer.js';
-import { sharedLayoutCSS, sharedHeader, sharedSidebar, newSessionModalHTML, newSessionModalScript, } from '../shared-layout.js';
-export function renderAgentsIndex(theme, commandbarEnabled = false, commandbarSessions = []) {
-    const labels = JSON.stringify(AGENT_LABELS).replace(/</g, '\\u003c');
-    const pageSpecificCSS = `
+import{cssVarsStyle as s}from"../theme.js";import{AGENT_LABELS as o}from"../agent-detect.js";import{commandbarCSS as i,commandbarHTML as l,commandbarScript as p}from"../commandbar.js";import{notesDrawerCSS as c,notesDrawerHTML as d,notesDrawerScript as g}from"../notes-drawer.js";import{sharedLayoutCSS as m,sharedHeader as u,sharedSidebar as x,newSessionModalHTML as f,newSessionModalScript as b}from"../shared-layout.js";function k(a,e=!1,t=[]){const n=JSON.stringify(o).replace(/</g,"\\u003c"),r=`
   .sub { font-size: var(--text-sm); color: var(--panel-muted); margin-bottom: 24px; line-height: 1.5; }
   .agent {
     display: flex; align-items: center; gap: 12px; text-decoration: none;
@@ -32,9 +25,8 @@ export function renderAgentsIndex(theme, commandbarEnabled = false, commandbarSe
     .agent { flex-wrap: wrap; gap: 8px; }
     .agent .loc { width: 100%; order: 3; }
   }
-  ${commandbarEnabled ? commandbarCSS() : ''}
-  ${notesDrawerCSS()}`;
-    return /* html */ `<!DOCTYPE html>
+  ${e?i():""}
+  ${c()}`;return`<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
@@ -42,38 +34,38 @@ export function renderAgentsIndex(theme, commandbarEnabled = false, commandbarSe
 <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 <title>Agents - tmux-web</title>
 <style>
-  ${cssVarsStyle(theme.shell)}
-  ${sharedLayoutCSS(pageSpecificCSS)}
+  ${s(a.shell)}
+  ${m(r)}
 </style>
 </head>
 <body>
 
-${sharedHeader({ commandbarEnabled, title: 'Agents', themeTemplate: theme.template })}
+${u({commandbarEnabled:e,title:"Agents",themeTemplate:a.template})}
 
 <div class="page-wrap">
   <div class="page-layout">
-    ${sharedSidebar({ activePage: 'agents', agentsEnabled: true, refreshHref: '/agents' })}
+    ${x({activePage:"agents",agentsEnabled:!0,refreshHref:"/agents"})}
     <main class="main-panel">
       <p class="sub">AI agents in the last panes you viewed. Updates automatically.</p>
       <div id="agents-list">
-        <p class="empty" id="empty-msg">Loading…</p>
+        <p class="empty" id="empty-msg">Loading\u2026</p>
       </div>
     </main>
   </div>
 </div>
 
-${newSessionModalHTML()}
-${commandbarEnabled ? commandbarHTML() : ''}
-${notesDrawerHTML('Notes - Global')}
+${f()}
+${e?l():""}
+${d("Notes - Global")}
 
 <script type="module">
-${notesDrawerScript('__global__')}
-${commandbarEnabled ? commandbarScript(commandbarSessions, []) : ''}
-${newSessionModalScript()}
+${g("__global__")}
+${e?p(t,[]):""}
+${b()}
 </script>
 
 <script type="module">
-const LABELS = ${labels};
+const LABELS = ${n};
 
 function esc(s) {
   return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -102,7 +94,7 @@ async function poll() {
     const res = await fetch('/api/agents', { headers: { 'accept': 'application/json' } });
     if (res.ok) render(await res.json());
   } catch {
-    // transient — keep last render
+    // transient \u2014 keep last render
   }
 }
 
@@ -110,5 +102,4 @@ poll();
 setInterval(poll, 2500);
 </script>
 </body>
-</html>`;
-}
+</html>`}export{k as renderAgentsIndex};

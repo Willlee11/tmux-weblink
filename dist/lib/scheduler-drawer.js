@@ -1,9 +1,4 @@
-import { closeOtherDrawersExcept, wrapDrawerScript } from './drawer-script.js';
-import { drawerResizeCSS, drawerResizeHandleHTML, drawerResizeScript } from './drawer-resize.js';
-import { escapeHtml } from './html.js';
-import { DELAY_INVALID_MESSAGE, DELAY_MAX_MESSAGE, MAX_SCHEDULE_MS, scheduleDelayParseScript, } from './schedule-delay.js';
-export function schedulerDrawerCSS() {
-    return `
+import{closeOtherDrawersExcept as o,wrapDrawerScript as a}from"./drawer-script.js";import{drawerResizeCSS as c,drawerResizeHandleHTML as d,drawerResizeScript as i}from"./drawer-resize.js";import{escapeHtml as l}from"./html.js";import{DELAY_INVALID_MESSAGE as h,DELAY_MAX_MESSAGE as p,MAX_SCHEDULE_MS as u,scheduleDelayParseScript as m}from"./schedule-delay.js";function v(){return`
   #sched-backdrop {
     position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 999;
     opacity: 0; pointer-events: none; transition: opacity 0.2s ease;
@@ -16,7 +11,7 @@ export function schedulerDrawerCSS() {
     transform: translateX(100%); transition: transform 0.25s ease;
   }
   #sched-drawer.open { transform: translateX(0); }
-  ${drawerResizeCSS()}
+  ${c()}
   .sched-form-section {
     padding: 14px 16px; border-bottom: 1px solid var(--panel-border); flex-shrink: 0;
     display: flex; flex-direction: column; gap: 10px;
@@ -121,15 +116,12 @@ export function schedulerDrawerCSS() {
   #sched-drawer .drawer-header button:focus-visible { box-shadow: 0 0 0 2px var(--panel-accent); outline: none; }
   @media (max-width: 560px) {
     #sched-drawer { width: min(100vw - 16px, 400px); }
-  }`;
-}
-export function schedulerDrawerHTML(title) {
-    return `
+  }`}function g(e){return`
 <div id="sched-backdrop"></div>
 <div id="sched-drawer" class="resizable-drawer">
-  ${drawerResizeHandleHTML()}
+  ${d()}
   <div class="drawer-header">
-    <span>${escapeHtml(title)}</span>
+    <span>${l(e)}</span>
     <button id="sched-close">&times;</button>
   </div>
   <div class="sched-form-section">
@@ -165,22 +157,15 @@ export function schedulerDrawerHTML(title) {
     </div>
     <div class="sched-task-list" id="sched-task-list"></div>
   </div>
-</div>`;
-}
-export function schedulerDrawerScript(session) {
-    const sessionJs = JSON.stringify(session);
-    const maxScheduleMs = MAX_SCHEDULE_MS;
-    const delayInvalidMessage = DELAY_INVALID_MESSAGE;
-    const delayMaxMessage = DELAY_MAX_MESSAGE;
-    return wrapDrawerScript('scheduler', `
-const SCHED_SESSION = ${sessionJs};
-const MAX_SCHEDULE_MS = ${maxScheduleMs};
-${drawerResizeScript('sched-drawer', 'tmux-web:drawer-width:scheduler', 400)}
+</div>`}function k(e){const t=JSON.stringify(e),n=u,s=h,r=p;return a("scheduler",`
+const SCHED_SESSION = ${t};
+const MAX_SCHEDULE_MS = ${n};
+${i("sched-drawer","tmux-web:drawer-width:scheduler",400)}
 
 let schedCountdownInterval = null;
 let schedTickCount = 0;
 
-${scheduleDelayParseScript()}
+${m()}
 
 function formatCountdown(ms) {
   if (ms <= 0) return 'FIRING';
@@ -297,12 +282,12 @@ async function scheduleTask() {
   const delayMs = parseDelay(delayEl.value);
   if (!delayMs) {
     delayEl.classList.add('error');
-    errorEl.textContent = ${JSON.stringify(delayInvalidMessage)};
+    errorEl.textContent = ${JSON.stringify(s)};
     return;
   }
   if (delayMs > MAX_SCHEDULE_MS) {
     delayEl.classList.add('error');
-    errorEl.textContent = ${JSON.stringify(delayMaxMessage)};
+    errorEl.textContent = ${JSON.stringify(r)};
     return;
   }
   const windowIndex = parseInt(winEl.value, 10);
@@ -344,7 +329,7 @@ function stopSchedTick() {
 }
 
 function openSchedDrawer() {
-  ${closeOtherDrawersExcept('scheduler')}
+  ${o("scheduler")}
   document.getElementById('sched-drawer').classList.add('open');
   document.getElementById('sched-backdrop').classList.add('open');
   fetchSchedWindows();
@@ -391,5 +376,4 @@ window.addEventListener('popstate', () => {
   else closeSchedDrawer();
 });
 
-if (new URLSearchParams(location.search).get('tab') === 'scheduler') openSchedDrawer();`, 'closeSchedDrawer');
-}
+if (new URLSearchParams(location.search).get('tab') === 'scheduler') openSchedDrawer();`,"closeSchedDrawer")}export{v as schedulerDrawerCSS,g as schedulerDrawerHTML,k as schedulerDrawerScript};
