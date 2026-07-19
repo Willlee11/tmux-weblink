@@ -1,27 +1,55 @@
-import{cssVarsStyle as S}from"../theme.js";import{commandbarCSS as k,commandbarHTML as $,commandbarScript as E}from"../commandbar.js";import{notesDrawerCSS as L,notesDrawerHTML as A,notesDrawerScript as B}from"../notes-drawer.js";import{sharedLayoutCSS as C,sharedHeader as M,sharedSidebar as q,newSessionModalHTML as I,newSessionModalScript as D}from"../shared-layout.js";import{DELAY_INVALID_MESSAGE as R,DELAY_MAX_MESSAGE as T,MAX_SCHEDULE_MS as z,scheduleDelayParseScript as N}from"../schedule-delay.js";function t(s){return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;")}function p(s){const n=new Date(s);return n.toLocaleDateString()+" "+n.toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"})}function _(s,n){return s.length?`<div class="task-list">${s.map(e=>`<div class="task">
+import { cssVarsStyle } from '../theme.js';
+import { commandbarCSS, commandbarHTML, commandbarScript } from '../commandbar.js';
+import { notesDrawerCSS, notesDrawerHTML, notesDrawerScript } from '../notes-drawer.js';
+import { sharedLayoutCSS, sharedHeader, sharedSidebar, newSessionModalHTML, newSessionModalScript, } from '../shared-layout.js';
+import { DELAY_INVALID_MESSAGE, DELAY_MAX_MESSAGE, MAX_SCHEDULE_MS, scheduleDelayParseScript, } from '../schedule-delay.js';
+function escapeHtml(s) {
+    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+function formatFireAt(ts) {
+    const d = new Date(ts);
+    return d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+function renderTriggeredPanel(triggered, retentionDays) {
+    if (!triggered.length) {
+        return `<p class="empty">No tasks triggered in the last ${retentionDays} day${retentionDays === 1 ? '' : 's'}.</p>`;
+    }
+    const rows = triggered.map((t) => `<div class="task">
   <div class="task-row1">
-    <span class="cmd">${t(e.text)}</span>
-    <span class="status-pill status-${e.status}">${e.status}</span>
+    <span class="cmd">${escapeHtml(t.text)}</span>
+    <span class="status-pill status-${t.status}">${t.status}</span>
   </div>
   <div class="task-row2">
-    <a class="trig-target" href="/s/${encodeURIComponent(e.sessionName)}?window=${e.windowIndex}">${t(e.sessionName)} &middot; win:${e.windowIndex}</a>
-    <span class="meta">${t(p(e.triggeredAt))}</span>
-  </div>${e.status==="error"&&e.error?`
-  <div class="trig-error">${t(e.error)}</div>`:""}
-</div>`).join(`
-`)}</div>`:`<p class="empty">No tasks triggered in the last ${n} day${n===1?"":"s"}.</p>`}function O(s,n,c,e=7,i=!1,u=[],m=!1){const d=[...s].sort((r,o)=>r.fireAt-o.fireAt),l=new Map;for(const r of d){const o=l.get(r.sessionName);o?o.push(r):l.set(r.sessionName,[r])}const h=[...l.entries()].map(([r,o])=>{const y=o.map(a=>`<div class="task" data-id="${t(a.id)}">
+    <a class="trig-target" href="/s/${encodeURIComponent(t.sessionName)}?window=${t.windowIndex}">${escapeHtml(t.sessionName)} &middot; win:${t.windowIndex}</a>
+    <span class="meta">${escapeHtml(formatFireAt(t.triggeredAt))}</span>
+  </div>${t.status === 'error' && t.error ? `\n  <div class="trig-error">${escapeHtml(t.error)}</div>` : ''}
+</div>`).join('\n');
+    return `<div class="task-list">${rows}</div>`;
+}
+export function renderScheduleIndex(tasks, triggered, theme, retentionDays = 7, commandbarEnabled = false, commandbarSessions = [], agentsEnabled = false) {
+    const sorted = [...tasks].sort((a, b) => a.fireAt - b.fireAt);
+    const groups = new Map();
+    for (const t of sorted) {
+        const arr = groups.get(t.sessionName);
+        if (arr)
+            arr.push(t);
+        else
+            groups.set(t.sessionName, [t]);
+    }
+    const sections = [...groups.entries()].map(([session, items]) => {
+        const rows = items.map((t) => `<div class="task" data-id="${escapeHtml(t.id)}">
   <div class="task-row1">
-    <span class="cmd">${t(a.text)}</span>
-    <span class="countdown" data-fire-at="${a.fireAt}">\u2026</span>
+    <span class="cmd">${escapeHtml(t.text)}</span>
+    <span class="countdown" data-fire-at="${t.fireAt}">…</span>
   </div>
   <div class="task-row2">
-    <span class="meta"><a class="win-link" href="/s/${encodeURIComponent(a.sessionName)}?window=${a.windowIndex}">win:${a.windowIndex}</a> &middot; fires ${t(p(a.fireAt))}</span>
+    <span class="meta"><a class="win-link" href="/s/${encodeURIComponent(t.sessionName)}?window=${t.windowIndex}">win:${t.windowIndex}</a> &middot; fires ${escapeHtml(formatFireAt(t.fireAt))}</span>
     <div style="display:flex;gap:4px;align-items:center;">
-      <button class="reschedule-btn" data-id="${t(a.id)}">reschedule</button>
-      <button class="cancel-btn" data-id="${t(a.id)}">cancel</button>
+      <button class="reschedule-btn" data-id="${escapeHtml(t.id)}">reschedule</button>
+      <button class="cancel-btn" data-id="${escapeHtml(t.id)}">cancel</button>
     </div>
   </div>
-  <div class="reschedule-row" data-id="${t(a.id)}">
+  <div class="reschedule-row" data-id="${escapeHtml(t.id)}">
     <div class="reschedule-presets">
       <button class="reschedule-preset-btn" data-delay="1m">1m</button>
       <button class="reschedule-preset-btn" data-delay="5m">5m</button>
@@ -34,15 +62,21 @@ import{cssVarsStyle as S}from"../theme.js";import{commandbarCSS as k,commandbarH
       <span class="reschedule-error"></span>
     </div>
   </div>
-</div>`).join(`
-`);return`<div class="session-group" data-session="${t(r)}">
-  <a class="session-head" href="/s/${encodeURIComponent(r)}?tab=scheduler">
-    <span class="sname">${t(r)}</span>
-    <span class="scount">${o.length}</span>
+</div>`).join('\n');
+        return `<div class="session-group" data-session="${escapeHtml(session)}">
+  <a class="session-head" href="/s/${encodeURIComponent(session)}?tab=scheduler">
+    <span class="sname">${escapeHtml(session)}</span>
+    <span class="scount">${items.length}</span>
   </a>
-  <div class="task-list">${y}</div>
-</div>`}).join(`
-`),f=d.length?h:'<p class="empty" id="empty-msg">No scheduled tasks.</p>',g=_(n,e),b=z,x=R,v=T,w=`
+  <div class="task-list">${rows}</div>
+</div>`;
+    }).join('\n');
+    const upcomingBody = sorted.length ? sections : '<p class="empty" id="empty-msg">No scheduled tasks.</p>';
+    const triggeredBody = renderTriggeredPanel(triggered, retentionDays);
+    const maxScheduleMs = MAX_SCHEDULE_MS;
+    const delayInvalidMessage = DELAY_INVALID_MESSAGE;
+    const delayMaxMessage = DELAY_MAX_MESSAGE;
+    const pageSpecificCSS = `
   .session-head {
     display: flex; align-items: center; gap: 8px; text-decoration: none;
     font-size: var(--text-xs); font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase;
@@ -154,8 +188,9 @@ import{cssVarsStyle as S}from"../theme.js";import{commandbarCSS as k,commandbarH
     .reschedule-input-row { flex-direction: column; align-items: stretch; }
     .reschedule-input-row button { align-self: flex-start; }
   }
-  ${i?k():""}
-  ${L()}`;return`<!DOCTYPE html>
+  ${commandbarEnabled ? commandbarCSS() : ''}
+  ${notesDrawerCSS()}`;
+    return /* html */ `<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
@@ -163,47 +198,47 @@ import{cssVarsStyle as S}from"../theme.js";import{commandbarCSS as k,commandbarH
 <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 <title>Scheduled tasks - tmux-web</title>
 <style>
-  ${S(c.shell)}
-  ${C(w)}
+  ${cssVarsStyle(theme.shell)}
+  ${sharedLayoutCSS(pageSpecificCSS)}
 </style>
 </head>
 <body>
 
-${M({commandbarEnabled:i,title:"Scheduled",themeTemplate:c.template})}
+${sharedHeader({ commandbarEnabled, title: 'Scheduled', themeTemplate: theme.template })}
 
 <div class="page-wrap">
   <div class="page-layout">
-    ${q({activePage:"schedule",agentsEnabled:m,refreshHref:"/schedule"})}
+    ${sharedSidebar({ activePage: 'schedule', agentsEnabled, refreshHref: '/schedule' })}
     <main class="main-panel">
       <div class="page-tab-bar">
         <button class="page-tab active" data-tab="upcoming">Upcoming</button>
         <button class="page-tab" data-tab="triggered">Recently Triggered</button>
       </div>
       <div class="tab-panel active" data-panel="upcoming">
-        <div id="schedule-list">${f}</div>
+        <div id="schedule-list">${upcomingBody}</div>
       </div>
       <div class="tab-panel" data-panel="triggered">
-        ${g}
+        ${triggeredBody}
       </div>
     </main>
   </div>
 </div>
 
-${I()}
-${i?$():""}
-${A("Notes - Global")}
+${newSessionModalHTML()}
+${commandbarEnabled ? commandbarHTML() : ''}
+${notesDrawerHTML('Notes - Global')}
 
 <script type="module">
-${B("__global__")}
-${i?E(u,[]):""}
-${D()}
+${notesDrawerScript('__global__')}
+${commandbarEnabled ? commandbarScript(commandbarSessions, []) : ''}
+${newSessionModalScript()}
 </script>
 
 <script>
-const MAX_SCHEDULE_MS = ${b};
-${N()}
+const MAX_SCHEDULE_MS = ${maxScheduleMs};
+${scheduleDelayParseScript()}
 
-// \u2500\u2500 Tabs \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+// ── Tabs ─────────────────────────────────────────────────────────────────
 function activateTab(name) {
   document.querySelectorAll('.page-tab').forEach((t) => t.classList.toggle('active', t.dataset.tab === name));
   document.querySelectorAll('.tab-panel').forEach((p) => p.classList.toggle('active', p.dataset.panel === name));
@@ -286,13 +321,13 @@ async function submitReschedule(id, delayStr) {
   const delayMs = parseDelay(delayStr !== undefined ? delayStr : input.value);
   if (!delayMs) {
     input.classList.add('error');
-    errorEl.textContent = ${JSON.stringify(x)};
+    errorEl.textContent = ${JSON.stringify(delayInvalidMessage)};
     input.focus();
     return;
   }
   if (delayMs > MAX_SCHEDULE_MS) {
     input.classList.add('error');
-    errorEl.textContent = ${JSON.stringify(v)};
+    errorEl.textContent = ${JSON.stringify(delayMaxMessage)};
     input.focus();
     return;
   }
@@ -318,9 +353,9 @@ async function submitReschedule(id, delayStr) {
       const meta = task.querySelector('.meta');
       if (meta) {
         const d = new Date(data.fireAt);
-        const win = (meta.textContent.match(/win:(d+)/) || ['','?'])[1];
+        const win = (meta.textContent.match(/win:(\d+)/) || ['','?'])[1];
         const time = d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-        meta.textContent = 'win:' + win + ' \xB7 fires ' + time;
+        meta.textContent = 'win:' + win + ' · fires ' + time;
       }
     }
     closeReschedule(id);
@@ -389,4 +424,5 @@ tick();
 setInterval(tick, 1000);
 </script>
 </body>
-</html>`}export{O as renderScheduleIndex};
+</html>`;
+}

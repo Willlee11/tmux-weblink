@@ -1,1 +1,14 @@
-function n(s,r){if(!s)return r;const e=parseInt(s,10);return Number.isFinite(e)&&e>0?e:r}function i(){return{initialLines:n(process.env.TMUX_WEB_INITIAL_LINES,1e3),historyChunk:n(process.env.TMUX_WEB_HISTORY_CHUNK,500),syncIdleMs:n(process.env.TMUX_WEB_SYNC_IDLE_MS,200),syncMaxMs:n(process.env.TMUX_WEB_SYNC_MAX_MS,3e3)}}export{i as readTerminalBufferConfig};
+function parsePositiveInt(value, fallback) {
+    if (!value)
+        return fallback;
+    const n = parseInt(value, 10);
+    return Number.isFinite(n) && n > 0 ? n : fallback;
+}
+export function readTerminalBufferConfig() {
+    return {
+        initialLines: parsePositiveInt(process.env.TMUX_WEB_INITIAL_LINES, 1000),
+        historyChunk: parsePositiveInt(process.env.TMUX_WEB_HISTORY_CHUNK, 500),
+        syncIdleMs: parsePositiveInt(process.env.TMUX_WEB_SYNC_IDLE_MS, 200),
+        syncMaxMs: parsePositiveInt(process.env.TMUX_WEB_SYNC_MAX_MS, 3000),
+    };
+}

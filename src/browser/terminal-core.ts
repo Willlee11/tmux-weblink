@@ -287,6 +287,11 @@ export function initTerminal(
 		let destroyed = false;
 		let reconnectDelay = 1000;
 
+		// IME composition state (voice input handling)
+		let _composing = false;
+		let _inputBuf = '';
+		let _inputTimer: ReturnType<typeof setTimeout> | undefined;
+
 		const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
 		const wsUrl = proto + '//' + location.host + '/ws/' + encodeURIComponent(sessionName);
 		const uploadUrl = '/api/session/' + encodeURIComponent(sessionName) + '/upload';
@@ -427,6 +432,13 @@ export function initTerminal(
 			sendJSON({ type: 'input', data });
 		}
 
+		function flushInputBuf() {
+			if (_inputBuf) {
+				sendTerminalInput(_inputBuf);
+				_inputBuf = '';
+			}
+		}
+
 		function fitTerminal(): boolean { return term.fit(); }
 		function revealTerminal() { container.classList.remove('terminal-pending'); }
 
@@ -493,8 +505,51 @@ export function initTerminal(
 			} catch {}
 		}
 
-		// Event handlers
-		term.onData((data) => sendTerminalInput(data));
+		// ── IME composition handling (voice input) ──
+		// Capture phase: intercept before xterm.js processes them, so we can
+		// track composition state and suppress duplicate onData events.
+		container.addEventListener('compositionstart', () => {
+			_composing = true;
+		}, true);
+
+		container.addEventListener('compositionend', (e: CompositionEvent) => {
+			_composing = false;
+			clearTimeout(_inputTimer);
+			_inputTimer = undefined;
+			// Send the final composed text once — this is the only send needed.
+			if (e.data) {
+				sendTerminalInput(e.data);
+			}
+			_inputBuf = '';
+		}, true);
+
+		// ── Event handlers ──
+		term.onData((data) => {
+			// Part A: during IME composition, discard onData — compositionend will send the final text.
+			if (_composing) return;
+
+			// Part B: incremental pattern detection (voice input that bypasses composition events).
+			// When the new data starts with the previously buffered data and is longer,
+			// it's the same voice input being extended (e.g., "如果" → "如果使" → "如果使用").
+			if (_inputBuf && data.startsWith(_inputBuf) && data.length > _inputBuf.length) {
+				_inputBuf = data;
+				clearTimeout(_inputTimer);
+				_inputTimer = setTimeout(() => {
+					flushInputBuf();
+					_inputTimer = undefined;
+				}, 40);
+				return;
+			}
+
+			// Normal typing: flush any pending buffer immediately, then send this keystroke.
+			if (_inputBuf) {
+				clearTimeout(_inputTimer);
+				_inputTimer = undefined;
+				flushInputBuf();
+			}
+			sendTerminalInput(data);
+		});
+
 		term.onResize(({ cols, rows }) => sendJSON({ type: 'resize', cols, rows }));
 		term.onScroll(() => {
 			if (phase !== 'live' || historyLoading || !term.isNearScrollbackTop()) return;
@@ -672,6 +727,8 @@ export function initTerminal(
 		return {
 			destroy() {
 				destroyed = true;
+				clearTimeout(_inputTimer);
+				_inputTimer = undefined;
 				if (ws) {
 					try { ws.close(1000, 'session switch'); } catch {}
 					ws = undefined;

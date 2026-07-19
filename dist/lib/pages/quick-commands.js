@@ -1,21 +1,35 @@
-import{cssVarsStyle as l}from"../theme.js";import{commandbarCSS as p,commandbarHTML as m,commandbarScript as u}from"../commandbar.js";import{sharedLayoutCSS as b,sharedHeader as f,sharedSidebar as v,newSessionModalHTML as x,newSessionModalScript as g}from"../shared-layout.js";import{icon as o}from"../icons.js";function t(e){return e.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;")}function k(e){return`<article class="quick-item" data-id="${t(e.id)}">
+import { cssVarsStyle } from '../theme.js';
+import { commandbarCSS, commandbarHTML, commandbarScript } from '../commandbar.js';
+import { sharedLayoutCSS, sharedHeader, sharedSidebar, newSessionModalHTML, newSessionModalScript, } from '../shared-layout.js';
+import { icon } from '../icons.js';
+function escapeHtml(s) {
+    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+function renderCommandCard(command) {
+    return `<article class="quick-item" data-id="${escapeHtml(command.id)}">
   <div class="quick-card-head">
     <div>
-      <div class="quick-title">${t(e.title)}</div>
-      <div class="quick-meta">${t(e.description||"No description")}</div>
+      <div class="quick-title">${escapeHtml(command.title)}</div>
+      <div class="quick-meta">${escapeHtml(command.description || 'No description')}</div>
     </div>
     <div class="quick-icon-actions">
-      <button class="quick-icon-btn quick-edit" type="button" title="Edit command" aria-label="Edit ${t(e.title)}">
-        ${o("edit")}
+      <button class="quick-icon-btn quick-edit" type="button" title="Edit command" aria-label="Edit ${escapeHtml(command.title)}">
+        ${icon('edit')}
       </button>
-      <button class="quick-icon-btn quick-delete" type="button" title="Delete command" aria-label="Delete ${t(e.title)}">
-        ${o("delete")}
+      <button class="quick-icon-btn quick-delete" type="button" title="Delete command" aria-label="Delete ${escapeHtml(command.title)}">
+        ${icon('delete')}
       </button>
     </div>
   </div>
-  <pre class="quick-command-preview"><code>${t(e.command)}</code></pre>
-</article>`}function E(e,a,r=!1,i=[],n=!1){const c=JSON.stringify(e).replace(/</g,"\\u003c"),s=e.length?e.map(k).join(`
-`):'<p class="empty">No quick commands yet. Add one below, then use it from the terminal commandbar.</p>',d=`
+  <pre class="quick-command-preview"><code>${escapeHtml(command.command)}</code></pre>
+</article>`;
+}
+export function renderQuickCommandsPage(commands, theme, commandbarEnabled = false, commandbarSessions = [], agentsEnabled = false) {
+    const commandsJson = JSON.stringify(commands).replace(/</g, '\\u003c');
+    const body = commands.length
+        ? commands.map(renderCommandCard).join('\n')
+        : '<p class="empty">No quick commands yet. Add one below, then use it from the terminal commandbar.</p>';
+    const pageSpecificCSS = `
   .intro {
     margin: 0 0 18px; color: var(--panel-muted); font-size: var(--text-sm); line-height: 1.6;
   }
@@ -155,7 +169,8 @@ import{cssVarsStyle as l}from"../theme.js";import{commandbarCSS as p,commandbarH
     .quick-card-head { flex-wrap: wrap; }
     .quick-icon-actions { width: 100%; justify-content: flex-end; }
   }
-  ${r?p():""}`;return`<!DOCTYPE html>
+  ${commandbarEnabled ? commandbarCSS() : ''}`;
+    return /* html */ `<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
@@ -163,17 +178,17 @@ import{cssVarsStyle as l}from"../theme.js";import{commandbarCSS as p,commandbarH
 <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 <title>Quick Commands - tmux-web</title>
 <style>
-  ${l(a.shell)}
-  ${b(d)}
+  ${cssVarsStyle(theme.shell)}
+  ${sharedLayoutCSS(pageSpecificCSS)}
 </style>
 </head>
 <body>
 
-${f({commandbarEnabled:r,title:"Quick Commands",themeTemplate:a.template})}
+${sharedHeader({ commandbarEnabled, title: 'Quick Commands', themeTemplate: theme.template })}
 
 <div class="page-wrap">
   <div class="page-layout">
-    ${v({activePage:"quickCommands",agentsEnabled:n,refreshHref:"/quick-commands"})}
+    ${sharedSidebar({ activePage: 'quickCommands', agentsEnabled, refreshHref: '/quick-commands' })}
     <main class="main-panel">
       <p class="intro">Configure reusable snippets that can be pasted into the active tmux pane from the terminal commandbar.</p>
       <p class="quick-error" id="quick-error"></p>
@@ -198,12 +213,12 @@ ${f({commandbarEnabled:r,title:"Quick Commands",themeTemplate:a.template})}
       </form>
 
       <h2 class="quick-section-title">Configured</h2>
-      <div id="quick-list">${s}</div>
+      <div id="quick-list">${body}</div>
     </main>
   </div>
 </div>
 
-${x()}
+${newSessionModalHTML()}
 <div class="quick-drawer-backdrop" id="quick-edit-backdrop"></div>
 <aside class="quick-drawer" id="quick-edit-drawer" aria-hidden="true" aria-label="Edit quick command">
   <div class="quick-drawer-header">
@@ -233,10 +248,10 @@ ${x()}
     </div>
   </form>
 </aside>
-${r?m():""}
+${commandbarEnabled ? commandbarHTML() : ''}
 
 <script type="module">
-const commands = ${c};
+const commands = ${commandsJson};
 const errorEl = document.getElementById('quick-error');
 const editBackdrop = document.getElementById('quick-edit-backdrop');
 const editDrawer = document.getElementById('quick-edit-drawer');
@@ -354,8 +369,9 @@ document.addEventListener('keydown', (event) => {
   if (event.key === 'Escape' && editDrawer.classList.contains('open')) closeEditDrawer();
 });
 
-${r?u(i,[]):""}
-${g()}
+${commandbarEnabled ? commandbarScript(commandbarSessions, []) : ''}
+${newSessionModalScript()}
 </script>
 </body>
-</html>`}export{E as renderQuickCommandsPage};
+</html>`;
+}

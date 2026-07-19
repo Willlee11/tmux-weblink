@@ -1,4 +1,17 @@
-import{icon as e}from"./icons.js";function n(){return`
+import { icon } from './icons.js';
+/**
+ * Mobile-only bottom toolbar for the terminal page.
+ *
+ * Mirrors the top `<header>` panel but is shown only on narrow viewports
+ * (`@media (max-width: 560px)`). Provides two quick-access tools that feed the
+ * active tmux pane via `window.tmuxWeb.sendInput` (exposed by terminal-client.ts):
+ *   - Mic: browser Web Speech API speech-to-text; transcript lands in the
+ *     type-to-send modal for review/edit before sending.
+ *   - Keyboard: opens the same modal to compose text/commands away from the
+ *     cramped pane, with Send (insert as-is) and Send ⏎ (append carriage return).
+ */
+export function mobileToolbarCSS() {
+    return `
   #mobile-toolbar { display: none; }
   @media (max-width: 560px) {
     #mobile-toolbar {
@@ -126,13 +139,16 @@ import{icon as e}from"./icons.js";function n(){return`
   }
   #type-modal .type-modal-footer #type-send-enter {
     border-color: var(--panel-success); color: var(--panel-success);
-  }`}function a(){return`
+  }`;
+}
+export function mobileToolbarHTML() {
+    return `
 <div id="mobile-toolbar">
   <button id="mic-toggle" type="button" title="Voice input" aria-label="Voice input">
-    ${e("microphone")}
+    ${icon('microphone')}
   </button>
   <button id="type-toggle" type="button" title="Type to send" aria-label="Type to send">
-    ${e("keyboard")}
+    ${icon('keyboard')}
   </button>
 </div>
 <div id="type-backdrop"></div>
@@ -147,13 +163,16 @@ import{icon as e}from"./icons.js";function n(){return`
     <label><input type="radio" name="type-modifier" value="Tab" /><span class="type-modal-modifier-label">Tab</span></label>
     <label><input type="radio" name="type-modifier" value="Ctrl" /><span class="type-modal-modifier-label">Ctrl</span></label>
   </div>
-  <textarea id="type-input" placeholder="Type a command or tap the mic\u2026" autocapitalize="off" autocomplete="off" autocorrect="off" spellcheck="false"></textarea>
+  <textarea id="type-input" placeholder="Type a command or tap the mic…" autocapitalize="off" autocomplete="off" autocorrect="off" spellcheck="false"></textarea>
   <div id="type-status"></div>
   <div class="type-modal-footer">
     <button id="type-send" type="button">Send</button>
     <button id="type-send-enter" type="button">Send &#9166;</button>
   </div>
-</div>`}function i(t){return`(function() {
+</div>`;
+}
+export function mobileToolbarScript(_sessionName) {
+    return `(function() {
   const micBtn = document.getElementById('mic-toggle');
   const typeBtn = document.getElementById('type-toggle');
   const modal = document.getElementById('type-modal');
@@ -241,13 +260,13 @@ import{icon as e}from"./icons.js";function n(){return`
   sendBtn.addEventListener('click', () => send(false));
   sendEnterBtn.addEventListener('click', () => send(true));
 
-  // \u2500\u2500 Speech-to-text (browser Web Speech API) \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+  // ── Speech-to-text (browser Web Speech API) ──────────────────────────────
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   let recognition = null;
   let listening = false;
 
   if (!SR) {
-    // Unsupported browser \u2014 hide the mic entirely.
+    // Unsupported browser — hide the mic entirely.
     micBtn.style.display = 'none';
   } else {
     micBtn.addEventListener('click', () => {
@@ -268,7 +287,7 @@ import{icon as e}from"./icons.js";function n(){return`
       listening = true;
       micBtn.classList.add('listening');
       openModal();
-      setStatus('Listening\u2026');
+      setStatus('Listening…');
     };
     recognition.onresult = (event) => {
       let transcript = '';
@@ -290,7 +309,7 @@ import{icon as e}from"./icons.js";function n(){return`
     recognition.onend = () => {
       listening = false;
       micBtn.classList.remove('listening');
-      if (!status.textContent || status.textContent === 'Listening\u2026') {
+      if (!status.textContent || status.textContent === 'Listening…') {
         setStatus(input.value ? 'Review and send' : '');
       }
       recognition = null;
@@ -310,4 +329,5 @@ import{icon as e}from"./icons.js";function n(){return`
       try { recognition.stop(); } catch (e) { /* ignore */ }
     }
   }
-})();`}export{n as mobileToolbarCSS,a as mobileToolbarHTML,i as mobileToolbarScript};
+})();`;
+}

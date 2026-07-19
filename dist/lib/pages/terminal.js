@@ -1,4 +1,16 @@
-import{cssVarsStyle as w}from"../theme.js";import{escapeHtml as i,escapeAttr as c}from"../html.js";import{notesDrawerCSS as v,notesDrawerHTML as y,notesDrawerScript as $}from"../notes-drawer.js";import{schedulerDrawerCSS as k,schedulerDrawerHTML as S,schedulerDrawerScript as L}from"../scheduler-drawer.js";import{windowsDrawerCSS as D,windowsDrawerHTML as E,windowsDrawerScript as F}from"../windows-drawer.js";import{sessionsDrawerCSS as M,sessionsDrawerHTML as I,sessionsDrawerScript as T}from"../sessions-drawer.js";import{mobileToolbarCSS as C,mobileToolbarHTML as B,mobileToolbarScript as O}from"../mobile-toolbar.js";import{icon as m,extIcon as W}from"../icons.js";import{commandbarButtonHTML as z,commandbarCSS as H,commandbarHTML as P,commandbarScript as R}from"../commandbar.js";import{drawerResizeCSS as A,drawerResizeHandleHTML as h,drawerResizeScript as x}from"../drawer-resize.js";import{themeSwitcherButtonHTML as j,themeSwitcherScript as J}from"../shared-layout.js";function _(){return`
+import { cssVarsStyle } from '../theme.js';
+import { escapeHtml, escapeAttr } from '../html.js';
+import { notesDrawerCSS, notesDrawerHTML, notesDrawerScript } from '../notes-drawer.js';
+import { schedulerDrawerCSS, schedulerDrawerHTML, schedulerDrawerScript } from '../scheduler-drawer.js';
+import { windowsDrawerCSS, windowsDrawerHTML, windowsDrawerScript } from '../windows-drawer.js';
+import { sessionsDrawerCSS, sessionsDrawerHTML, sessionsDrawerScript } from '../sessions-drawer.js';
+import { mobileToolbarCSS, mobileToolbarHTML, mobileToolbarScript } from '../mobile-toolbar.js';
+import { icon, extIcon } from '../icons.js';
+import { commandbarButtonHTML, commandbarCSS, commandbarHTML, commandbarScript, } from '../commandbar.js';
+import { drawerResizeCSS, drawerResizeHandleHTML, drawerResizeScript } from '../drawer-resize.js';
+import { themeSwitcherButtonHTML, themeSwitcherScript } from '../shared-layout.js';
+function extDrawerCSS() {
+    return `
   .ext-backdrop {
     position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 999;
     opacity: 0; pointer-events: none; transition: opacity 0.2s ease;
@@ -18,7 +30,7 @@ import{cssVarsStyle as w}from"../theme.js";import{escapeHtml as i,escapeAttr as 
     transform: translateX(100%); transition: transform 0.25s ease;
   }
   .ext-panel.open { transform: translateX(0); }
-  ${A()}
+  ${drawerResizeCSS()}
   .ext-drawer .drawer-header,
   .ext-panel .drawer-header {
     display: flex; justify-content: space-between; align-items: center;
@@ -35,37 +47,56 @@ import{cssVarsStyle as w}from"../theme.js";import{escapeHtml as i,escapeAttr as 
   .ext-panel .drawer-header button:hover { color: var(--panel-accent); }
   .ext-drawer iframe { flex: 1; border: none; width: 100%; height: 0; }
   .ext-panel iframe { flex: 1; border: none; width: 100%; height: 100%; }
-`}function U(e){const n=e.id;return`
-<div id="ext-${n}-backdrop" class="ext-backdrop"></div>
-<div id="ext-${n}-drawer" class="ext-drawer resizable-drawer">
-  ${h()}
+`;
+}
+function extDrawerHTML(manifest) {
+    const id = manifest.id;
+    return `
+<div id="ext-${id}-backdrop" class="ext-backdrop"></div>
+<div id="ext-${id}-drawer" class="ext-drawer resizable-drawer">
+  ${drawerResizeHandleHTML()}
   <div class="drawer-header">
-    <span>${i(e.icon)} ${i(e.name)}</span>
-    <button id="ext-${n}-close">&times;</button>
+    <span>${escapeHtml(manifest.icon)} ${escapeHtml(manifest.name)}</span>
+    <button id="ext-${id}-close">&times;</button>
   </div>
-  <iframe id="ext-${n}-frame" src="/ext/${n}/ui/index.html"></iframe>
-</div>`}function X(e){const n=e.id,t=e.panel;if(!t)return"";const r=t.title??e.name;return`
-<div id="ext-${n}-panel-backdrop" class="ext-backdrop"></div>
-<div id="ext-${n}-panel" class="ext-panel resizable-drawer">
-  ${h()}
+  <iframe id="ext-${id}-frame" src="/ext/${id}/ui/index.html"></iframe>
+</div>`;
+}
+function extPanelHTML(manifest) {
+    const id = manifest.id;
+    const panel = manifest.panel;
+    if (!panel)
+        return '';
+    const title = panel.title ?? manifest.name;
+    return `
+<div id="ext-${id}-panel-backdrop" class="ext-backdrop"></div>
+<div id="ext-${id}-panel" class="ext-panel resizable-drawer">
+  ${drawerResizeHandleHTML()}
   <div class="drawer-header">
-    <span>${i(e.icon)} ${i(r)}</span>
-    <button id="ext-${n}-panel-close">&times;</button>
+    <span>${escapeHtml(manifest.icon)} ${escapeHtml(title)}</span>
+    <button id="ext-${id}-panel-close">&times;</button>
   </div>
-  <iframe id="ext-${n}-panel-frame" src="/ext/${n}/ui/${c(t.entry)}"></iframe>
-</div>`}function V(e,n){const t=e.id,r=JSON.stringify(e.config),o=e.panel?.entry??null,d=e.panel?.defaultWidth??960;return`
-${x(`ext-${t}-drawer`,`tmux-web:drawer-width:ext:${t}`,360)}
-${o?x(`ext-${t}-panel`,`tmux-web:panel-width:ext:${t}`,d):""}
+  <iframe id="ext-${id}-panel-frame" src="/ext/${id}/ui/${escapeAttr(panel.entry)}"></iframe>
+</div>`;
+}
+function extDrawerScript(manifest, sessionName) {
+    const id = manifest.id;
+    const cfgJson = JSON.stringify(manifest.config);
+    const panelEntry = manifest.panel?.entry ?? null;
+    const panelWidth = manifest.panel?.defaultWidth ?? 960;
+    return `
+${drawerResizeScript(`ext-${id}-drawer`, `tmux-web:drawer-width:ext:${id}`, 360)}
+${panelEntry ? drawerResizeScript(`ext-${id}-panel`, `tmux-web:panel-width:ext:${id}`, panelWidth) : ''}
 (function() {
-  const backdrop = document.getElementById('ext-${t}-backdrop');
-  const drawer   = document.getElementById('ext-${t}-drawer');
-  const frame    = document.getElementById('ext-${t}-frame');
-  const toggle   = document.getElementById('ext-${t}-toggle');
-  const close    = document.getElementById('ext-${t}-close');
-  const panelBackdrop = document.getElementById('ext-${t}-panel-backdrop');
-  const panel = document.getElementById('ext-${t}-panel');
-  const panelFrame = document.getElementById('ext-${t}-panel-frame');
-  const panelClose = document.getElementById('ext-${t}-panel-close');
+  const backdrop = document.getElementById('ext-${id}-backdrop');
+  const drawer   = document.getElementById('ext-${id}-drawer');
+  const frame    = document.getElementById('ext-${id}-frame');
+  const toggle   = document.getElementById('ext-${id}-toggle');
+  const close    = document.getElementById('ext-${id}-close');
+  const panelBackdrop = document.getElementById('ext-${id}-panel-backdrop');
+  const panel = document.getElementById('ext-${id}-panel');
+  const panelFrame = document.getElementById('ext-${id}-panel-frame');
+  const panelClose = document.getElementById('ext-${id}-panel-close');
 
   function notifyFrame(targetFrame, type) {
     if (targetFrame && targetFrame.contentWindow) {
@@ -109,11 +140,11 @@ ${o?x(`ext-${t}-panel`,`tmux-web:panel-width:ext:${t}`,d):""}
   if (panelClose) panelClose.addEventListener('click', closePanel);
   if (panelBackdrop) panelBackdrop.addEventListener('click', closePanel);
 
-  const cfg = ${r};
+  const cfg = ${cfgJson};
 
   function sendMessages(targetFrame) {
     if (!targetFrame || !targetFrame.contentWindow) return;
-    targetFrame.contentWindow.postMessage({ type: 'ext:context', context: { session: ${JSON.stringify(n)}, host: location.origin } }, '*');
+    targetFrame.contentWindow.postMessage({ type: 'ext:context', context: { session: ${JSON.stringify(sessionName)}, host: location.origin } }, '*');
     targetFrame.contentWindow.postMessage({ type: 'ext:config',  config: cfg }, '*');
   }
 
@@ -150,15 +181,38 @@ ${o?x(`ext-${t}-panel`,`tmux-web:panel-width:ext:${t}`,d):""}
       sendMessages(panelFrame);
     }
   });
-}());`}function re(e,n=[],t){const r=n.filter(a=>a.slot==="sidebar"),{commandbarEnabled:o=!1,commandbarSessions:d=[],quickCommands:g=[],agentsEnabled:b=!1,theme:s,renderer:f="xterm"}=t,l=t.terminal??{initialLines:1e3,historyChunk:500,syncIdleMs:200,syncMaxMs:3e3},u=l.initialLines+2*l.historyChunk,p=[{label:"Switch window",meta:`Windows in ${e}`,subView:"windows"},{label:"Quick Commands",meta:"Paste configured command",subView:"quickCommands"},{label:"Send Command",meta:"Send input to active window",clickTargetId:"type-toggle"},{label:"Open sessions sidebar",meta:"Recent and pinned sessions",clickTargetId:"sessions-toggle"},{label:"Open notes",meta:`Notes for ${e}`,clickTargetId:"notes-toggle"},{label:"Open scheduler",meta:`Schedule command in ${e}`,clickTargetId:"sched-toggle"}];return b&&p.push({label:"View All Agents",meta:"Running agents",href:"/agents"}),`<!DOCTYPE html>
+}());`;
+}
+export function renderTerminal(sessionName, extensions = [], opts) {
+    const sidebarExts = extensions.filter(e => e.slot === 'sidebar');
+    const { commandbarEnabled = false, commandbarSessions = [], quickCommands = [], agentsEnabled = false, theme, renderer = 'xterm' } = opts;
+    const terminalCfg = opts.terminal ?? {
+        initialLines: 1000,
+        historyChunk: 500,
+        syncIdleMs: 200,
+        syncMaxMs: 3000,
+    };
+    const scrollback = terminalCfg.initialLines + 2 * terminalCfg.historyChunk;
+    const commandbarActions = [
+        { label: 'Switch window', meta: `Windows in ${sessionName}`, subView: 'windows' },
+        { label: 'Quick Commands', meta: 'Paste configured command', subView: 'quickCommands' },
+        { label: 'Send Command', meta: 'Send input to active window', clickTargetId: 'type-toggle' },
+        { label: 'Open sessions sidebar', meta: 'Recent and pinned sessions', clickTargetId: 'sessions-toggle' },
+        { label: 'Open notes', meta: `Notes for ${sessionName}`, clickTargetId: 'notes-toggle' },
+        { label: 'Open scheduler', meta: `Schedule command in ${sessionName}`, clickTargetId: 'sched-toggle' },
+    ];
+    if (agentsEnabled) {
+        commandbarActions.push({ label: 'View All Agents', meta: 'Running agents', href: '/agents' });
+    }
+    return /* html */ `<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-<title>tmux: ${i(e)}</title>
+<title>tmux: ${escapeHtml(sessionName)}</title>
 <style>
-  ${w(s.shell)}
+  ${cssVarsStyle(theme.shell)}
   html, body { background: var(--page-bg); color: var(--page-fg); height: 100%; width: 100%; overflow: hidden; }
   body { display: flex; flex-direction: column; }
   header {
@@ -266,13 +320,13 @@ ${o?x(`ext-${t}-panel`,`tmux-web:panel-width:ext:${t}`,d):""}
   @media (max-width: 380px) {
     header .status { display: none; }
   }
-  ${o?H():""}
-  ${v()}
-  ${k()}
-  ${D()}
-  ${M()}
-  ${C()}
-  ${_()}
+  ${commandbarEnabled ? commandbarCSS() : ''}
+  ${notesDrawerCSS()}
+  ${schedulerDrawerCSS()}
+  ${windowsDrawerCSS()}
+  ${sessionsDrawerCSS()}
+  ${mobileToolbarCSS()}
+  ${extDrawerCSS()}
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after {
       animation-duration: 0.01ms !important;
@@ -286,57 +340,60 @@ ${o?x(`ext-${t}-panel`,`tmux-web:panel-width:ext:${t}`,d):""}
 <body>
 <header>
   <div class="brand"><a href="/" aria-label="Go to home">tmux<span>-weblink</span></a></div>
-  <span class="session">${i(e)}</span>
-  ${o?z("Sessions"):""}
+  <span class="session">${escapeHtml(sessionName)}</span>
+  ${commandbarEnabled ? commandbarButtonHTML('Sessions') : ''}
   <button class="notes-btn" id="notes-toggle" title="Session notes" aria-label="Session notes">
-    ${m("notes")}
+    ${icon('notes')}
   </button>
   <button class="sched-btn" id="sched-toggle" title="Schedule command" aria-label="Schedule command">
-    ${m("schedule")}
+    ${icon('schedule')}
   </button>
-  ${r.map(a=>`<button class="ext-btn" id="ext-${a.id}-toggle" title="${c(a.name)}" aria-label="${c(a.name)}">${W(a.id,a.icon)}</button>`).join(`
-  `)}
-  ${j(s.template)}
+  ${sidebarExts.map(e => `<button class="ext-btn" id="ext-${e.id}-toggle" title="${escapeAttr(e.name)}" aria-label="${escapeAttr(e.name)}">${extIcon(e.id, e.icon)}</button>`).join('\n  ')}
+  ${themeSwitcherButtonHTML(theme.template)}
   <div class="status">
     <div class="dot" id="status-dot"></div>
     <span id="status-text">connecting</span>
   </div>
 </header>
-<script>${J()}</script>
+<script>${themeSwitcherScript()}</script>
 <div id="terminal-container" class="terminal-pending"></div>
-${B()}
-${o?P():""}
-${y(`Notes - ${e}`)}
-${S(`Scheduler - ${e}`)}
-${E(`Windows - ${e}`)}
-${I()}
-${r.map(a=>U(a)).join(`
-`)}
-${r.map(a=>X(a)).join(`
-`)}
+${mobileToolbarHTML()}
+${commandbarEnabled ? commandbarHTML() : ''}
+${notesDrawerHTML(`Notes - ${sessionName}`)}
+${schedulerDrawerHTML(`Scheduler - ${sessionName}`)}
+${windowsDrawerHTML(`Windows - ${sessionName}`)}
+${sessionsDrawerHTML()}
+${sidebarExts.map(e => extDrawerHTML(e)).join('\n')}
+${sidebarExts.map(e => extPanelHTML(e)).join('\n')}
 
 <script type="module">
-window.__TMUX_WEB_TERMINAL__ = ${JSON.stringify({sessionName:e,terminal:l,scrollback:u,theme:s.terminal,renderer:f}).replace(/</g,"\\u003c")};
+window.__TMUX_WEB_TERMINAL__ = ${JSON.stringify({
+        sessionName,
+        terminal: terminalCfg,
+        scrollback,
+        theme: theme.terminal,
+        renderer,
+    }).replace(/</g, '\\u003c')};
 await import('/assets/terminal-client.js');
 
 // ========== NOTES ==========
-${$(`session:${e}`)}
+${notesDrawerScript(`session:${sessionName}`)}
 
 // ========== SCHEDULER ==========
-${L(e)}
+${schedulerDrawerScript(sessionName)}
 
 // ========== WINDOWS ==========
-${F(e)}
+${windowsDrawerScript(sessionName)}
 
 // ========== SESSIONS SIDEBAR ==========
-${T(e)}
+${sessionsDrawerScript(sessionName)}
 
 // ========== WINDOW DEEP-LINK (?window=N) ==========
 {
   const wParam = new URLSearchParams(location.search).get('window');
   const wIndex = wParam === null ? NaN : parseInt(wParam, 10);
   if (Number.isInteger(wIndex) && wIndex >= 0) {
-    fetch('/api/session/' + encodeURIComponent(${JSON.stringify(e)}) + '/select-window', {
+    fetch('/api/session/' + encodeURIComponent(${JSON.stringify(sessionName)}) + '/select-window', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ windowIndex: wIndex }),
@@ -345,20 +402,20 @@ ${T(e)}
 }
 
 // ========== MOBILE TOOLBAR ==========
-${O(e)}
+${mobileToolbarScript(sessionName)}
 
 // ========== COMMANDBAR ==========
-${o?R(d,p,{sessionName:e},g):""}
+${commandbarEnabled ? commandbarScript(commandbarSessions, commandbarActions, { sessionName }, quickCommands) : ''}
 
 // ========== NOTES ==========
 // (notes and scheduler scripts already included above; extensions below)
 </script>
 
-${r.length>0?`<script>
+${sidebarExts.length > 0 ? `<script>
 // Extension bootstrap: plain script (not module) so it runs before the module
 // awaits terminal-client import, avoiding a race where iframes load during that await.
-${r.map(a=>V(a,e)).join(`
-`)}
-</script>`:""}
+${sidebarExts.map(e => extDrawerScript(e, sessionName)).join('\n')}
+</script>` : ''}
 </body>
-</html>`}export{re as renderTerminal};
+</html>`;
+}
