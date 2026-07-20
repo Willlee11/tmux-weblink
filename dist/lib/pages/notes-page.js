@@ -1,12 +1,26 @@
-import{cssVarsStyle as b}from"../theme.js";import{escapeHtml as m}from"../html.js";import{notesDbScript as g}from"../notes-db.js";import{notesUtilsScript as u}from"../notes-utils.js";import{commandbarCSS as x,commandbarHTML as f,commandbarScript as v,commandbarButtonHTML as y}from"../commandbar.js";function L(t,a,e=!1,r=[]){const o=t==="__global__",i=o?"Global":t,s=o?"__global__":"session:"+t,d="/notes",l=o?"notes-global":"notes-session-"+t.replace(/[:\/\\]/g,"-"),c=JSON.stringify(s),p=JSON.stringify(`${l}.md`),n=m(i);return`<!DOCTYPE html>
+import { cssVarsStyle } from '../theme.js';
+import { escapeHtml } from '../html.js';
+import { notesDbScript } from '../notes-db.js';
+import { notesUtilsScript } from '../notes-utils.js';
+import { commandbarCSS, commandbarHTML, commandbarScript, commandbarButtonHTML } from '../commandbar.js';
+export function renderNotesPage(session, theme, commandbarEnabled = false, commandbarSessions = []) {
+    const isGlobal = session === '__global__';
+    const label = isGlobal ? 'Global' : session;
+    const scope = isGlobal ? '__global__' : 'session:' + session;
+    const backHref = '/notes';
+    const exportName = isGlobal ? 'notes-global' : 'notes-session-' + session.replace(/[:\/\\]/g, '-');
+    const scopeJs = JSON.stringify(scope);
+    const exportNameJs = JSON.stringify(`${exportName}.md`);
+    const labelHtml = escapeHtml(label);
+    return /* html */ `<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-<title>Notes - ${n} - tmux-web</title>
+<title>Notes - ${labelHtml} - tmux-web</title>
 <style>
-  ${b(a.shell)}
+  ${cssVarsStyle(theme.shell)}
   html, body { background: var(--page-bg); color: var(--page-fg); min-height: 100%; font-family: var(--font-mono); }
   .container { max-width: 720px; margin: 40px auto; padding: 0 20px; }
   .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
@@ -53,16 +67,16 @@ import{cssVarsStyle as b}from"../theme.js";import{escapeHtml as m}from"../html.j
     .container { margin: 20px auto; padding: 0 16px; }
     #notes-editor { min-height: 300px; padding: 12px; }
   }
-  ${e?x():""}
+  ${commandbarEnabled ? commandbarCSS() : ''}
 </style>
 </head>
 <body>
 <div class="container">
   <div class="page-header">
     <div class="breadcrumb">
-      <a href="${d}">Notes</a> <span>/</span> <span>${n}</span>
+      <a href="${backHref}">Notes</a> <span>/</span> <span>${labelHtml}</span>
     </div>
-    ${e?y("Search"):""}
+    ${commandbarEnabled ? commandbarButtonHTML('Search') : ''}
   </div>
   <div class="toolbar">
     <button id="notes-copy">Copy</button>
@@ -73,9 +87,9 @@ import{cssVarsStyle as b}from"../theme.js";import{escapeHtml as m}from"../html.j
 </div>
 
 <script type="module">
-const NOTES_SCOPE = ${c};
-${g()}
-${u()}
+const NOTES_SCOPE = ${scopeJs};
+${notesDbScript()}
+${notesUtilsScript()}
 
 const notesEditor = document.getElementById('notes-editor');
 const copyBtn = document.getElementById('notes-copy');
@@ -143,16 +157,17 @@ exportBtn.addEventListener('click', () => {
   const blob = new Blob([notePlain], { type: 'text/markdown' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = ${p};
+  a.download = ${exportNameJs};
   a.click();
   URL.revokeObjectURL(a.href);
 });
 
 renderNote();
 </script>
-${e?f():""}
+${commandbarEnabled ? commandbarHTML() : ''}
 <script type="module">
-${e?v(r,[]):""}
+${commandbarEnabled ? commandbarScript(commandbarSessions, []) : ''}
 </script>
 </body>
-</html>`}export{L as renderNotesPage};
+</html>`;
+}

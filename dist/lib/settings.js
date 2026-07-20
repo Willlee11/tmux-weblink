@@ -1,2 +1,16 @@
-import{readFile as i,writeFile as e,mkdir as n}from"node:fs/promises";import a from"node:path";import{getSettingsPath as o}from"./state-paths.js";const t=o();async function u(){try{return JSON.parse(await i(t,"utf-8"))}catch{return{}}}async function f(r){await n(a.dirname(t),{recursive:!0}),await e(t,JSON.stringify(r,null,2)+`
-`)}export{u as readSettings,f as writeSettings};
+import { readFile, writeFile, mkdir } from 'node:fs/promises';
+import path from 'node:path';
+import { getSettingsPath } from './state-paths.js';
+const CONFIG_PATH = getSettingsPath();
+export async function readSettings() {
+    try {
+        return JSON.parse(await readFile(CONFIG_PATH, 'utf-8'));
+    }
+    catch {
+        return {};
+    }
+}
+export async function writeSettings(cfg) {
+    await mkdir(path.dirname(CONFIG_PATH), { recursive: true });
+    await writeFile(CONFIG_PATH, JSON.stringify(cfg, null, 2) + '\n');
+}

@@ -414,6 +414,49 @@ const serveFavicon = (c: import("hono").Context) =>
 app.get("/favicon.svg", serveFavicon);
 app.get("/favicon.ico", serveFavicon);
 
+// ── PWA / manifest ─────────────────────────────────────────────────────────
+
+const MANIFEST_JSON = {
+	name: "tmux-weblink",
+	short_name: "tmux-web",
+	description: "Access your tmux sessions from the browser",
+	start_url: "/",
+	display: "standalone",
+	background_color: "#0d1117",
+	theme_color: "#0d1117",
+	icons: [
+		{ src: "/assets/icon-192.png", sizes: "192x192", type: "image/png" },
+		{ src: "/assets/icon-512.png", sizes: "512x512", type: "image/png" },
+	],
+};
+
+app.get("/manifest.json", (c) =>
+	c.json(MANIFEST_JSON, 200, {
+		"Cache-Control": "public, max-age=3600",
+	}),
+);
+
+// ── Service Worker ─────────────────────────────────────────────────────────
+
+const SERVICE_WORKER_JS = `// tmux-weblink Service Worker
+const CACHE = "tmux-weblink-v1";
+const ASSETS = ["/", "/favicon.svg"];
+self.addEventListener("install", (e) => {
+  e.waitUntil(caches.open(CACHE).then((c) => c.addAll(ASSETS)));
+  self.skipWaiting();
+});
+self.addEventListener("activate", (e) => { e.waitUntil(clients.claim()); });
+self.addEventListener("fetch", (e) => {
+  e.respondWith(fetch(e.request).catch(() => caches.match(e.request)));
+});
+`;
+
+app.get("/sw.js", (c) =>
+	c.body(SERVICE_WORKER_JS, 200, {
+		"Content-Type": "application/javascript; charset=utf-8",
+	}),
+);
+
 // ── Public routes ──────────────────────────────────────────────────────────
 
 app.get("/login", (c) => {

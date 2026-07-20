@@ -1,1 +1,50 @@
-import{viewKey as r}from"./pinned-views.js";import{listSessionWindows as f}from"./tmux-windows.js";function A(t,o){return t.has(r(o))}function N(t,o,d){const m=new Map(t.map(n=>[n.name,n])),c=new Set(d.map(n=>r(n.sessionName,n.windowIndex))),w=[...d].sort((n,s)=>s.pinnedAt-n.pinnedAt).map(n=>{const s=m.get(n.sessionName),e={sessionName:n.sessionName,windowIndex:n.windowIndex,pinnedAt:n.pinnedAt};if(!s)return e.missing=!0,e;if(e.windows=s.windows,e.attached=s.attached,n.windowIndex!==void 0){const a=f(n.sessionName).find(u=>u.index===n.windowIndex);a?e.windowName=a.name:e.missing=!0}return e}),p=t.map(n=>({...n,lastAccessedAt:o.get(n.name)})).filter(n=>!A(c,n.name)).sort((n,s)=>{const e=n.lastAccessedAt??0,i=s.lastAccessedAt??0;return e!==i?i-e:n.name.localeCompare(s.name)});return{pinned:w,recent:p}}export{N as buildSidebarSessions};
+import { viewKey } from './pinned-views.js';
+import { listSessionWindows } from './tmux-windows.js';
+function isSessionPinned(pinnedKeys, sessionName) {
+    return pinnedKeys.has(viewKey(sessionName));
+}
+export function buildSidebarSessions(sessions, accessMap, pinnedViews) {
+    const sessionByName = new Map(sessions.map((session) => [session.name, session]));
+    const pinnedKeys = new Set(pinnedViews.map((view) => viewKey(view.sessionName, view.windowIndex)));
+    const pinned = [...pinnedViews]
+        .sort((a, b) => b.pinnedAt - a.pinnedAt)
+        .map((view) => {
+        const session = sessionByName.get(view.sessionName);
+        const row = {
+            sessionName: view.sessionName,
+            windowIndex: view.windowIndex,
+            pinnedAt: view.pinnedAt,
+        };
+        if (!session) {
+            row.missing = true;
+            return row;
+        }
+        row.windows = session.windows;
+        row.attached = session.attached;
+        if (view.windowIndex !== undefined) {
+            const windows = listSessionWindows(view.sessionName);
+            const match = windows.find((window) => window.index === view.windowIndex);
+            if (!match) {
+                row.missing = true;
+            }
+            else {
+                row.windowName = match.name;
+            }
+        }
+        return row;
+    });
+    const recent = sessions
+        .map((session) => ({
+        ...session,
+        lastAccessedAt: accessMap.get(session.name),
+    }))
+        .filter((session) => !isSessionPinned(pinnedKeys, session.name))
+        .sort((a, b) => {
+        const ar = a.lastAccessedAt ?? 0;
+        const br = b.lastAccessedAt ?? 0;
+        if (ar !== br)
+            return br - ar;
+        return a.name.localeCompare(b.name);
+    });
+    return { pinned, recent };
+}

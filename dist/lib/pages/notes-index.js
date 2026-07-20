@@ -1,9 +1,32 @@
-import{cssVarsStyle as b}from"../theme.js";import{commandbarCSS as x,commandbarHTML as f,commandbarScript as h}from"../commandbar.js";import{notesDrawerCSS as u,notesDrawerHTML as w,notesDrawerScript as S}from"../notes-drawer.js";import{sharedLayoutCSS as $,sharedHeader as y,sharedSidebar as _,newSessionModalHTML as k,newSessionModalScript as D}from"../shared-layout.js";function s(t){return t.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;")}function T(t){const o=new Date(t);return o.toLocaleDateString()+" "+o.toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"})}function M(t,o,r=!1,i=[]){const n=[...t].sort((e,a)=>(a.updatedAt??0)-(e.updatedAt??0)),l=n.map(e=>{const a=e.scope==="__global__",d=a?"Global":e.scope.replace(/^session:/,""),m=a?"/notes/__global__":"/notes/"+encodeURIComponent(e.scope.replace(/^session:/,"")),v=s((e.content||"").slice(0,200).trim()||"No content"),g=s(T(e.updatedAt));return`<a class="note-card" href="${m}">
-  <div class="label ${a?"global":""}">${s(d)}</div>
-  <div class="preview">${v}</div>
-  <div class="meta"><span>${g}</span></div>
-</a>`}).join(`
-`),c=n.length?l:'<p class="empty">No notes yet.</p>',p=`
+import { cssVarsStyle } from '../theme.js';
+import { commandbarCSS, commandbarHTML, commandbarScript } from '../commandbar.js';
+import { notesDrawerCSS, notesDrawerHTML, notesDrawerScript } from '../notes-drawer.js';
+import { sharedLayoutCSS, sharedHeader, sharedSidebar, newSessionModalHTML, newSessionModalScript, } from '../shared-layout.js';
+function escapeHtml(s) {
+    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+function formatDate(ts) {
+    const d = new Date(ts);
+    return d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+export function renderNotesIndex(notes, theme, commandbarEnabled = false, commandbarSessions = []) {
+    const sorted = [...notes].sort((a, b) => (b.updatedAt ?? 0) - (a.updatedAt ?? 0));
+    const cards = sorted.map((n) => {
+        const isGlobal = n.scope === '__global__';
+        const label = isGlobal ? 'Global' : n.scope.replace(/^session:/, '');
+        const href = isGlobal ? '/notes/__global__' : '/notes/' + encodeURIComponent(n.scope.replace(/^session:/, ''));
+        const preview = escapeHtml((n.content || '').slice(0, 200).trim() || 'No content');
+        const date = escapeHtml(formatDate(n.updatedAt));
+        return `<a class="note-card" href="${href}">
+  <div class="label ${isGlobal ? 'global' : ''}">${escapeHtml(label)}</div>
+  <div class="preview">${preview}</div>
+  <div class="meta"><span>${date}</span></div>
+</a>`;
+    }).join('\n');
+    const body = sorted.length
+        ? cards
+        : '<p class="empty">No notes yet.</p>';
+    const pageSpecificCSS = `
   .note-card {
     display: block; padding: 16px 18px; border: 1px solid var(--panel-border); border-radius: 12px;
     margin-bottom: 10px; text-decoration: none; color: var(--page-fg);
@@ -26,8 +49,9 @@ import{cssVarsStyle as b}from"../theme.js";import{commandbarCSS as x,commandbarH
     display: flex; justify-content: space-between;
   }
   .empty { font-size: var(--text-sm); color: var(--panel-muted); line-height: 1.6; margin-top: 20px; }
-  ${r?x():""}
-  ${u()}`;return`<!DOCTYPE html>
+  ${commandbarEnabled ? commandbarCSS() : ''}
+  ${notesDrawerCSS()}`;
+    return /* html */ `<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
@@ -35,31 +59,32 @@ import{cssVarsStyle as b}from"../theme.js";import{commandbarCSS as x,commandbarH
 <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 <title>Notes - tmux-web</title>
 <style>
-  ${b(o.shell)}
-  ${$(p)}
+  ${cssVarsStyle(theme.shell)}
+  ${sharedLayoutCSS(pageSpecificCSS)}
 </style>
 </head>
 <body>
 
-${y({commandbarEnabled:r,title:"All Notes",themeTemplate:o.template})}
+${sharedHeader({ commandbarEnabled, title: 'All Notes', themeTemplate: theme.template })}
 
 <div class="page-wrap">
   <div class="page-layout">
-    ${_({activePage:"notes",refreshHref:"/notes"})}
+    ${sharedSidebar({ activePage: 'notes', refreshHref: '/notes' })}
     <main class="main-panel">
-      <div id="notes-list">${c}</div>
+      <div id="notes-list">${body}</div>
     </main>
   </div>
 </div>
 
-${k()}
-${r?f():""}
-${w("Notes - Global")}
+${newSessionModalHTML()}
+${commandbarEnabled ? commandbarHTML() : ''}
+${notesDrawerHTML('Notes - Global')}
 
 <script type="module">
-${S("__global__")}
-${r?h(i,[]):""}
-${D()}
+${notesDrawerScript('__global__')}
+${commandbarEnabled ? commandbarScript(commandbarSessions, []) : ''}
+${newSessionModalScript()}
 </script>
 </body>
-</html>`}export{M as renderNotesIndex};
+</html>`;
+}

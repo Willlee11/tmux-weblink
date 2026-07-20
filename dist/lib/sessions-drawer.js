@@ -1,4 +1,8 @@
-import{closeOtherDrawersExcept as n,wrapDrawerScript as s}from"./drawer-script.js";import{drawerResizeCSS as o,drawerResizeHandleHTML as t,drawerResizeScriptLeft as i}from"./drawer-resize.js";import{icon as r}from"./icons.js";function l(){return`
+import { closeOtherDrawersExcept, wrapDrawerScript } from './drawer-script.js';
+import { drawerResizeCSS, drawerResizeHandleHTML, drawerResizeScriptLeft } from './drawer-resize.js';
+import { icon } from './icons.js';
+export function sessionsDrawerCSS() {
+    return `
   #sessions-backdrop {
     position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 999;
     opacity: 0; pointer-events: none; transition: opacity 0.2s ease;
@@ -14,7 +18,7 @@ import{closeOtherDrawersExcept as n,wrapDrawerScript as s}from"./drawer-script.j
   #sessions-drawer .drawer-resize-handle {
     left: auto; right: -5px;
   }
-  ${o()}
+  ${drawerResizeCSS()}
   #sessions-drawer .drawer-header {
     display: flex; justify-content: space-between; align-items: center;
     padding: 10px 16px; border-bottom: 1px solid var(--panel-border);
@@ -160,12 +164,18 @@ import{closeOtherDrawersExcept as n,wrapDrawerScript as s}from"./drawer-script.j
     #sessions-drawer { width: min(100vw - 16px, 400px); }
     .sessions-row { min-height: 48px; padding: 12px 12px 12px 16px; }
     .sessions-row-name { font-size: var(--text-sm); }
-  }`}function w(){return`<button class="sessions-btn" id="sessions-toggle" title="Recent sessions" aria-label="Recent sessions">
-    ${r("menu")}
-  </button>`}function p(){return`
+  }`;
+}
+export function sessionsDrawerButtonHTML() {
+    return `<button class="sessions-btn" id="sessions-toggle" title="Recent sessions" aria-label="Recent sessions">
+    ${icon('menu')}
+  </button>`;
+}
+export function sessionsDrawerHTML() {
+    return `
 <div id="sessions-backdrop"></div>
 <div id="sessions-drawer" class="resizable-drawer">
-  ${t()}
+  ${drawerResizeHandleHTML()}
   <div class="drawer-header">
     <span>Sessions</span>
     <button id="sessions-close">&times;</button>
@@ -175,9 +185,12 @@ import{closeOtherDrawersExcept as n,wrapDrawerScript as s}from"./drawer-script.j
   </div>
   <div id="sessions-error"></div>
   <div id="sessions-list"></div>
-</div>`}function m(e){return s("sessions",`
-${i("sessions-drawer","tmux-web:drawer-width:sessions",360)}
-const SIDEBAR_SESSION = ${JSON.stringify(e)};
+</div>`;
+}
+export function sessionsDrawerScript(sessionName) {
+    return wrapDrawerScript('sessions', `
+${drawerResizeScriptLeft('sessions-drawer', 'tmux-web:drawer-width:sessions', 360)}
+const SIDEBAR_SESSION = ${JSON.stringify(sessionName)};
 const sessionsDrawer = document.getElementById('sessions-drawer');
 const sessionsBackdrop = document.getElementById('sessions-backdrop');
 const sessionsList = document.getElementById('sessions-list');
@@ -226,13 +239,13 @@ function sessionMeta(session) {
   if (session.attached) parts.push('attached');
   const recent = relativeTime(session.lastAccessedAt);
   if (recent) parts.push(recent);
-  return parts.join(' \xB7 ');
+  return parts.join(' · ');
 }
 
 function pinnedLabel(view) {
   if (view.windowIndex !== undefined) {
-    const suffix = view.windowName ? ' \xB7 ' + view.windowName : '';
-    return view.sessionName + ' \xB7 win ' + view.windowIndex + suffix;
+    const suffix = view.windowName ? ' · ' + view.windowName : '';
+    return view.sessionName + ' · win ' + view.windowIndex + suffix;
   }
   return view.sessionName;
 }
@@ -244,7 +257,7 @@ function pinnedMeta(view) {
     parts.push(view.windows + ' window' + (view.windows === 1 ? '' : 's'));
   }
   if (view.attached) parts.push('attached');
-  return parts.join(' \xB7 ') || 'pinned';
+  return parts.join(' · ') || 'pinned';
 }
 
 function viewHref(view) {
@@ -270,7 +283,7 @@ function createPinButton(pinned, sessionName, windowIndex) {
   btn.className = 'sessions-pin-btn' + (pinned ? ' pinned' : '');
   btn.title = pinned ? 'Unpin' : 'Pin';
   btn.setAttribute('aria-label', pinned ? 'Unpin' : 'Pin');
-  btn.textContent = pinned ? '\u2605' : '\u2606';
+  btn.textContent = pinned ? '★' : '☆';
   btn.addEventListener('click', (event) => {
     event.stopPropagation();
     void togglePin(sessionName, windowIndex, pinned);
@@ -574,7 +587,7 @@ async function togglePin(sessionName, windowIndex, pinned) {
 }
 
 async function openSessionsDrawer() {
-  ${n("sessions")}
+  ${closeOtherDrawersExcept('sessions')}
   clearSessionsError();
   sessionsDrawer.classList.add('open');
   sessionsBackdrop.classList.add('open');
@@ -631,4 +644,5 @@ window.addEventListener('popstate', () => {
   else closeSessionsDrawer();
 });
 
-if (new URLSearchParams(location.search).get('tab') === 'sessions') void openSessionsDrawer();`,"closeSessionsDrawer")}export{w as sessionsDrawerButtonHTML,l as sessionsDrawerCSS,p as sessionsDrawerHTML,m as sessionsDrawerScript};
+if (new URLSearchParams(location.search).get('tab') === 'sessions') void openSessionsDrawer();`, 'closeSessionsDrawer');
+}

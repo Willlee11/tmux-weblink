@@ -42,12 +42,14 @@ export function renderShell(cfg: ShellConfig): string {
   /* ── Fixed header ── */
   .fixed-header {
     position: fixed; top: 0; left: 0; right: 0; z-index: 200;
-    height: 48px;
+    height: calc(48px + env(safe-area-inset-top, 0px));
+    padding-top: env(safe-area-inset-top, 0px);
     background: color-mix(in srgb, var(--panel-bg) 92%, transparent);
     backdrop-filter: blur(12px);
     border-bottom: 1px solid var(--panel-border);
     display: flex; justify-content: space-between; align-items: center;
-    padding: 0 12px;
+    padding-left: 12px; padding-right: 12px;
+    box-sizing: border-box;
   }
   .fixed-header .brand {
     font-size: var(--text-base); font-weight: 600; color: var(--page-fg);
@@ -126,7 +128,7 @@ export function renderShell(cfg: ShellConfig): string {
     display: flex;
     height: 100dvh;
     overflow: hidden;
-    padding-top: 48px;
+    padding-top: calc(48px + env(safe-area-inset-top, 0px));
     transition: height 0.05s;
   }
 
@@ -452,7 +454,12 @@ export function renderShell(cfg: ShellConfig): string {
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="tmux-web" />
+<link rel="apple-touch-icon" href="/assets/icon-192.png" />
+<link rel="manifest" href="/manifest.json" />
 <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 <title>tmux-weblink</title>
 <style>
@@ -742,6 +749,11 @@ ${newSessionModalScript('__onSessionCreated')}
     });
   }
 })();
+</script>
+<script>
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/sw.js', { scope: '/' });
+}
 </script>
 </body>
 </html>`;

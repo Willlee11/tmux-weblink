@@ -1,13 +1,1538 @@
 #!/usr/bin/env node
-import{chmodSync as Fe,existsSync as V,mkdirSync as Ue,readdirSync as de,readFileSync as We,statSync as N,unlinkSync as $e,writeFileSync as Be}from"node:fs";import{readFile as Ve}from"node:fs/promises";import{createRequire as Ge}from"node:module";import w from"node:path";import{fileURLToPath as ze}from"node:url";import{Hono as Ke}from"hono";import{serve as Qe}from"@hono/node-server";import{WebSocketServer as Xe,WebSocket as ue}from"ws";import*as Ye from"node-pty";try{const e=w.dirname(Ge(import.meta.url).resolve("node-pty/package.json")),t=w.join(e,"prebuilds");if(V(t))for(const r of de(t)){const n=w.join(t,r,"spawn-helper");V(n)&&!(N(n).mode&73)&&Fe(n,493)}}catch{}import{listSessions as q}from"./sessions.js";import{renderLoginPage as Je,renderNotesIndex as Ze,renderNotesPage as et,renderSettings as tt,renderThemeSettings as rt,renderScheduleIndex as nt,renderHistoryIndex as ot,renderQuickCommandsPage as st,renderFilesIndex as it,renderShell as at}from"./frontend.js";import{loadSecurityConfig as dt,saveSecurityConfig as ce}from"./lib/security-config.js";import{hashPassword as le,verifyPassword as me,validatePassword as pe,TokenStore as ut}from"./lib/auth.js";import{RateLimiter as ct}from"./lib/rateLimiter.js";import{atomicWriteFileSync as lt}from"./lib/atomicWrite.js";import{resolveFsPath as G,resolveFsRoots as fe,MAX_FILE_BYTES as he,walkRecursive as mt}from"./lib/fs-access.js";import{captureSessionWindowsWithPath as pt}from"./lib/tmux-windows.js";import{audit as c}from"./lib/auditLog.js";import{db as g}from"./lib/db.js";import{getSessionAccessMap as I}from"./lib/session-access.js";import{listWindowHistory as ft,clearWindowHistory as ht}from"./lib/window-history.js";import{loadExtensions as yt,spawnExtensionBackend as wt,registerExtensionRoutes as gt}from"./lib/ext-loader.js";import{SchedulerService as jt,isValidScheduleInput as kt,isValidRescheduleInput as vt}from"./lib/scheduler.js";import{getScheduleDelayError as ye}from"./lib/schedule-delay.js";import{handleClientMessage as xt}from"./lib/ws-message.js";import{loadDotEnv as Tt}from"./lib/load-env.js";import{cmdAdd as St,cmdRemove as bt,cmdList as qt,cmdSetup as At,cmdTheme as It,printUsage as we,printVersion as _t}from"./lib/cli.js";import{readSettings as Z,writeSettings as Ct}from"./lib/settings.js";import{readActiveTheme as Rt,setActiveThemeTemplate as ge}from"./lib/theme-store.js";import{isThemeTemplateId as je,THEME_TEMPLATE_IDS as Et}from"./lib/themes/index.js";import{installPlugin as Mt,uninstallPlugin as Ot}from"./lib/plugins.js";import{buildCommandbarSessions as C}from"./lib/commandbar.js";import{pinView as Lt,unpinView as Pt,listPinnedViews as Nt}from"./lib/pinned-views.js";import{listWindowLabels as Dt,setWindowLabel as Ht}from"./lib/window-labels.js";import{captureAndStoreWindows as ke,getStoredWindows as ve}from"./lib/session-windows.js";import{acquireControlClient as Ft,killAllControlClients as Ut}from"./lib/tmux-control.js";import{buildSidebarSessions as Wt}from"./lib/sessions-sidebar.js";import{createQuickCommand as $t,deleteQuickCommand as Bt,listQuickCommands as xe,updateQuickCommand as Vt}from"./lib/quick-commands.js";import{getSessionPaneTarget as Gt,capturePaneTail as zt,capturePaneHistoryChunk as Kt,isAlternateScreen as Qt,toCrlf as Te}from"./lib/tmux-capture.js";import{readTerminalBufferConfig as Xt}from"./lib/terminal-config.js";import{ImageUploadError as Yt,saveUploadedImage as Jt}from"./lib/image-upload.js";import{getSystemStatus as Zt,getTopProcesses as er,killProcess as tr}from"./lib/system-monitor.js";import{listSessionWindows as rr,selectSessionWindow as nr,newSessionWindow as or,renameSessionWindow as sr,newTmuxSession as ir,renameSession as ar,killSession as dr,TmuxWindowsError as z}from"./lib/tmux-windows.js";Tt();const K=Xt(),l=dt(),f=new ut,R=new ct;let D=!1;const Q="tmux-web-token",ur=365;function Se(e){return e==="127.0.0.1"||e==="::1"||e==="::ffff:127.0.0.1"}function X(e){if(l.security.trustProxy){const t=(e.req.header("x-forwarded-for")||"").split(",")[0].trim();if(t)return t}return e.env?.incoming?.socket?.remoteAddress||"unknown"}function cr(e){if(l.security.trustProxy){const t=(e.headers["x-forwarded-for"]||"").split(",")[0].trim();if(t)return t}return e.socket.remoteAddress||"unknown"}function ee(e){const t=e.req.header("authorization");if(t?.startsWith("Bearer "))return t.slice(7);const r=e.req.header("cookie");if(!r)return null;const n=r.match(new RegExp(`(?:^|;\\s*)${Q}=([^;]+)`));return n?decodeURIComponent(n[1]):null}function be(e){const t=e.headers.authorization;if(typeof t=="string"&&t.startsWith("Bearer "))return t.slice(7);const r=e.headers.cookie;if(typeof r!="string")return null;const n=r.match(new RegExp(`(?:^|;\\s*)${Q}=([^;]+)`));return n?decodeURIComponent(n[1]):null}function ln(e){const t=ee(e);return t?f.validateToken(t):null}function mn(e){const t=be(e);return t?f.validateToken(t):null}function qe(e,t){const r=e.req.header("x-forwarded-proto")==="https"||e.req.url.startsWith("https:");e.header("Set-Cookie",`${Q}=${encodeURIComponent(t)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${ur*86400}${r?"; Secure":""}`)}function lr(e){e.header("Set-Cookie",`${Q}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0`)}function a(){return async(e,t)=>{const r=ee(e);return!r||!f.validateToken(r)?(c("http_unauthorized",{ip:X(e)}),e.json({error:"unauthorized"},401)):t()}}function mr(e){const t=encodeURIComponent(e.req.url);return e.redirect(`/login?returnTo=${t}`,302)}function _(){return async(e,t)=>{const r=ee(e);return!r||!f.validateToken(r)?mr(e):t()}}const H=new Map;function pr(e){let t=0;for(const r of H.values())r.ip===e&&t++;return t}function te(e,t,r){try{e.close(t,r)}catch{}}function pn(e,t){e.readyState===ue.OPEN&&e.send(JSON.stringify(t))}function fr(e,t){let r="xterm";(t==="ghostty"||t==="xterm")&&(r=t);const n=process.env.TMUX_WEB_TERMINAL_RENDERER?.trim().toLowerCase();(n==="ghostty"||n==="xterm")&&(r=n);for(const i of e)i==="--ghostty"&&(r="ghostty"),i==="--xterm"&&(r="xterm");return r}const hr=7;function Ae(e){return typeof e!="number"||!Number.isFinite(e)?hr:Math.min(365,Math.max(1,Math.round(e)))}const Ie=process.argv.slice(2);{const e=Ie.filter(t=>t!=="--ghostty"&&t!=="--xterm");if(e.length>0){const[t,r]=e;switch(t){case"add":r||(console.error("usage: tmux-web add <package>"),process.exit(1)),await St(r),process.exit(0);case"remove":case"rm":r||(console.error("usage: tmux-web remove <package>"),process.exit(1)),await bt(r),process.exit(0);case"list":case"ls":await qt(),process.exit(0);case"setup":await At(e),process.exit(0);case"theme":await It(e.slice(1)),process.exit(0);case"help":case"--help":case"-h":we(),process.exit(0);case"-V":case"--version":case"-v":_t(),process.exit(0);default:console.error(`unknown argument: ${t}`),we(),process.exit(1)}}}function j(e,t){e.readyState===ue.OPEN&&e.send(JSON.stringify(t))}const F=new Set,_e=[];await g.read(),g.data.sessionAccess??=[],g.data.pinnedViews??=[],g.data.watchedPanes??=[],g.data.triggeredTasks??=[],g.data.quickCommands??=[];const re=await Z();let k=await Rt();const h=re.commandbar===!0,ne=fr(Ie,re.terminalRenderer),Ce=Ae(re.scheduleHistoryDays),Re=w.join(process.cwd(),"extensions"),Ee=await yt(Re);for(const e of Ee)e.start&&_e.push(wt(e.dir,e));const E=new jt({db:g,historyRetentionMs:Ce*864e5,onMissedTask:e=>console.warn(`[scheduler] dropped missed task ${e.id} (was due ${new Date(e.fireAt).toISOString()})`)});await E.restoreFromDb();const s=new Ke;s.use("*",async(e,t)=>{await t(),e.header("X-Content-Type-Options","nosniff"),e.header("X-Frame-Options","DENY"),e.header("Content-Security-Policy",["default-src 'self'","script-src 'self' 'unsafe-inline'","style-src 'self' 'unsafe-inline'","connect-src 'self' ws: wss: http: https:","img-src 'self' data:","font-src 'self'","worker-src 'self' blob:"].join("; ")),e.header("Referrer-Policy","strict-origin-when-cross-origin")}),s.use("*",async(e,t)=>{const r=e.req.method;if(r==="GET"||r==="HEAD"||r==="OPTIONS")return t();const n=e.req.header("sec-fetch-site");return n&&n!=="same-origin"&&n!=="none"?e.text("cross-site request blocked",403):t()}),gt(s,Re,Ee);const yr=w.dirname(ze(import.meta.url)),wr=[w.join(yr,"assets"),w.join(process.cwd(),"dist","assets")];s.get("/assets/:file",async e=>{const t=e.req.param("file");if(!/^[a-zA-Z0-9._-]+$/.test(t))return e.notFound();for(const r of wr){const n=w.join(r,t);if(!V(n))continue;const i=await Ve(n),o=w.extname(t),d={".css":"text/css; charset=utf-8",".js":"application/javascript; charset=utf-8",".map":"application/json; charset=utf-8"};return e.body(i,200,{"Content-Type":d[o]??"application/octet-stream"})}return e.notFound()});const gr=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+import { chmodSync, existsSync, mkdirSync, readdirSync, readFileSync, statSync, unlinkSync, writeFileSync } from "node:fs";
+import { readFile } from "node:fs/promises";
+import { createRequire } from "node:module";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import { Hono } from "hono";
+import { serve } from "@hono/node-server";
+import { WebSocketServer, WebSocket } from "ws";
+import * as pty from "node-pty";
+// Ensure node-pty's spawn-helper is executable. Some installers (notably npx
+// with hoisted deps) strip the +x bit, which makes pty.spawn fail with
+// posix_spawnp.
+try {
+    const ptyDir = path.dirname(createRequire(import.meta.url).resolve("node-pty/package.json"));
+    const prebuilds = path.join(ptyDir, "prebuilds");
+    if (existsSync(prebuilds)) {
+        for (const arch of readdirSync(prebuilds)) {
+            const helper = path.join(prebuilds, arch, "spawn-helper");
+            if (existsSync(helper) && !(statSync(helper).mode & 0o111)) {
+                chmodSync(helper, 0o755);
+            }
+        }
+    }
+}
+catch { }
+import { listSessions } from "./sessions.js";
+import { renderLoginPage, renderNotesIndex, renderNotesPage, renderSettings, renderThemeSettings, renderScheduleIndex, renderHistoryIndex, renderQuickCommandsPage, renderFilesIndex, renderShell } from "./frontend.js";
+import { loadSecurityConfig, saveSecurityConfig } from "./lib/security-config.js";
+import { hashPassword, verifyPassword, validatePassword, TokenStore } from "./lib/auth.js";
+import { RateLimiter } from "./lib/rateLimiter.js";
+import { atomicWriteFileSync } from "./lib/atomicWrite.js";
+import { resolveFsPath, resolveFsRoots, MAX_FILE_BYTES, walkRecursive } from "./lib/fs-access.js";
+import { captureSessionWindowsWithPath } from "./lib/tmux-windows.js";
+import { audit } from "./lib/auditLog.js";
+import { db } from "./lib/db.js";
+import { getSessionAccessMap } from "./lib/session-access.js";
+import { listWindowHistory, clearWindowHistory } from "./lib/window-history.js";
+import { loadExtensions, spawnExtensionBackend, registerExtensionRoutes } from "./lib/ext-loader.js";
+import { SchedulerService, isValidScheduleInput, isValidRescheduleInput } from "./lib/scheduler.js";
+import { getScheduleDelayError } from "./lib/schedule-delay.js";
+import { handleClientMessage } from "./lib/ws-message.js";
+import { loadDotEnv } from "./lib/load-env.js";
+import { cmdAdd, cmdRemove, cmdList, cmdSetup, cmdTheme, printUsage, printVersion } from "./lib/cli.js";
+import { readSettings, writeSettings } from "./lib/settings.js";
+import { readActiveTheme, setActiveThemeTemplate } from "./lib/theme-store.js";
+import { isThemeTemplateId, THEME_TEMPLATE_IDS } from "./lib/themes/index.js";
+import { installPlugin, uninstallPlugin } from "./lib/plugins.js";
+import { buildCommandbarSessions } from "./lib/commandbar.js";
+import { pinView, unpinView, listPinnedViews } from "./lib/pinned-views.js";
+import { listWindowLabels, setWindowLabel } from "./lib/window-labels.js";
+import { captureAndStoreWindows, getStoredWindows } from "./lib/session-windows.js";
+import { acquireControlClient, killAllControlClients } from "./lib/tmux-control.js";
+import { buildSidebarSessions } from "./lib/sessions-sidebar.js";
+import { createQuickCommand, deleteQuickCommand, listQuickCommands, updateQuickCommand } from "./lib/quick-commands.js";
+import { getSessionPaneTarget, capturePaneTail, capturePaneHistoryChunk, isAlternateScreen, toCrlf, } from "./lib/tmux-capture.js";
+import { readTerminalBufferConfig } from "./lib/terminal-config.js";
+import { ImageUploadError, saveUploadedImage } from "./lib/image-upload.js";
+import { getSystemStatus, getTopProcesses, killProcess } from "./lib/system-monitor.js";
+import { listSessionWindows, selectSessionWindow, newSessionWindow, renameSessionWindow, newTmuxSession, renameSession, killSession, TmuxWindowsError, } from "./lib/tmux-windows.js";
+loadDotEnv();
+const terminalBufferConfig = readTerminalBufferConfig();
+const securityConfig = loadSecurityConfig();
+const tokenStore = new TokenStore();
+const rateLimiter = new RateLimiter();
+let settingUpPassword = false;
+const COOKIE_NAME = "tmux-web-token";
+const TOKEN_COOKIE_MAX_AGE_DAYS = 365;
+function isLocalhostIp(ip) {
+    return ip === "127.0.0.1" || ip === "::1" || ip === "::ffff:127.0.0.1";
+}
+function resolveClientIp(c) {
+    if (securityConfig.security.trustProxy) {
+        const fwd = (c.req.header("x-forwarded-for") || "").split(",")[0].trim();
+        if (fwd)
+            return fwd;
+    }
+    return c.env?.incoming?.socket?.remoteAddress || "unknown";
+}
+function resolveClientIpFromReq(req) {
+    if (securityConfig.security.trustProxy) {
+        const fwd = (req.headers["x-forwarded-for"] || "").split(",")[0].trim();
+        if (fwd)
+            return fwd;
+    }
+    return req.socket.remoteAddress || "unknown";
+}
+function readBearerToken(c) {
+    const auth = c.req.header("authorization");
+    if (auth?.startsWith("Bearer "))
+        return auth.slice(7);
+    const cookie = c.req.header("cookie");
+    if (!cookie)
+        return null;
+    const match = cookie.match(new RegExp(`(?:^|;\\s*)${COOKIE_NAME}=([^;]+)`));
+    if (match)
+        return decodeURIComponent(match[1]);
+    return null;
+}
+function readBearerTokenFromReq(req) {
+    const auth = req.headers.authorization;
+    if (typeof auth === "string" && auth.startsWith("Bearer "))
+        return auth.slice(7);
+    const cookie = req.headers.cookie;
+    if (typeof cookie !== "string")
+        return null;
+    const match = cookie.match(new RegExp(`(?:^|;\\s*)${COOKIE_NAME}=([^;]+)`));
+    if (match)
+        return decodeURIComponent(match[1]);
+    return null;
+}
+function validateToken(c) {
+    const plaintext = readBearerToken(c);
+    if (!plaintext)
+        return null;
+    return tokenStore.validateToken(plaintext);
+}
+function validateTokenFromReq(req) {
+    const plaintext = readBearerTokenFromReq(req);
+    if (!plaintext)
+        return null;
+    return tokenStore.validateToken(plaintext);
+}
+function setAuthCookie(c, token) {
+    const secure = c.req.header("x-forwarded-proto") === "https" || c.req.url.startsWith("https:");
+    c.header("Set-Cookie", `${COOKIE_NAME}=${encodeURIComponent(token)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${TOKEN_COOKIE_MAX_AGE_DAYS * 86400}${secure ? "; Secure" : ""}`);
+}
+function clearAuthCookie(c) {
+    c.header("Set-Cookie", `${COOKIE_NAME}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0`);
+}
+function requireAuth() {
+    return async (c, next) => {
+        const token = readBearerToken(c);
+        if (!token || !tokenStore.validateToken(token)) {
+            audit("http_unauthorized", { ip: resolveClientIp(c) });
+            return c.json({ error: "unauthorized" }, 401);
+        }
+        return next();
+    };
+}
+function redirectToLogin(c) {
+    const returnTo = encodeURIComponent(c.req.url);
+    return c.redirect(`/login?returnTo=${returnTo}`, 302);
+}
+function requireAuthOrRedirect() {
+    return async (c, next) => {
+        const token = readBearerToken(c);
+        if (!token || !tokenStore.validateToken(token)) {
+            return redirectToLogin(c);
+        }
+        return next();
+    };
+}
+const wsClients = new Map();
+function countWsConnectionsByIp(ip) {
+    let n = 0;
+    for (const c of wsClients.values()) {
+        if (c.ip === ip)
+            n++;
+    }
+    return n;
+}
+function closeWs(ws, code, reason) {
+    try {
+        ws.close(code, reason);
+    }
+    catch { }
+}
+function sendWsAuth(ws, msg) {
+    if (ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify(msg));
+    }
+}
+// Resolve the terminal renderer with precedence: flag > env > setting > default.
+// The CLI flag is explicit per-run, the env var is a session override, and the
+// saved setting (settings.json terminalRenderer) is the persistent baseline.
+function resolveTerminalRenderer(args, fromSettings) {
+    let renderer = "xterm";
+    if (fromSettings === "ghostty" || fromSettings === "xterm")
+        renderer = fromSettings;
+    const env = process.env.TMUX_WEB_TERMINAL_RENDERER?.trim().toLowerCase();
+    if (env === "ghostty" || env === "xterm")
+        renderer = env;
+    for (const arg of args) {
+        if (arg === "--ghostty")
+            renderer = "ghostty";
+        if (arg === "--xterm")
+            renderer = "xterm";
+    }
+    return renderer;
+}
+// Clamp the schedule history retention to a sane integer day count (default 7).
+const DEFAULT_SCHEDULE_HISTORY_DAYS = 7;
+function clampHistoryDays(value) {
+    if (typeof value !== "number" || !Number.isFinite(value))
+        return DEFAULT_SCHEDULE_HISTORY_DAYS;
+    return Math.min(365, Math.max(1, Math.round(value)));
+}
+const startupArgs = process.argv.slice(2);
+// ── CLI subcommand dispatch ───────────────────────────────────────────────
+// Runs before any server setup so `tmux-web add/remove/list` are fast and
+// don't try to bind a port or load the db.
+{
+    const args = startupArgs.filter((arg) => arg !== "--ghostty" && arg !== "--xterm");
+    if (args.length > 0) {
+        const [sub, arg] = args;
+        switch (sub) {
+            case "add":
+                if (!arg) {
+                    console.error("usage: tmux-web add <package>");
+                    process.exit(1);
+                }
+                await cmdAdd(arg);
+                process.exit(0);
+            case "remove":
+            case "rm":
+                if (!arg) {
+                    console.error("usage: tmux-web remove <package>");
+                    process.exit(1);
+                }
+                await cmdRemove(arg);
+                process.exit(0);
+            case "list":
+            case "ls":
+                await cmdList();
+                process.exit(0);
+            case "setup":
+                await cmdSetup(args);
+                process.exit(0);
+            case "theme":
+                await cmdTheme(args.slice(1));
+                process.exit(0);
+            case "help":
+            case "--help":
+            case "-h":
+                printUsage();
+                process.exit(0);
+            case "-V":
+            case "--version":
+            case "-v":
+                printVersion();
+                process.exit(0);
+            default:
+                console.error(`unknown argument: ${sub}`);
+                printUsage();
+                process.exit(1);
+        }
+    }
+}
+function sendServerMessage(ws, msg) {
+    if (ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify(msg));
+    }
+}
+const activePtys = new Set();
+const extChildren = [];
+// Init db and read settings before constructing the scheduler so history
+// retention (settings.scheduleHistoryDays) applies to the startup prune too.
+await db.read();
+db.data.sessionAccess ??= [];
+db.data.pinnedViews ??= [];
+db.data.watchedPanes ??= [];
+db.data.triggeredTasks ??= [];
+db.data.quickCommands ??= [];
+const settings = await readSettings();
+let activeTheme = await readActiveTheme();
+const commandbarEnabled = settings.commandbar === true;
+const terminalRenderer = resolveTerminalRenderer(startupArgs, settings.terminalRenderer);
+const scheduleHistoryDays = clampHistoryDays(settings.scheduleHistoryDays);
+const extsDir = path.join(process.cwd(), "extensions");
+const extensions = await loadExtensions(extsDir);
+for (const ext of extensions) {
+    if (ext.start)
+        extChildren.push(spawnExtensionBackend(ext.dir, ext));
+}
+const scheduler = new SchedulerService({
+    db,
+    historyRetentionMs: scheduleHistoryDays * 86_400_000,
+    onMissedTask: (task) => console.warn(`[scheduler] dropped missed task ${task.id} (was due ${new Date(task.fireAt).toISOString()})`),
+});
+await scheduler.restoreFromDb();
+const app = new Hono();
+// Security headers for every response.
+app.use("*", async (c, next) => {
+    await next();
+    c.header("X-Content-Type-Options", "nosniff");
+    c.header("X-Frame-Options", "DENY");
+    c.header("Content-Security-Policy", [
+        "default-src 'self'",
+        "script-src 'self' 'unsafe-inline'",
+        "style-src 'self' 'unsafe-inline'",
+        "connect-src 'self' ws: wss: http: https:",
+        "img-src 'self' data:",
+        "font-src 'self'",
+        "worker-src 'self' blob:",
+    ].join("; "));
+    c.header("Referrer-Policy", "strict-origin-when-cross-origin");
+});
+// CSRF defense for every state-changing request. The classic CSRF vector is a
+// cross-origin <form> POST auto-submitted by a page the user happens to be
+// visiting; here that is especially dangerous because POST /settings/plugins
+// shells out to `npm install`, whose lifecycle scripts run arbitrary code
+// (CSRF -> RCE). Browsers attach Sec-Fetch-Site on navigations/submissions:
+// our own same-origin pages send "same-origin", direct navigation / non-browser
+// clients (curl) send "none" or omit it entirely, while a cross-site attacker
+// form carries "cross-site"/"same-site". Allow the first two, reject the rest.
+app.use("*", async (c, next) => {
+    const method = c.req.method;
+    if (method === "GET" || method === "HEAD" || method === "OPTIONS")
+        return next();
+    const site = c.req.header("sec-fetch-site");
+    if (site && site !== "same-origin" && site !== "none") {
+        return c.text("cross-site request blocked", 403);
+    }
+    return next();
+});
+registerExtensionRoutes(app, extsDir, extensions);
+const moduleDir = path.dirname(fileURLToPath(import.meta.url));
+const assetDirs = [
+    path.join(moduleDir, "assets"),
+    path.join(process.cwd(), "dist", "assets"),
+];
+app.get("/assets/:file", async (c) => {
+    const file = c.req.param("file");
+    if (!/^[a-zA-Z0-9._-]+$/.test(file))
+        return c.notFound();
+    for (const dir of assetDirs) {
+        const filePath = path.join(dir, file);
+        if (!existsSync(filePath))
+            continue;
+        const content = await readFile(filePath);
+        const ext = path.extname(file);
+        const mime = {
+            ".css": "text/css; charset=utf-8",
+            ".js": "application/javascript; charset=utf-8",
+            ".map": "application/json; charset=utf-8",
+        };
+        return c.body(content, 200, {
+            "Content-Type": mime[ext] ?? "application/octet-stream",
+        });
+    }
+    return c.notFound();
+});
+// Terminal-window favicon (SVG). Served at both /favicon.svg and the path
+// browsers auto-request, /favicon.ico, so every page resolves it without a 404.
+const FAVICON_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
   <rect x="2.5" y="5.5" width="27" height="21" rx="4" fill="#0d1117" stroke="#7dd3fc" stroke-width="2"/>
   <path d="M8 13l4.2 3.1L8 19.2" fill="none" stroke="#7dd3fc" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
   <line x1="15.5" y1="19.6" x2="22.5" y2="19.6" stroke="#7dd3fc" stroke-width="2.2" stroke-linecap="round"/>
-</svg>`,Me=e=>e.body(gr,200,{"Content-Type":"image/svg+xml; charset=utf-8","Cache-Control":"public, max-age=86400"});s.get("/favicon.svg",Me),s.get("/favicon.ico",Me),s.get("/login",e=>{const r=e.req.query("setup")==="1"?!0:!l.passwordHash,n=e.req.query("error");return e.html(Je({setupMode:r,error:n?decodeURIComponent(n):void 0,theme:k}))}),s.get("/",_(),e=>{const t=h?C(q(),I()):[],r=fe();return e.html(at({theme:k,commandbarEnabled:h,commandbarSessions:t,fsRoots:r,terminalCfg:K,renderer:ne,scrollback:K.initialLines+2*K.historyChunk}))}),s.get("/notes",_(),e=>{const t=h?C(q(),I()):[];return e.html(Ze(g.data.notes,k,h,t))}),s.get("/notes/:session",_(),e=>{const t=decodeURIComponent(e.req.param("session")),r=h?C(q(),I()):[];return e.html(et(t,k,h,r))}),s.get("/schedule",_(),e=>{const t=h?C(q(),I()):[];return e.html(nt(E.list(),E.listTriggered(),k,Ce,h,t))}),s.get("/history",_(),e=>{const t=q(),r=h?C(t,I()):[],n=new Set(t.map(i=>i.name));return e.html(ot(ft(),k,h,r,n))}),s.get("/quick-commands",_(),e=>{const t=h?C(q(),I()):[];return e.html(st(xe(),k,h,t))}),s.get("/files",_(),e=>{const t=h?C(q(),I()):[],r=fe();return e.html(it(k,h,t,r))}),s.post("/api/history/clear",a(),async e=>(await ht(),e.json({ok:!0}))),s.get("/api/quick-commands",a(),e=>e.json(xe())),s.post("/api/quick-commands",a(),async e=>{let t;try{t=await e.req.json()}catch{return e.json({error:"invalid json"},400)}const r=await $t(t);return"error"in r?e.json({error:r.error},400):e.json(r,201)}),s.patch("/api/quick-commands/:id",a(),async e=>{let t;try{t=await e.req.json()}catch{return e.json({error:"invalid json"},400)}const r=await Vt(e.req.param("id"),t);return"error"in r?e.json({error:r.error},r.status):e.json(r)}),s.delete("/api/quick-commands/:id",a(),async e=>await Bt(e.req.param("id"))?e.json({ok:!0}):e.json({error:"not found"},404)),s.post("/api/auth/password",async e=>{const t=X(e),r=R.check(t);if(!r.allowed)return c("rate_limited",{ip:t,retryAfterMs:r.retryAfterMs,permanentLock:r.permanentLock}),r.permanentLock?e.json({error:"Server locked after too many failed attempts",permanentLock:!0},403):e.json({error:"Too many attempts",retryAfterMs:r.retryAfterMs},429);let n;try{n=await e.req.json()}catch{return e.json({error:"invalid json"},400)}const i=typeof n.password=="string"?n.password:"";if(!l.passwordHash){if(!l.security.allowRemoteSetup&&!Se(t))return c("setup_rejected_remote",{ip:t}),e.json({error:"First-run setup must be performed from localhost"},403);if(D)return e.json({error:"Password setup in progress"},409);const p=pe(i);if(p)return e.json({error:p},400);D=!0;try{l.passwordHash=await le(i),ce(l),c("password_set",{ip:t})}finally{D=!1}const{plaintext:T}=f.createAccessToken("setup",l.security.tokenTtlDays);return qe(e,T),e.json({ok:!0,token:T,setupMode:!0})}if(!await me(i,l.passwordHash)){const p=R.recordFailure(t);return c("auth_failed",{ip:t,method:"password",failures:p.failures,permanentLock:p.permanentLock}),p.permanentLock?(f.revokeAll(),c("permanent_lock",{ip:t,failures:p.failures}),e.json({error:"Server locked after too many failed attempts",permanentLock:!0},403)):p.allowed?e.json({error:"Incorrect password"},401):e.json({error:"Too many attempts",retryAfterMs:p.retryAfterMs},429)}R.recordSuccess(t);const d=`browser-${t}`,{plaintext:x}=f.createAccessToken(d,l.security.tokenTtlDays);return qe(e,x),c("auth_success",{ip:t,method:"password",tokenName:d}),e.json({ok:!0,token:x})}),s.post("/api/auth/token",a(),async e=>{const t=X(e);let r;try{r=await e.req.json()}catch{return e.json({error:"invalid json"},400)}const n=typeof r.name=="string"?r.name:`api-${t}`,i=typeof r.ttlDays=="number"?r.ttlDays:l.security.tokenTtlDays,{stored:o,plaintext:d}=f.createAccessToken(n,i);return c("token_created",{ip:t,name:o.name,tokenId:o.id}),e.json({id:o.id,name:o.name,token:d,expiresAt:o.expiresAt})}),s.get("/api/auth/tokens",a(),e=>e.json(f.list().map(t=>({id:t.id,name:t.name,createdAt:t.createdAt,lastUsedAt:t.lastUsedAt,expiresAt:t.expiresAt})))),s.delete("/api/auth/tokens/:id",a(),e=>f.revoke(e.req.param("id"))?(c("token_revoked",{ip:X(e),tokenId:e.req.param("id")}),e.json({ok:!0})):e.json({error:"not found"},404)),s.post("/api/auth/logout",a(),e=>(lr(e),e.json({ok:!0}))),s.get("/settings",_(),async e=>{const t=await Z(),r=t.terminalRenderer??"xterm";return e.html(tt({settings:t,renderer:ne,rendererOverridden:ne!==r,theme:k,plugins:t.plugins??[],saved:e.req.query("saved")==="1",error:e.req.query("error")?decodeURIComponent(e.req.query("error")):void 0}))}),s.post("/settings",a(),async e=>{let t;try{t=await e.req.parseBody()}catch{return e.redirect("/settings?error="+encodeURIComponent("invalid form body"),303)}const r=await Z(),n=t.terminalRenderer==="ghostty"?"ghostty":"xterm",i=t.defaultView==="recent"?"recent":"default",o=Ae(typeof t.scheduleHistoryDays=="string"?Number(t.scheduleHistoryDays):void 0);return await Ct({...r,commandbar:t.commandbar!==void 0,terminalRenderer:n,defaultView:i,scheduleHistoryDays:o}),e.redirect("/settings?saved=1",303)}),s.post("/settings/plugins",a(),async e=>{let t;try{t=await e.req.parseBody()}catch{return e.redirect("/settings?error="+encodeURIComponent("invalid form body"),303)}const r=t.action,n=typeof t.pkg=="string"?t.pkg.trim():"";if(!n)return e.redirect("/settings?error="+encodeURIComponent("missing package name"),303);const i=r==="remove"?await Ot(n):r==="add"?await Mt(n):{ok:!1,output:"unknown action"};return i.ok?e.redirect("/settings?saved=1",303):e.redirect("/settings?error="+encodeURIComponent(i.output.slice(0,800)),303)}),s.get("/settings/theme",_(),e=>e.html(rt({theme:k,saved:e.req.query("saved")==="1"}))),s.post("/settings/theme",a(),async e=>{let t;try{t=await e.req.parseBody()}catch{return e.redirect("/settings/theme?error=1",303)}const r=t.template;return typeof r!="string"||!je(r)?e.redirect("/settings/theme",303):(k=await ge(r),e.redirect("/settings/theme?saved=1",303))});const jr={vscode:"VS Code",ghostty:"Ghostty","warm-clay":"Warm Clay","dark-cove":"Dark Cove"};s.get("/api/theme",a(),e=>e.json({active:k.template,templates:Et.map(t=>({id:t,name:jr[t]}))})),s.post("/api/theme",a(),async e=>{let t;try{t=await e.req.json()}catch{return e.json({error:"invalid json"},400)}const r=t.template;return typeof r!="string"||!je(r)?e.json({error:"invalid theme template"},400):(k=await ge(r),e.json({ok:!0,active:k.template}))}),s.get("/api/system/status",a(),e=>e.json(Zt())),s.get("/api/system/processes",a(),e=>e.json(er())),s.post("/api/system/kill",a(),async e=>{const{pid:t}=await e.req.json();if(typeof t!="number"||!Number.isInteger(t)||t<=0)return e.json({error:"invalid pid"},400);const r=tr(t);return r.ok?e.json({ok:!0}):e.json({error:r.error},500)}),s.get("/api/sessions",a(),e=>h?e.json(C(q(),I())):e.json({error:"commandbar disabled"},404)),s.post("/api/sessions/new",a(),async e=>{let t;try{t=await e.req.json()}catch{return e.json({error:"invalid json"},400)}const r=typeof t.name=="string"?t.name.trim():"";if(!r)return e.json({error:"name is required"},400);if(!/^[a-zA-Z0-9_\-. ]+$/.test(r))return e.json({error:"name contains invalid characters"},400);const n=typeof t.dir=="string"&&t.dir.trim()?t.dir.trim():void 0;if(q().some(o=>o.name===r))return e.json({error:"session already exists"},409);try{return ir(r,n),e.json({ok:!0})}catch(o){const d=o instanceof z?o.message:"failed to create session";return e.json({error:d},500)}}),s.post("/api/sessions/rename",a(),async e=>{try{const{oldName:t,newName:r}=await e.req.json();return!t||!r?e.json({error:"oldName and newName required"},400):/^[a-zA-Z0-9_\-. ]+$/.test(r)?(ar(t,r),e.json({ok:!0})):e.json({error:"invalid characters in name"},400)}catch{return e.json({error:"rename failed"},500)}}),s.post("/api/sessions/kill",a(),async e=>{try{const{name:t}=await e.req.json();return t?(dr(t),e.json({ok:!0})):e.json({error:"name required"},400)}catch{return e.json({error:"kill failed"},500)}}),s.get("/api/fs/session-path",a(),e=>{const t=e.req.query("session");if(!t)return e.json({error:"session is required"},400);try{const r=pt(t),i=r.find(o=>o.active)?.path??r[0]?.path??process.env.HOME??"/";return e.json({path:i})}catch{return e.json({path:process.env.HOME??"/"})}}),s.get("/api/fs/list",a(),e=>{const t=process.env.HOME??"/";let r=e.req.query("path")??t;r.startsWith("~")&&(r=t+r.slice(1)),r.startsWith("/")||(r=w.join(t,r));const n=e.req.query("recursive")==="true";let i=r,o="",d=r.endsWith("/");if(!d)try{d=N(r).isDirectory()}catch{}d||(i=w.dirname(r),o=w.basename(r).toLowerCase());try{const x=de(i),p=[],T=[];for(const M of x)if(!M.startsWith(".")&&!(o&&!M.toLowerCase().startsWith(o))){try{const S=w.join(i,M);N(S).isDirectory()?(p.push(S),n&&mt(S,p,T,0)):T.push(S)}catch{}if(p.length+T.length>=5e3)break}return e.json({dirs:p,files:T})}catch{return e.json({dirs:[],files:[]})}}),s.get("/api/file",a(),e=>{try{const t=e.req.query("path");if(!t)return e.json({error:"path is required"},400);const r=G(t);if(!N(r).isFile())return e.json({error:"not a file"},400);const n=N(r).size;if(n>he)return e.json({error:"file too large",size:n,maxBytes:he},413);const i=We(r,"utf-8");return e.json({path:r,content:i,size:n})}catch(t){return t.message==="FS_ROOTS_NOT_CONFIGURED"?e.json({error:"file access not configured"},403):t.message==="PATH_NOT_ALLOWED"?e.json({error:"path not allowed"},403):t.code==="ENOENT"?e.json({error:"not found"},404):e.json({error:"internal error"},500)}}),s.put("/api/file",a(),async e=>{try{const t=await e.req.json();if(!t.path||typeof t.content!="string")return e.json({error:"path and content are required"},400);const r=G(t.path);return lt(r,t.content),e.json({ok:!0})}catch(t){return t.message==="FS_ROOTS_NOT_CONFIGURED"?e.json({error:"file access not configured"},403):t.message==="PATH_NOT_ALLOWED"?e.json({error:"path not allowed"},403):e.json({error:"write failed"},500)}}),s.post("/api/file/delete",a(),async e=>{try{const t=await e.req.json();if(!t.path)return e.json({error:"path is required"},400);const r=G(t.path);return N(r).isFile()?($e(r),e.json({ok:!0})):e.json({error:"not a file"},400)}catch(t){return t.message==="FS_ROOTS_NOT_CONFIGURED"?e.json({error:"file access not configured"},403):t.message==="PATH_NOT_ALLOWED"?e.json({error:"path not allowed"},403):t.code==="ENOENT"?e.json({error:"not found"},404):e.json({error:"delete failed"},500)}}),s.post("/api/file/touch",a(),async e=>{try{const t=await e.req.json();if(!t.path)return e.json({error:"path is required"},400);const r=G(t.path);return V(r)?e.json({error:"file already exists"},409):(Ue(w.dirname(r),{recursive:!0}),Be(r,"","utf-8"),e.json({ok:!0,path:r}))}catch(t){return t.message==="FS_ROOTS_NOT_CONFIGURED"?e.json({error:"file access not configured"},403):t.message==="PATH_NOT_ALLOWED"?e.json({error:"path not allowed"},403):e.json({error:"touch failed"},500)}});function oe(e){return{...Wt(q(),I(),Nt()),currentSession:e??null}}function Oe(e){const t=typeof e.sessionName=="string"?e.sessionName.trim():"";if(!t)return{error:"sessionName is required"};if(e.windowIndex===void 0)return{sessionName:t};const r=e.windowIndex;return typeof r!="number"||!Number.isInteger(r)||r<0?{error:"windowIndex must be a non-negative integer"}:{sessionName:t,windowIndex:r}}s.get("/api/sidebar/sessions",a(),e=>{const t=e.req.query("currentSession");return e.json(oe(typeof t=="string"&&t?t:void 0))}),s.get("/api/sidebar/session-windows/:session",a(),e=>{const t=decodeURIComponent(e.req.param("session"));return e.json(ve(t))}),s.post("/api/pinned-views",a(),async e=>{let t;try{t=await e.req.json()}catch{return e.json({error:"invalid json"},400)}const r=Oe(t);return"error"in r?e.json({error:r.error},400):(await Lt(r.sessionName,r.windowIndex),e.json(oe()))}),s.delete("/api/pinned-views",a(),async e=>{let t;try{t=await e.req.json()}catch{return e.json({error:"invalid json"},400)}const r=Oe(t);return"error"in r?e.json({error:r.error},400):(await Pt(r.sessionName,r.windowIndex),e.json(oe()))}),s.get("/api/notes",a(),e=>{const t=[...g.data.notes].sort((r,n)=>(n.updatedAt??0)-(r.updatedAt??0));return e.json(t)}),s.get("/api/notes/:scope",a(),e=>{const t=decodeURIComponent(e.req.param("scope")),r=g.data.notes.find(n=>n.scope===t);return r?e.json(r):e.json(null,404)}),s.put("/api/notes/:scope",a(),async e=>{const t=decodeURIComponent(e.req.param("scope"));let r;try{r=await e.req.json()}catch{return e.json({error:"invalid json"},400)}if(typeof r.content!="string")return e.json({error:"content must be string"},400);const n={scope:t,content:r.content,updatedAt:Date.now()},i=g.data.notes.findIndex(o=>o.scope===t);return i>=0?g.data.notes[i]=n:g.data.notes.push(n),await g.write(),e.json({ok:!0})}),s.post("/api/session/:session/upload",a(),async e=>{const t=decodeURIComponent(e.req.param("session"));if(!q().some(o=>o.name===t))return e.json({error:"session not found"},404);let n;try{n=await e.req.parseBody()}catch{return e.json({error:"invalid multipart body"},400)}const i=n.file;if(!(i instanceof File))return e.json({error:"missing file field"},400);try{const o=await i.arrayBuffer(),d=Buffer.from(o),{path:x}=await Jt(d,i.type||void 0,i.name||void 0);return e.json({path:x})}catch(o){return o instanceof Yt?e.json({error:o.message},o.status):(console.error("[upload]",o),e.json({error:"upload failed"},500))}}),s.get("/api/session/:session/windows",a(),e=>{const t=decodeURIComponent(e.req.param("session")),r=new Map(Dt(t).map(o=>[o.windowIndex,o.label])),n=new Map(ve(t).map(o=>[o.index,o])),i=rr(t).map(o=>({...o,label:r.get(o.index)??null,worktree:n.get(o.index)?.worktree??!1}));return e.json(i)}),s.post("/api/session/:session/window-label",a(),async e=>{const t=decodeURIComponent(e.req.param("session"));let r;try{r=await e.req.json()}catch{return e.json({error:"invalid json"},400)}const{windowIndex:n}=r;if(typeof n!="number"||!Number.isInteger(n)||n<0)return e.json({error:"windowIndex must be a non-negative integer"},400);const i=typeof r.label=="string"?r.label:"",o=await Ht(t,n,i);return e.json(o)}),s.post("/api/session/:session/select-window",a(),async e=>{const t=decodeURIComponent(e.req.param("session"));let r;try{r=await e.req.json()}catch{return e.json({error:"invalid json"},400)}const{windowIndex:n}=r;if(typeof n!="number"||!Number.isInteger(n)||n<0)return e.json({error:"windowIndex must be a non-negative integer"},400);try{return nr(t,n),e.json({ok:!0})}catch(i){return i instanceof z?e.json({error:i.message},i.status):(console.error("[select-window]",i),e.json({error:"select-window failed"},500))}}),s.post("/api/session/:session/rename-window",a(),async e=>{const t=decodeURIComponent(e.req.param("session"));let r;try{r=await e.req.json()}catch{return e.json({error:"invalid json"},400)}const{windowIndex:n}=r;if(typeof n!="number"||!Number.isInteger(n)||n<0)return e.json({error:"windowIndex must be a non-negative integer"},400);if(typeof r.name!="string"||!r.name.trim())return e.json({error:"name is required"},400);try{return sr(t,n,r.name),ke(t),e.json({ok:!0})}catch(i){return i instanceof z?e.json({error:i.message},i.status):(console.error("[rename-window]",i),e.json({error:"rename-window failed"},500))}}),s.post("/api/session/:session/new-window",a(),e=>{const t=decodeURIComponent(e.req.param("session"));try{return or(t),ke(t),e.json({ok:!0})}catch(r){return r instanceof z?e.json({error:r.message},r.status):(console.error("[new-window]",r),e.json({error:"new-window failed"},500))}}),s.get("/api/schedule",a(),e=>e.json(E.list(e.req.query("session")))),s.post("/api/schedule",a(),async e=>{let t;try{t=await e.req.json()}catch{return e.json({error:"invalid json"},400)}const r=ye(t);if(r)return e.json({error:r},400);if(!kt(t))return e.json({error:"invalid body"},400);const n=await E.create(t);return e.json({id:n.id,fireAt:n.fireAt})}),s.delete("/api/schedule/:id",a(),async e=>await E.delete(e.req.param("id"))?e.json({ok:!0}):e.json({error:"not found"},404)),s.patch("/api/schedule/:id",a(),async e=>{let t;try{t=await e.req.json()}catch{return e.json({error:"invalid json"},400)}const r=ye(t);if(r)return e.json({error:r},400);if(!vt(t))return e.json({error:"invalid body"},400);const n=await E.reschedule(e.req.param("id"),t.delayMs);return n?e.json({id:n.id,fireAt:n.fireAt}):e.json({error:"not found"},404)});const kr=parseInt(process.env.PORT||"21000",10),vr=Qe({fetch:s.fetch,port:kr,hostname:"0.0.0.0"},e=>{console.log(`tmux-web running at http://${e.port}`)}),se=new Xe({noServer:!0});function Le(e,t,r){e.write(`HTTP/1.1 ${t} ${r}\r
-\r
-`),e.destroy()}vr.on("upgrade",(e,t,r)=>{const n=new URL(e.url||"/",`http://${e.headers.host}`),i=n.pathname.match(/^\/ws\/(.+)$/);if(!i){t.destroy();return}const o=cr(e),d=e.headers.origin,x=l.security.allowedOrigins;if(d&&!(d===`http://${e.headers.host}`||d===`https://${e.headers.host}`)&&(x.length===0||!x.includes(d))){c("ws_rejected_origin",{ip:o,origin:d}),Le(t,403,"Origin not allowed");return}const p=pr(o);if(p>=l.security.maxConnectionsPerIp){c("ws_rejected_per_ip_cap",{ip:o,liveFromIp:p}),Le(t,429,"Too many connections");return}const T=be(e)||n.searchParams.get("token")||"",M=T?f.validateToken(T):null;se.handleUpgrade(e,t,r,S=>{se.emit("connection",S,e,decodeURIComponent(i[1]),o,M)})}),se.on("connection",(e,t,r,n,i)=>{const o={ws:e,ip:n,authenticated:!1,authTimeout:null};H.set(e,o),c("ws_connected",{ip:n});let d=null;const{initialLines:x,historyChunk:p,syncIdleMs:T,syncMaxMs:M}=K;let S=!0,P=null,$=null,U=r,O=null;const B=()=>{P&&(clearTimeout(P),P=null),$&&(clearTimeout($),$=null)},ie=()=>{if(S){B(),S=!1;try{U=Gt(r)}catch{U=r}if(!Qt(U))try{const y=zt(U,x);j(e,{type:"snapshot",data:Te(y),lines:x})}catch{j(e,{type:"data",data:`\r
-`})}}},Ne=()=>{S&&(P&&clearTimeout(P),P=setTimeout(ie,T))};function ae(){try{d=Ye.spawn("tmux",["attach-session","-t",r],{name:"xterm-256color",cols:80,rows:24,cwd:process.env.HOME||"/",env:process.env})}catch(u){j(e,{type:"data",data:`\r
-\x1B[31mFailed to attach to tmux session "${r}": ${u.message}\x1B[0m\r
-`}),te(e,1011,"pty spawn failed");return}F.add(d);let y=-1,m="";O=Ft(r,({activeIndex:u,windows:v})=>{j(e,{type:"window_changed",activeIndex:u,windows:v});const L=v.map(b=>b.index).join(","),W=u!==y||L!==m;y=u,m=L}),$=setTimeout(ie,M),d.onData(u=>{if(S){Ne();return}j(e,{type:"data",data:u})}),d.onExit(({exitCode:u})=>{B(),d&&F.delete(d),d=null,j(e,{type:"data",data:`\r
-\x1B[2m--- tmux exited (code ${u}) ---\x1B[0m\r
-`}),te(e,1e3,"pty exited")})}function Y(y,m){o.authenticated=!0,o.authTimeout&&(clearTimeout(o.authTimeout),o.authTimeout=null),c("auth_success",{ip:n,method:y,tokenName:m}),j(e,{type:"auth.ok",setupMode:!l.passwordHash}),ae()}function A(y,m={}){j(e,{type:"auth.failed",message:y,...m})}async function De(y){let m;try{m=JSON.parse(y)}catch{return!1}if(m.type==="auth.token"&&typeof m.token=="string"){const u=f.validateToken(m.token);if(!u){c("token_auth_failed",{ip:n});const v=R.recordFailure(n);return v.permanentLock&&(f.revokeAll(),c("permanent_lock",{ip:n,failures:v.failures})),A("Invalid or expired token",{permanentLock:v.permanentLock,retryAfterMs:v.retryAfterMs}),!0}return f.touch(u.tokenHash),Y("token",u.name),!0}if(m.type==="auth"&&typeof m.password=="string"){const u=R.check(n);if(!u.allowed)return c("rate_limited",{ip:n,retryAfterMs:u.retryAfterMs,permanentLock:u.permanentLock}),A("Too many attempts",{permanentLock:u.permanentLock,retryAfterMs:u.retryAfterMs}),!0;if(!l.passwordHash){if(!l.security.allowRemoteSetup&&!Se(n))return c("setup_rejected_remote",{ip:n}),A("First-run setup must be performed from localhost"),!0;if(D)return A("Password setup in progress"),!0;const b=pe(m.password);if(b)return A(b),!0;D=!0;try{l.passwordHash=await le(m.password),ce(l),c("password_set",{ip:n})}finally{D=!1}const{stored:J,plaintext:He}=f.createAccessToken("setup",l.security.tokenTtlDays);return j(e,{type:"auth.ok",setupMode:!0,token:He}),c("token_created",{ip:n,name:J.name,tokenId:J.id}),c("auth_success",{ip:n,method:"password",tokenName:J.name}),ae(),!0}if(!l.passwordHash)return A("Server not configured"),!0;if(!await me(m.password,l.passwordHash)){const b=R.recordFailure(n);return c("auth_failed",{ip:n,method:"password",failures:b.failures,permanentLock:b.permanentLock}),b.permanentLock&&(f.revokeAll(),c("permanent_lock",{ip:n,failures:b.failures})),A("Incorrect password",{permanentLock:b.permanentLock,retryAfterMs:b.retryAfterMs}),!0}R.recordSuccess(n);const L=`ws-${n}`,{plaintext:W}=f.createAccessToken(L,l.security.tokenTtlDays);return Y("password",L),j(e,{type:"auth.ok",setupMode:!1,token:W}),!0}return!1}i?(f.touch(i.tokenHash),Y("token",i.name)):(j(e,{type:"auth.required",setupMode:!l.passwordHash}),o.authTimeout=setTimeout(()=>{o.authenticated||(c("auth_timeout",{ip:n}),A("Authentication timeout"),te(e,4e3,"Auth timeout"))},l.security.authTimeoutMs)),e.on("message",async y=>{const m=typeof y=="string"?y:y.toString("utf-8");if(!o.authenticated){if(m.length>1e6){j(e,{type:"auth.failed",message:"Message too large"});return}await De(m)||A("Authentication required");return}if(!d)return;try{if(xt(m,d))return}catch{return}let u;try{u=JSON.parse(m)}catch{return}if(u.type==="load_history"&&typeof u.before=="number"){const v=Math.max(0,Math.floor(u.before));try{const{data:L,lines:W}=Kt(U,v,p);j(e,{type:"history",data:Te(L),before:v,lines:W})}catch{j(e,{type:"history",data:"",before:v,lines:0})}}}),e.on("close",()=>{o.authTimeout&&clearTimeout(o.authTimeout),H.delete(e),c("ws_disconnected",{ip:n}),B(),O&&(O(),O=null),d&&(F.delete(d),d.kill(),d=null)}),e.on("error",()=>{o.authTimeout&&clearTimeout(o.authTimeout),H.delete(e),B(),O&&(O(),O=null),d&&(F.delete(d),d.kill(),d=null)})});function Pe(){E.cleanup(),Ut();for(const[e,t]of H){try{e.close(1001,"Server shutting down")}catch{}t.authTimeout&&clearTimeout(t.authTimeout)}H.clear();for(const e of F)try{e.kill()}catch{}F.clear();for(const e of _e)try{e.kill("SIGTERM")}catch{}R.dispose(),process.exit(0)}process.on("SIGINT",Pe),process.on("SIGTERM",Pe),setInterval(()=>{f.purgeExpired()},3600*1e3).unref();
+</svg>`;
+const serveFavicon = (c) => c.body(FAVICON_SVG, 200, {
+    "Content-Type": "image/svg+xml; charset=utf-8",
+    "Cache-Control": "public, max-age=86400",
+});
+app.get("/favicon.svg", serveFavicon);
+app.get("/favicon.ico", serveFavicon);
+// ── PWA / manifest ─────────────────────────────────────────────────────────
+const MANIFEST_JSON = {
+    name: "tmux-weblink",
+    short_name: "tmux-web",
+    description: "Access your tmux sessions from the browser",
+    start_url: "/",
+    display: "standalone",
+    background_color: "#0d1117",
+    theme_color: "#0d1117",
+    icons: [
+        { src: "/assets/icon-192.png", sizes: "192x192", type: "image/png" },
+        { src: "/assets/icon-512.png", sizes: "512x512", type: "image/png" },
+    ],
+};
+app.get("/manifest.json", (c) => c.json(MANIFEST_JSON, 200, {
+    "Cache-Control": "public, max-age=3600",
+}));
+// ── Service Worker ─────────────────────────────────────────────────────────
+const SERVICE_WORKER_JS = `// tmux-weblink Service Worker
+const CACHE = "tmux-weblink-v1";
+const ASSETS = ["/", "/favicon.svg"];
+self.addEventListener("install", (e) => {
+  e.waitUntil(caches.open(CACHE).then((c) => c.addAll(ASSETS)));
+  self.skipWaiting();
+});
+self.addEventListener("activate", (e) => { e.waitUntil(clients.claim()); });
+self.addEventListener("fetch", (e) => {
+  e.respondWith(fetch(e.request).catch(() => caches.match(e.request)));
+});
+`;
+app.get("/sw.js", (c) => c.body(SERVICE_WORKER_JS, 200, {
+    "Content-Type": "application/javascript; charset=utf-8",
+}));
+// ── Public routes ──────────────────────────────────────────────────────────
+app.get("/login", (c) => {
+    const setupParam = c.req.query("setup");
+    const setupMode = setupParam === "1" ? true : !securityConfig.passwordHash;
+    const error = c.req.query("error");
+    return c.html(renderLoginPage({ setupMode, error: error ? decodeURIComponent(error) : undefined, theme: activeTheme }));
+});
+// ── Page routes (require authentication) ────────────────────────────────────
+app.get("/", requireAuthOrRedirect(), (c) => {
+    const commandbarSessions = commandbarEnabled ? buildCommandbarSessions(listSessions(), getSessionAccessMap()) : [];
+    const roots = resolveFsRoots();
+    return c.html(renderShell({
+        theme: activeTheme,
+        commandbarEnabled,
+        commandbarSessions,
+        fsRoots: roots,
+        terminalCfg: terminalBufferConfig,
+        renderer: terminalRenderer,
+        scrollback: terminalBufferConfig.initialLines + 2 * terminalBufferConfig.historyChunk,
+    }));
+});
+app.get("/notes", requireAuthOrRedirect(), (c) => {
+    const commandbarSessions = commandbarEnabled ? buildCommandbarSessions(listSessions(), getSessionAccessMap()) : [];
+    return c.html(renderNotesIndex(db.data.notes, activeTheme, commandbarEnabled, commandbarSessions));
+});
+app.get("/notes/:session", requireAuthOrRedirect(), (c) => {
+    const session = decodeURIComponent(c.req.param("session"));
+    const commandbarSessions = commandbarEnabled ? buildCommandbarSessions(listSessions(), getSessionAccessMap()) : [];
+    return c.html(renderNotesPage(session, activeTheme, commandbarEnabled, commandbarSessions));
+});
+app.get("/schedule", requireAuthOrRedirect(), (c) => {
+    const commandbarSessions = commandbarEnabled ? buildCommandbarSessions(listSessions(), getSessionAccessMap()) : [];
+    return c.html(renderScheduleIndex(scheduler.list(), scheduler.listTriggered(), activeTheme, scheduleHistoryDays, commandbarEnabled, commandbarSessions));
+});
+app.get("/history", requireAuthOrRedirect(), (c) => {
+    const sessions = listSessions();
+    const commandbarSessions = commandbarEnabled ? buildCommandbarSessions(sessions, getSessionAccessMap()) : [];
+    const liveSessionNames = new Set(sessions.map((s) => s.name));
+    return c.html(renderHistoryIndex(listWindowHistory(), activeTheme, commandbarEnabled, commandbarSessions, liveSessionNames));
+});
+app.get("/quick-commands", requireAuthOrRedirect(), (c) => {
+    const commandbarSessions = commandbarEnabled ? buildCommandbarSessions(listSessions(), getSessionAccessMap()) : [];
+    return c.html(renderQuickCommandsPage(listQuickCommands(), activeTheme, commandbarEnabled, commandbarSessions));
+});
+app.get("/files", requireAuthOrRedirect(), (c) => {
+    const commandbarSessions = commandbarEnabled ? buildCommandbarSessions(listSessions(), getSessionAccessMap()) : [];
+    const roots = resolveFsRoots();
+    return c.html(renderFilesIndex(activeTheme, commandbarEnabled, commandbarSessions, roots));
+});
+app.post("/api/history/clear", requireAuth(), async (c) => {
+    await clearWindowHistory();
+    return c.json({ ok: true });
+});
+app.get("/api/quick-commands", requireAuth(), (c) => {
+    return c.json(listQuickCommands());
+});
+app.post("/api/quick-commands", requireAuth(), async (c) => {
+    let body;
+    try {
+        body = await c.req.json();
+    }
+    catch {
+        return c.json({ error: "invalid json" }, 400);
+    }
+    const result = await createQuickCommand(body);
+    if ("error" in result)
+        return c.json({ error: result.error }, 400);
+    return c.json(result, 201);
+});
+app.patch("/api/quick-commands/:id", requireAuth(), async (c) => {
+    let body;
+    try {
+        body = await c.req.json();
+    }
+    catch {
+        return c.json({ error: "invalid json" }, 400);
+    }
+    const result = await updateQuickCommand(c.req.param("id"), body);
+    if ("error" in result)
+        return c.json({ error: result.error }, result.status);
+    return c.json(result);
+});
+app.delete("/api/quick-commands/:id", requireAuth(), async (c) => {
+    const deleted = await deleteQuickCommand(c.req.param("id"));
+    if (!deleted)
+        return c.json({ error: "not found" }, 404);
+    return c.json({ ok: true });
+});
+// ── Auth API (password endpoint is public; token management requires auth) ───
+app.post("/api/auth/password", async (c) => {
+    const ip = resolveClientIp(c);
+    const rateResult = rateLimiter.check(ip);
+    if (!rateResult.allowed) {
+        audit("rate_limited", { ip, retryAfterMs: rateResult.retryAfterMs, permanentLock: rateResult.permanentLock });
+        if (rateResult.permanentLock) {
+            return c.json({ error: "Server locked after too many failed attempts", permanentLock: true }, 403);
+        }
+        return c.json({ error: "Too many attempts", retryAfterMs: rateResult.retryAfterMs }, 429);
+    }
+    let body;
+    try {
+        body = await c.req.json();
+    }
+    catch {
+        return c.json({ error: "invalid json" }, 400);
+    }
+    const password = typeof body.password === "string" ? body.password : "";
+    if (!securityConfig.passwordHash) {
+        if (!securityConfig.security.allowRemoteSetup && !isLocalhostIp(ip)) {
+            audit("setup_rejected_remote", { ip });
+            return c.json({ error: "First-run setup must be performed from localhost" }, 403);
+        }
+        if (settingUpPassword) {
+            return c.json({ error: "Password setup in progress" }, 409);
+        }
+        const validationError = validatePassword(password);
+        if (validationError) {
+            return c.json({ error: validationError }, 400);
+        }
+        settingUpPassword = true;
+        try {
+            securityConfig.passwordHash = await hashPassword(password);
+            saveSecurityConfig(securityConfig);
+            audit("password_set", { ip });
+        }
+        finally {
+            settingUpPassword = false;
+        }
+        const { plaintext } = tokenStore.createAccessToken("setup", securityConfig.security.tokenTtlDays);
+        setAuthCookie(c, plaintext);
+        return c.json({ ok: true, token: plaintext, setupMode: true });
+    }
+    const valid = await verifyPassword(password, securityConfig.passwordHash);
+    if (!valid) {
+        const rate = rateLimiter.recordFailure(ip);
+        audit("auth_failed", { ip, method: "password", failures: rate.failures, permanentLock: rate.permanentLock });
+        if (rate.permanentLock) {
+            tokenStore.revokeAll();
+            audit("permanent_lock", { ip, failures: rate.failures });
+            return c.json({ error: "Server locked after too many failed attempts", permanentLock: true }, 403);
+        }
+        if (!rate.allowed) {
+            return c.json({ error: "Too many attempts", retryAfterMs: rate.retryAfterMs }, 429);
+        }
+        return c.json({ error: "Incorrect password" }, 401);
+    }
+    rateLimiter.recordSuccess(ip);
+    const name = `browser-${ip}`;
+    const { plaintext } = tokenStore.createAccessToken(name, securityConfig.security.tokenTtlDays);
+    setAuthCookie(c, plaintext);
+    audit("auth_success", { ip, method: "password", tokenName: name });
+    return c.json({ ok: true, token: plaintext });
+});
+app.post("/api/auth/token", requireAuth(), async (c) => {
+    const ip = resolveClientIp(c);
+    let body;
+    try {
+        body = await c.req.json();
+    }
+    catch {
+        return c.json({ error: "invalid json" }, 400);
+    }
+    const name = typeof body.name === "string" ? body.name : `api-${ip}`;
+    const ttlDays = typeof body.ttlDays === "number" ? body.ttlDays : securityConfig.security.tokenTtlDays;
+    const { stored, plaintext } = tokenStore.createAccessToken(name, ttlDays);
+    audit("token_created", { ip, name: stored.name, tokenId: stored.id });
+    return c.json({ id: stored.id, name: stored.name, token: plaintext, expiresAt: stored.expiresAt });
+});
+app.get("/api/auth/tokens", requireAuth(), (c) => {
+    return c.json(tokenStore.list().map((t) => ({
+        id: t.id,
+        name: t.name,
+        createdAt: t.createdAt,
+        lastUsedAt: t.lastUsedAt,
+        expiresAt: t.expiresAt,
+    })));
+});
+app.delete("/api/auth/tokens/:id", requireAuth(), (c) => {
+    const revoked = tokenStore.revoke(c.req.param("id"));
+    if (!revoked)
+        return c.json({ error: "not found" }, 404);
+    audit("token_revoked", { ip: resolveClientIp(c), tokenId: c.req.param("id") });
+    return c.json({ ok: true });
+});
+app.post("/api/auth/logout", requireAuth(), (c) => {
+    clearAuthCookie(c);
+    return c.json({ ok: true });
+});
+// ── Settings pages ───────────────────────────────────────────────────────────
+app.get("/settings", requireAuthOrRedirect(), async (c) => {
+    const current = await readSettings();
+    const savedRenderer = current.terminalRenderer ?? "xterm";
+    return c.html(renderSettings({
+        settings: current,
+        renderer: terminalRenderer,
+        rendererOverridden: terminalRenderer !== savedRenderer,
+        theme: activeTheme,
+        plugins: current.plugins ?? [],
+        saved: c.req.query("saved") === "1",
+        error: c.req.query("error") ? decodeURIComponent(c.req.query("error")) : undefined,
+    }));
+});
+app.post("/settings", requireAuth(), async (c) => {
+    let body;
+    try {
+        body = await c.req.parseBody();
+    }
+    catch {
+        return c.redirect("/settings?error=" + encodeURIComponent("invalid form body"), 303);
+    }
+    const current = await readSettings();
+    const renderer = body.terminalRenderer === "ghostty" ? "ghostty" : "xterm";
+    const defaultView = body.defaultView === "recent" ? "recent" : "default";
+    const historyDays = clampHistoryDays(typeof body.scheduleHistoryDays === "string" ? Number(body.scheduleHistoryDays) : undefined);
+    await writeSettings({
+        ...current,
+        commandbar: body.commandbar !== undefined,
+        terminalRenderer: renderer,
+        defaultView,
+        scheduleHistoryDays: historyDays,
+    });
+    return c.redirect("/settings?saved=1", 303);
+});
+app.post("/settings/plugins", requireAuth(), async (c) => {
+    let body;
+    try {
+        body = await c.req.parseBody();
+    }
+    catch {
+        return c.redirect("/settings?error=" + encodeURIComponent("invalid form body"), 303);
+    }
+    const action = body.action;
+    const pkg = typeof body.pkg === "string" ? body.pkg.trim() : "";
+    if (!pkg)
+        return c.redirect("/settings?error=" + encodeURIComponent("missing package name"), 303);
+    const result = action === "remove"
+        ? await uninstallPlugin(pkg)
+        : action === "add"
+            ? await installPlugin(pkg)
+            : { ok: false, output: "unknown action" };
+    if (!result.ok) {
+        return c.redirect("/settings?error=" + encodeURIComponent(result.output.slice(0, 800)), 303);
+    }
+    return c.redirect("/settings?saved=1", 303);
+});
+app.get("/settings/theme", requireAuthOrRedirect(), (c) => {
+    return c.html(renderThemeSettings({
+        theme: activeTheme,
+        saved: c.req.query("saved") === "1",
+    }));
+});
+app.post("/settings/theme", requireAuth(), async (c) => {
+    let body;
+    try {
+        body = await c.req.parseBody();
+    }
+    catch {
+        return c.redirect("/settings/theme?error=1", 303);
+    }
+    const template = body.template;
+    if (typeof template !== "string" || !isThemeTemplateId(template)) {
+        return c.redirect("/settings/theme", 303);
+    }
+    activeTheme = await setActiveThemeTemplate(template);
+    return c.redirect("/settings/theme?saved=1", 303);
+});
+const THEME_NAMES = {
+    vscode: "VS Code",
+    ghostty: "Ghostty",
+    "warm-clay": "Warm Clay",
+    "dark-cove": "Dark Cove",
+};
+app.get("/api/theme", requireAuth(), (c) => {
+    return c.json({
+        active: activeTheme.template,
+        templates: THEME_TEMPLATE_IDS.map((id) => ({ id, name: THEME_NAMES[id] })),
+    });
+});
+app.post("/api/theme", requireAuth(), async (c) => {
+    let body;
+    try {
+        body = await c.req.json();
+    }
+    catch {
+        return c.json({ error: "invalid json" }, 400);
+    }
+    const template = body.template;
+    if (typeof template !== "string" || !isThemeTemplateId(template)) {
+        return c.json({ error: "invalid theme template" }, 400);
+    }
+    activeTheme = await setActiveThemeTemplate(template);
+    return c.json({ ok: true, active: activeTheme.template });
+});
+app.get("/api/system/status", requireAuth(), (c) => {
+    return c.json(getSystemStatus());
+});
+app.get("/api/system/processes", requireAuth(), (c) => {
+    return c.json(getTopProcesses());
+});
+app.post("/api/system/kill", requireAuth(), async (c) => {
+    const { pid } = await c.req.json();
+    if (typeof pid !== "number" || !Number.isInteger(pid) || pid <= 0) {
+        return c.json({ error: "invalid pid" }, 400);
+    }
+    const result = killProcess(pid);
+    if (!result.ok)
+        return c.json({ error: result.error }, 500);
+    return c.json({ ok: true });
+});
+app.get("/api/sessions", requireAuth(), (c) => {
+    if (!commandbarEnabled)
+        return c.json({ error: "commandbar disabled" }, 404);
+    return c.json(buildCommandbarSessions(listSessions(), getSessionAccessMap()));
+});
+app.post("/api/sessions/new", requireAuth(), async (c) => {
+    let body;
+    try {
+        body = await c.req.json();
+    }
+    catch {
+        return c.json({ error: "invalid json" }, 400);
+    }
+    const name = typeof body.name === "string" ? body.name.trim() : "";
+    if (!name)
+        return c.json({ error: "name is required" }, 400);
+    if (!/^[a-zA-Z0-9_\-. ]+$/.test(name))
+        return c.json({ error: "name contains invalid characters" }, 400);
+    const dir = typeof body.dir === "string" && body.dir.trim() ? body.dir.trim() : undefined;
+    const existing = listSessions();
+    if (existing.some((s) => s.name === name))
+        return c.json({ error: "session already exists" }, 409);
+    try {
+        newTmuxSession(name, dir);
+        return c.json({ ok: true });
+    }
+    catch (err) {
+        const msg = err instanceof TmuxWindowsError ? err.message : "failed to create session";
+        return c.json({ error: msg }, 500);
+    }
+});
+app.post("/api/sessions/rename", requireAuth(), async (c) => {
+    try {
+        const { oldName, newName } = await c.req.json();
+        if (!oldName || !newName)
+            return c.json({ error: "oldName and newName required" }, 400);
+        if (!/^[a-zA-Z0-9_\-. ]+$/.test(newName))
+            return c.json({ error: "invalid characters in name" }, 400);
+        renameSession(oldName, newName);
+        return c.json({ ok: true });
+    }
+    catch {
+        return c.json({ error: "rename failed" }, 500);
+    }
+});
+app.post("/api/sessions/kill", requireAuth(), async (c) => {
+    try {
+        const { name } = await c.req.json();
+        if (!name)
+            return c.json({ error: "name required" }, 400);
+        killSession(name);
+        return c.json({ ok: true });
+    }
+    catch {
+        return c.json({ error: "kill failed" }, 500);
+    }
+});
+app.get("/api/fs/session-path", requireAuth(), (c) => {
+    const session = c.req.query("session");
+    if (!session)
+        return c.json({ error: "session is required" }, 400);
+    try {
+        const windows = captureSessionWindowsWithPath(session);
+        const active = windows.find((w) => w.active);
+        const p = active?.path ?? windows[0]?.path ?? process.env.HOME ?? "/";
+        return c.json({ path: p });
+    }
+    catch {
+        return c.json({ path: process.env.HOME ?? "/" });
+    }
+});
+app.get("/api/fs/list", requireAuth(), (c) => {
+    const home = process.env.HOME ?? "/";
+    let rawPath = c.req.query("path") ?? home;
+    if (rawPath.startsWith("~"))
+        rawPath = home + rawPath.slice(1);
+    if (!rawPath.startsWith("/"))
+        rawPath = path.join(home, rawPath);
+    const recursive = c.req.query("recursive") === "true";
+    // If rawPath is an existing directory (or ends with "/"), list its contents.
+    // Otherwise treat the trailing segment as a prefix and list/filter its parent,
+    // so partial input like "~/Doc" suggests "~/Documents".
+    let dirPath = rawPath;
+    let prefix = "";
+    let listDirectly = rawPath.endsWith("/");
+    if (!listDirectly) {
+        try {
+            listDirectly = statSync(rawPath).isDirectory();
+        }
+        catch { }
+    }
+    if (!listDirectly) {
+        dirPath = path.dirname(rawPath);
+        prefix = path.basename(rawPath).toLowerCase();
+    }
+    try {
+        const entries = readdirSync(dirPath);
+        const dirs = [];
+        const files = [];
+        for (const entry of entries) {
+            if (entry.startsWith("."))
+                continue;
+            if (prefix && !entry.toLowerCase().startsWith(prefix))
+                continue;
+            try {
+                const full = path.join(dirPath, entry);
+                if (statSync(full).isDirectory()) {
+                    dirs.push(full);
+                    if (recursive) {
+                        walkRecursive(full, dirs, files, 0);
+                    }
+                }
+                else {
+                    files.push(full);
+                }
+            }
+            catch { }
+            if (dirs.length + files.length >= 5000)
+                break;
+        }
+        return c.json({ dirs, files });
+    }
+    catch {
+        return c.json({ dirs: [], files: [] });
+    }
+});
+// ── File API (requires TMUX_WEB_FS_ROOTS) ─────────────────────────────────
+app.get("/api/file", requireAuth(), (c) => {
+    try {
+        const rawPath = c.req.query("path");
+        if (!rawPath)
+            return c.json({ error: "path is required" }, 400);
+        const resolved = resolveFsPath(rawPath);
+        if (!statSync(resolved).isFile())
+            return c.json({ error: "not a file" }, 400);
+        const size = statSync(resolved).size;
+        if (size > MAX_FILE_BYTES)
+            return c.json({ error: "file too large", size, maxBytes: MAX_FILE_BYTES }, 413);
+        const content = readFileSync(resolved, "utf-8");
+        return c.json({ path: resolved, content, size });
+    }
+    catch (err) {
+        if (err.message === "FS_ROOTS_NOT_CONFIGURED")
+            return c.json({ error: "file access not configured" }, 403);
+        if (err.message === "PATH_NOT_ALLOWED")
+            return c.json({ error: "path not allowed" }, 403);
+        if (err.code === "ENOENT")
+            return c.json({ error: "not found" }, 404);
+        return c.json({ error: "internal error" }, 500);
+    }
+});
+app.put("/api/file", requireAuth(), async (c) => {
+    try {
+        const body = await c.req.json();
+        if (!body.path || typeof body.content !== "string")
+            return c.json({ error: "path and content are required" }, 400);
+        const resolved = resolveFsPath(body.path);
+        atomicWriteFileSync(resolved, body.content);
+        return c.json({ ok: true });
+    }
+    catch (err) {
+        if (err.message === "FS_ROOTS_NOT_CONFIGURED")
+            return c.json({ error: "file access not configured" }, 403);
+        if (err.message === "PATH_NOT_ALLOWED")
+            return c.json({ error: "path not allowed" }, 403);
+        return c.json({ error: "write failed" }, 500);
+    }
+});
+app.post("/api/file/delete", requireAuth(), async (c) => {
+    try {
+        const body = await c.req.json();
+        if (!body.path)
+            return c.json({ error: "path is required" }, 400);
+        const resolved = resolveFsPath(body.path);
+        if (!statSync(resolved).isFile())
+            return c.json({ error: "not a file" }, 400);
+        unlinkSync(resolved);
+        return c.json({ ok: true });
+    }
+    catch (err) {
+        if (err.message === "FS_ROOTS_NOT_CONFIGURED")
+            return c.json({ error: "file access not configured" }, 403);
+        if (err.message === "PATH_NOT_ALLOWED")
+            return c.json({ error: "path not allowed" }, 403);
+        if (err.code === "ENOENT")
+            return c.json({ error: "not found" }, 404);
+        return c.json({ error: "delete failed" }, 500);
+    }
+});
+app.post("/api/file/touch", requireAuth(), async (c) => {
+    try {
+        const body = await c.req.json();
+        if (!body.path)
+            return c.json({ error: "path is required" }, 400);
+        const resolved = resolveFsPath(body.path);
+        if (existsSync(resolved))
+            return c.json({ error: "file already exists" }, 409);
+        mkdirSync(path.dirname(resolved), { recursive: true });
+        writeFileSync(resolved, "", "utf-8");
+        return c.json({ ok: true, path: resolved });
+    }
+    catch (err) {
+        if (err.message === "FS_ROOTS_NOT_CONFIGURED")
+            return c.json({ error: "file access not configured" }, 403);
+        if (err.message === "PATH_NOT_ALLOWED")
+            return c.json({ error: "path not allowed" }, 403);
+        return c.json({ error: "touch failed" }, 500);
+    }
+});
+function sidebarSessionsPayload(currentSession) {
+    return {
+        ...buildSidebarSessions(listSessions(), getSessionAccessMap(), listPinnedViews()),
+        currentSession: currentSession ?? null,
+    };
+}
+function parsePinnedViewBody(body) {
+    const sessionName = typeof body.sessionName === "string" ? body.sessionName.trim() : "";
+    if (!sessionName)
+        return { error: "sessionName is required" };
+    if (body.windowIndex === undefined) {
+        return { sessionName };
+    }
+    const windowIndex = body.windowIndex;
+    if (typeof windowIndex !== "number" ||
+        !Number.isInteger(windowIndex) ||
+        windowIndex < 0) {
+        return { error: "windowIndex must be a non-negative integer" };
+    }
+    return { sessionName, windowIndex };
+}
+app.get("/api/sidebar/sessions", requireAuth(), (c) => {
+    const currentSession = c.req.query("currentSession");
+    return c.json(sidebarSessionsPayload(typeof currentSession === "string" && currentSession ? currentSession : undefined));
+});
+// Sidebar window list — served from lowdb (captured on focus); never spawns tmux.
+app.get("/api/sidebar/session-windows/:session", requireAuth(), (c) => {
+    const session = decodeURIComponent(c.req.param("session"));
+    return c.json(getStoredWindows(session));
+});
+app.post("/api/pinned-views", requireAuth(), async (c) => {
+    let body;
+    try {
+        body = await c.req.json();
+    }
+    catch {
+        return c.json({ error: "invalid json" }, 400);
+    }
+    const parsed = parsePinnedViewBody(body);
+    if ("error" in parsed)
+        return c.json({ error: parsed.error }, 400);
+    await pinView(parsed.sessionName, parsed.windowIndex);
+    return c.json(sidebarSessionsPayload());
+});
+app.delete("/api/pinned-views", requireAuth(), async (c) => {
+    let body;
+    try {
+        body = await c.req.json();
+    }
+    catch {
+        return c.json({ error: "invalid json" }, 400);
+    }
+    const parsed = parsePinnedViewBody(body);
+    if ("error" in parsed)
+        return c.json({ error: parsed.error }, 400);
+    await unpinView(parsed.sessionName, parsed.windowIndex);
+    return c.json(sidebarSessionsPayload());
+});
+// ── Notes API ──────────────────────────────────────────────────────────────
+app.get("/api/notes", requireAuth(), (c) => {
+    const sorted = [...db.data.notes].sort((a, b) => (b.updatedAt ?? 0) - (a.updatedAt ?? 0));
+    return c.json(sorted);
+});
+app.get("/api/notes/:scope", requireAuth(), (c) => {
+    const scope = decodeURIComponent(c.req.param("scope"));
+    const note = db.data.notes.find((n) => n.scope === scope);
+    return note ? c.json(note) : c.json(null, 404);
+});
+app.put("/api/notes/:scope", requireAuth(), async (c) => {
+    const scope = decodeURIComponent(c.req.param("scope"));
+    let body;
+    try {
+        body = await c.req.json();
+    }
+    catch {
+        return c.json({ error: "invalid json" }, 400);
+    }
+    if (typeof body.content !== "string")
+        return c.json({ error: "content must be string" }, 400);
+    const record = { scope, content: body.content, updatedAt: Date.now() };
+    const idx = db.data.notes.findIndex((n) => n.scope === scope);
+    if (idx >= 0)
+        db.data.notes[idx] = record;
+    else
+        db.data.notes.push(record);
+    await db.write();
+    return c.json({ ok: true });
+});
+// ── Scheduler API ──────────────────────────────────────────────────────────
+app.post("/api/session/:session/upload", requireAuth(), async (c) => {
+    const session = decodeURIComponent(c.req.param("session"));
+    const sessions = listSessions();
+    if (!sessions.some((s) => s.name === session)) {
+        return c.json({ error: "session not found" }, 404);
+    }
+    let body;
+    try {
+        body = await c.req.parseBody();
+    }
+    catch {
+        return c.json({ error: "invalid multipart body" }, 400);
+    }
+    const file = body.file;
+    if (!(file instanceof File)) {
+        return c.json({ error: "missing file field" }, 400);
+    }
+    try {
+        const arrayBuffer = await file.arrayBuffer();
+        const buffer = Buffer.from(arrayBuffer);
+        const { path: filePath } = await saveUploadedImage(buffer, file.type || undefined, file.name || undefined);
+        return c.json({ path: filePath });
+    }
+    catch (err) {
+        if (err instanceof ImageUploadError) {
+            return c.json({ error: err.message }, err.status);
+        }
+        console.error("[upload]", err);
+        return c.json({ error: "upload failed" }, 500);
+    }
+});
+app.get("/api/session/:session/windows", requireAuth(), (c) => {
+    const session = decodeURIComponent(c.req.param("session"));
+    const labels = new Map(listWindowLabels(session).map((l) => [l.windowIndex, l.label]));
+    const stored = new Map(getStoredWindows(session).map((w) => [w.index, w]));
+    const windows = listSessionWindows(session).map((w) => ({
+        ...w,
+        label: labels.get(w.index) ?? null,
+        worktree: stored.get(w.index)?.worktree ?? false,
+    }));
+    return c.json(windows);
+});
+app.post("/api/session/:session/window-label", requireAuth(), async (c) => {
+    const session = decodeURIComponent(c.req.param("session"));
+    let body;
+    try {
+        body = await c.req.json();
+    }
+    catch {
+        return c.json({ error: "invalid json" }, 400);
+    }
+    const { windowIndex } = body;
+    if (typeof windowIndex !== "number" || !Number.isInteger(windowIndex) || windowIndex < 0) {
+        return c.json({ error: "windowIndex must be a non-negative integer" }, 400);
+    }
+    const label = typeof body.label === "string" ? body.label : "";
+    const labels = await setWindowLabel(session, windowIndex, label);
+    return c.json(labels);
+});
+app.post("/api/session/:session/select-window", requireAuth(), async (c) => {
+    const session = decodeURIComponent(c.req.param("session"));
+    let body;
+    try {
+        body = await c.req.json();
+    }
+    catch {
+        return c.json({ error: "invalid json" }, 400);
+    }
+    const { windowIndex } = body;
+    if (typeof windowIndex !== "number" ||
+        !Number.isInteger(windowIndex) ||
+        windowIndex < 0) {
+        return c.json({ error: "windowIndex must be a non-negative integer" }, 400);
+    }
+    try {
+        selectSessionWindow(session, windowIndex);
+        return c.json({ ok: true });
+    }
+    catch (err) {
+        if (err instanceof TmuxWindowsError) {
+            return c.json({ error: err.message }, err.status);
+        }
+        console.error("[select-window]", err);
+        return c.json({ error: "select-window failed" }, 500);
+    }
+});
+app.post("/api/session/:session/rename-window", requireAuth(), async (c) => {
+    const session = decodeURIComponent(c.req.param("session"));
+    let body;
+    try {
+        body = await c.req.json();
+    }
+    catch {
+        return c.json({ error: "invalid json" }, 400);
+    }
+    const { windowIndex } = body;
+    if (typeof windowIndex !== "number" ||
+        !Number.isInteger(windowIndex) ||
+        windowIndex < 0) {
+        return c.json({ error: "windowIndex must be a non-negative integer" }, 400);
+    }
+    if (typeof body.name !== "string" || !body.name.trim()) {
+        return c.json({ error: "name is required" }, 400);
+    }
+    try {
+        renameSessionWindow(session, windowIndex, body.name);
+        captureAndStoreWindows(session);
+        return c.json({ ok: true });
+    }
+    catch (err) {
+        if (err instanceof TmuxWindowsError) {
+            return c.json({ error: err.message }, err.status);
+        }
+        console.error("[rename-window]", err);
+        return c.json({ error: "rename-window failed" }, 500);
+    }
+});
+app.post("/api/session/:session/new-window", requireAuth(), (c) => {
+    const session = decodeURIComponent(c.req.param("session"));
+    try {
+        newSessionWindow(session);
+        captureAndStoreWindows(session);
+        return c.json({ ok: true });
+    }
+    catch (err) {
+        if (err instanceof TmuxWindowsError) {
+            return c.json({ error: err.message }, err.status);
+        }
+        console.error("[new-window]", err);
+        return c.json({ error: "new-window failed" }, 500);
+    }
+});
+app.get("/api/schedule", requireAuth(), (c) => {
+    return c.json(scheduler.list(c.req.query("session")));
+});
+app.post("/api/schedule", requireAuth(), async (c) => {
+    let body;
+    try {
+        body = await c.req.json();
+    }
+    catch {
+        return c.json({ error: "invalid json" }, 400);
+    }
+    const delayError = getScheduleDelayError(body);
+    if (delayError)
+        return c.json({ error: delayError }, 400);
+    if (!isValidScheduleInput(body))
+        return c.json({ error: "invalid body" }, 400);
+    const task = await scheduler.create(body);
+    return c.json({ id: task.id, fireAt: task.fireAt });
+});
+app.delete("/api/schedule/:id", requireAuth(), async (c) => {
+    const deleted = await scheduler.delete(c.req.param("id"));
+    if (!deleted)
+        return c.json({ error: "not found" }, 404);
+    return c.json({ ok: true });
+});
+app.patch("/api/schedule/:id", requireAuth(), async (c) => {
+    let body;
+    try {
+        body = await c.req.json();
+    }
+    catch {
+        return c.json({ error: "invalid json" }, 400);
+    }
+    const delayError = getScheduleDelayError(body);
+    if (delayError)
+        return c.json({ error: delayError }, 400);
+    if (!isValidRescheduleInput(body))
+        return c.json({ error: "invalid body" }, 400);
+    const updated = await scheduler.reschedule(c.req.param("id"), body.delayMs);
+    if (!updated)
+        return c.json({ error: "not found" }, 404);
+    return c.json({ id: updated.id, fireAt: updated.fireAt });
+});
+// ── WebSocket server ───────────────────────────────────────────────────────
+const port = parseInt(process.env.PORT || "21000", 10);
+const server = serve({ fetch: app.fetch, port, hostname: '0.0.0.0' }, (info) => {
+    console.log(`tmux-web running at http://${info.port}`);
+});
+// watched panes and caches the result for /api/agents. Off unless enabled.
+const wss = new WebSocketServer({ noServer: true });
+function rejectUpgrade(socket, code, message) {
+    socket.write(`HTTP/1.1 ${code} ${message}\r\n\r\n`);
+    socket.destroy();
+}
+server.on("upgrade", (req, socket, head) => {
+    const url = new URL(req.url || "/", `http://${req.headers.host}`);
+    const match = url.pathname.match(/^\/ws\/(.+)$/);
+    if (!match) {
+        socket.destroy();
+        return;
+    }
+    const ip = resolveClientIpFromReq(req);
+    // Origin allowlist — empty list means same-origin only.
+    const origin = req.headers.origin;
+    const allowed = securityConfig.security.allowedOrigins;
+    if (origin) {
+        const sameOrigin = origin === `http://${req.headers.host}` || origin === `https://${req.headers.host}`;
+        if (!sameOrigin && (allowed.length === 0 || !allowed.includes(origin))) {
+            audit("ws_rejected_origin", { ip, origin });
+            rejectUpgrade(socket, 403, "Origin not allowed");
+            return;
+        }
+    }
+    // Per-IP concurrent connection cap.
+    const liveFromIp = countWsConnectionsByIp(ip);
+    if (liveFromIp >= securityConfig.security.maxConnectionsPerIp) {
+        audit("ws_rejected_per_ip_cap", { ip, liveFromIp });
+        rejectUpgrade(socket, 429, "Too many connections");
+        return;
+    }
+    // Validate token from cookie or query param before completing upgrade.
+    const token = readBearerTokenFromReq(req) || url.searchParams.get("token") || "";
+    const storedToken = token ? tokenStore.validateToken(token) : null;
+    wss.handleUpgrade(req, socket, head, (ws) => {
+        wss.emit("connection", ws, req, decodeURIComponent(match[1]), ip, storedToken);
+    });
+});
+wss.on("connection", (ws, _req, sessionName, ip, preflightToken) => {
+    const client = { ws, ip, authenticated: false, authTimeout: null };
+    wsClients.set(ws, client);
+    audit("ws_connected", { ip });
+    let ptyProcess = null;
+    const { initialLines, historyChunk, syncIdleMs, syncMaxMs } = terminalBufferConfig;
+    let syncing = true;
+    let syncIdleTimer = null;
+    let syncMaxTimer = null;
+    let paneTarget = sessionName;
+    let releaseControl = null;
+    const clearSyncTimers = () => {
+        if (syncIdleTimer) {
+            clearTimeout(syncIdleTimer);
+            syncIdleTimer = null;
+        }
+        if (syncMaxTimer) {
+            clearTimeout(syncMaxTimer);
+            syncMaxTimer = null;
+        }
+    };
+    const finishSync = () => {
+        if (!syncing)
+            return;
+        clearSyncTimers();
+        syncing = false;
+        try {
+            paneTarget = getSessionPaneTarget(sessionName);
+        }
+        catch {
+            paneTarget = sessionName;
+        }
+        if (!isAlternateScreen(paneTarget)) {
+            try {
+                const data = capturePaneTail(paneTarget, initialLines);
+                sendServerMessage(ws, { type: "snapshot", data: toCrlf(data), lines: initialLines });
+            }
+            catch {
+                sendServerMessage(ws, { type: "data", data: "\r\n" });
+            }
+        }
+    };
+    const scheduleSyncEnd = () => {
+        if (!syncing)
+            return;
+        if (syncIdleTimer)
+            clearTimeout(syncIdleTimer);
+        syncIdleTimer = setTimeout(finishSync, syncIdleMs);
+    };
+    function startPty() {
+        try {
+            ptyProcess = pty.spawn("tmux", ["attach-session", "-t", sessionName], {
+                name: "xterm-256color",
+                cols: 80,
+                rows: 24,
+                cwd: process.env.HOME || "/",
+                env: process.env,
+            });
+        }
+        catch (err) {
+            sendServerMessage(ws, {
+                type: "data",
+                data: `\r\n\x1b[31mFailed to attach to tmux session "${sessionName}": ${err.message}\x1b[0m\r\n`,
+            });
+            closeWs(ws, 1011, "pty spawn failed");
+            return;
+        }
+        activePtys.add(ptyProcess);
+        // Mirror tmux-side window switches back to this tab.
+        let lastActiveIndex = -1;
+        let lastWindowKey = "";
+        releaseControl = acquireControlClient(sessionName, ({ activeIndex, windows }) => {
+            sendServerMessage(ws, { type: "window_changed", activeIndex, windows });
+            const windowKey = windows.map((w) => w.index).join(",");
+            const structural = activeIndex !== lastActiveIndex || windowKey !== lastWindowKey;
+            lastActiveIndex = activeIndex;
+            lastWindowKey = windowKey;
+            if (structural) {
+            }
+        });
+        syncMaxTimer = setTimeout(finishSync, syncMaxMs);
+        ptyProcess.onData((data) => {
+            if (syncing) {
+                scheduleSyncEnd();
+                return;
+            }
+            sendServerMessage(ws, { type: "data", data });
+        });
+        ptyProcess.onExit(({ exitCode }) => {
+            clearSyncTimers();
+            if (ptyProcess)
+                activePtys.delete(ptyProcess);
+            ptyProcess = null;
+            sendServerMessage(ws, {
+                type: "data",
+                data: `\r\n\x1b[2m--- tmux exited (code ${exitCode}) ---\x1b[0m\r\n`,
+            });
+            closeWs(ws, 1000, "pty exited");
+        });
+    }
+    function completeAuth(method, tokenName) {
+        client.authenticated = true;
+        if (client.authTimeout) {
+            clearTimeout(client.authTimeout);
+            client.authTimeout = null;
+        }
+        audit("auth_success", { ip, method, tokenName });
+        sendServerMessage(ws, { type: "auth.ok", setupMode: !securityConfig.passwordHash });
+        startPty();
+    }
+    function sendAuthFailed(message, extra = {}) {
+        sendServerMessage(ws, { type: "auth.failed", message, ...extra });
+    }
+    async function handleAuthMessage(data) {
+        let msg;
+        try {
+            msg = JSON.parse(data);
+        }
+        catch {
+            return false;
+        }
+        if (msg.type === "auth.token" && typeof msg.token === "string") {
+            const stored = tokenStore.validateToken(msg.token);
+            if (!stored) {
+                audit("token_auth_failed", { ip });
+                const rate = rateLimiter.recordFailure(ip);
+                if (rate.permanentLock) {
+                    tokenStore.revokeAll();
+                    audit("permanent_lock", { ip, failures: rate.failures });
+                }
+                sendAuthFailed("Invalid or expired token", { permanentLock: rate.permanentLock, retryAfterMs: rate.retryAfterMs });
+                return true;
+            }
+            tokenStore.touch(stored.tokenHash);
+            completeAuth("token", stored.name);
+            return true;
+        }
+        if (msg.type === "auth" && typeof msg.password === "string") {
+            const rateResult = rateLimiter.check(ip);
+            if (!rateResult.allowed) {
+                audit("rate_limited", { ip, retryAfterMs: rateResult.retryAfterMs, permanentLock: rateResult.permanentLock });
+                sendAuthFailed("Too many attempts", { permanentLock: rateResult.permanentLock, retryAfterMs: rateResult.retryAfterMs });
+                return true;
+            }
+            // Setup mode.
+            if (!securityConfig.passwordHash) {
+                if (!securityConfig.security.allowRemoteSetup && !isLocalhostIp(ip)) {
+                    audit("setup_rejected_remote", { ip });
+                    sendAuthFailed("First-run setup must be performed from localhost");
+                    return true;
+                }
+                if (settingUpPassword) {
+                    sendAuthFailed("Password setup in progress");
+                    return true;
+                }
+                const validationError = validatePassword(msg.password);
+                if (validationError) {
+                    sendAuthFailed(validationError);
+                    return true;
+                }
+                settingUpPassword = true;
+                try {
+                    securityConfig.passwordHash = await hashPassword(msg.password);
+                    saveSecurityConfig(securityConfig);
+                    audit("password_set", { ip });
+                }
+                finally {
+                    settingUpPassword = false;
+                }
+                const { stored, plaintext } = tokenStore.createAccessToken("setup", securityConfig.security.tokenTtlDays);
+                sendServerMessage(ws, { type: "auth.ok", setupMode: true, token: plaintext });
+                audit("token_created", { ip, name: stored.name, tokenId: stored.id });
+                audit("auth_success", { ip, method: "password", tokenName: stored.name });
+                startPty();
+                return true;
+            }
+            // Normal password verification.
+            if (!securityConfig.passwordHash) {
+                sendAuthFailed("Server not configured");
+                return true;
+            }
+            const valid = await verifyPassword(msg.password, securityConfig.passwordHash);
+            if (!valid) {
+                const rate = rateLimiter.recordFailure(ip);
+                audit("auth_failed", { ip, method: "password", failures: rate.failures, permanentLock: rate.permanentLock });
+                if (rate.permanentLock) {
+                    tokenStore.revokeAll();
+                    audit("permanent_lock", { ip, failures: rate.failures });
+                }
+                sendAuthFailed("Incorrect password", { permanentLock: rate.permanentLock, retryAfterMs: rate.retryAfterMs });
+                return true;
+            }
+            rateLimiter.recordSuccess(ip);
+            const name = `ws-${ip}`;
+            const { plaintext } = tokenStore.createAccessToken(name, securityConfig.security.tokenTtlDays);
+            completeAuth("password", name);
+            sendServerMessage(ws, { type: "auth.ok", setupMode: false, token: plaintext });
+            return true;
+        }
+        return false;
+    }
+    // Pre-flight token from cookie/query param allows immediate attachment.
+    if (preflightToken) {
+        tokenStore.touch(preflightToken.tokenHash);
+        completeAuth("token", preflightToken.name);
+    }
+    else {
+        sendServerMessage(ws, { type: "auth.required", setupMode: !securityConfig.passwordHash });
+        client.authTimeout = setTimeout(() => {
+            if (!client.authenticated) {
+                audit("auth_timeout", { ip });
+                sendAuthFailed("Authentication timeout");
+                closeWs(ws, 4000, "Auth timeout");
+            }
+        }, securityConfig.security.authTimeoutMs);
+    }
+    ws.on("message", async (raw) => {
+        const data = typeof raw === "string" ? raw : raw.toString("utf-8");
+        if (!client.authenticated) {
+            // Ignore oversized messages before auth.
+            if (data.length > 1_000_000) {
+                sendServerMessage(ws, { type: "auth.failed", message: "Message too large" });
+                return;
+            }
+            const handled = await handleAuthMessage(data);
+            if (!handled) {
+                sendAuthFailed("Authentication required");
+            }
+            return;
+        }
+        if (!ptyProcess)
+            return;
+        try {
+            if (handleClientMessage(data, ptyProcess))
+                return;
+        }
+        catch {
+            return;
+        }
+        let msg;
+        try {
+            msg = JSON.parse(data);
+        }
+        catch {
+            return;
+        }
+        if (msg.type === "load_history" && typeof msg.before === "number") {
+            const before = Math.max(0, Math.floor(msg.before));
+            try {
+                const { data: chunk, lines } = capturePaneHistoryChunk(paneTarget, before, historyChunk);
+                sendServerMessage(ws, { type: "history", data: toCrlf(chunk), before, lines });
+            }
+            catch {
+                sendServerMessage(ws, { type: "history", data: "", before, lines: 0 });
+            }
+        }
+    });
+    ws.on("close", () => {
+        if (client.authTimeout)
+            clearTimeout(client.authTimeout);
+        wsClients.delete(ws);
+        audit("ws_disconnected", { ip });
+        clearSyncTimers();
+        if (releaseControl) {
+            releaseControl();
+            releaseControl = null;
+        }
+        if (ptyProcess) {
+            activePtys.delete(ptyProcess);
+            ptyProcess.kill();
+            ptyProcess = null;
+        }
+    });
+    ws.on("error", () => {
+        if (client.authTimeout)
+            clearTimeout(client.authTimeout);
+        wsClients.delete(ws);
+        clearSyncTimers();
+        if (releaseControl) {
+            releaseControl();
+            releaseControl = null;
+        }
+        if (ptyProcess) {
+            activePtys.delete(ptyProcess);
+            ptyProcess.kill();
+            ptyProcess = null;
+        }
+    });
+});
+function cleanup() {
+    scheduler.cleanup();
+    killAllControlClients();
+    for (const [ws, client] of wsClients) {
+        try {
+            ws.close(1001, "Server shutting down");
+        }
+        catch { }
+        if (client.authTimeout)
+            clearTimeout(client.authTimeout);
+    }
+    wsClients.clear();
+    for (const p of activePtys) {
+        try {
+            p.kill();
+        }
+        catch { }
+    }
+    activePtys.clear();
+    for (const child of extChildren) {
+        try {
+            child.kill("SIGTERM");
+        }
+        catch { }
+    }
+    rateLimiter.dispose();
+    process.exit(0);
+}
+process.on("SIGINT", cleanup);
+process.on("SIGTERM", cleanup);
+// Purge expired tokens hourly.
+setInterval(() => {
+    tokenStore.purgeExpired();
+}, 60 * 60 * 1000).unref();

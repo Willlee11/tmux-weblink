@@ -8,12 +8,14 @@
   },
   "files": [
     "dist",
-    "scripts/fix-pty-perms.mjs"
+    "scripts/fix-pty-perms.mjs",
+    "scripts/generate-icons.mjs"
   ],
   "scripts": {
     "postinstall": "node scripts/fix-pty-perms.mjs",
-    "prepublishOnly": "tsc && npm run build:client && npm run build:exts && npm run minify:dist",
-    "build": "tsc && npm run check:drawer-scripts && npm run build:client && npm run build:exts && npm run minify:dist",
+    "prepublishOnly": "npm run build",
+    "build": "tsc && npm run check:drawer-scripts && npm run generate-icons && npm run build:client && npm run build:exts && npm run minify:dist",
+    "generate-icons": "node scripts/generate-icons.mjs",
     "check:drawer-scripts": "tsx scripts/check-drawer-scripts.ts",
     "build:client": "node scripts/build-client.mjs",
     "typecheck": "tsc --noEmit",

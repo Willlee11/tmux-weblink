@@ -1,7 +1,358 @@
-import{initTerminal as V}from"./terminal-core.js";const E=window.__TMUX_WEB_SHELL__;let s=null,p=null,q="sessions",u="",B="",S="",F="";const i=document.getElementById("sidebar-content"),b=document.getElementById("main-placeholder"),y=document.getElementById("terminal-container"),T=document.getElementById("file-editor"),$=document.getElementById("fe-path"),c=document.getElementById("fe-status"),w=document.getElementById("fe-content"),v=document.getElementById("fe-save"),A=document.getElementById("fe-delete"),J=document.getElementById("fe-back"),j=document.getElementById("fe-new-name"),U=document.getElementById("fe-new-btn"),M=document.getElementById("settings-backdrop"),D=document.getElementById("settings-popover"),O=document.querySelector(".sidebar");function W(){return window.matchMedia("(max-width: 640px)").matches}function H(){W()&&O.classList.add("collapsed")}function z(){O.classList.remove("collapsed")}document.getElementById("mode-sessions").addEventListener("click",()=>{z(),P("sessions")}),document.getElementById("mode-files").addEventListener("click",()=>{z(),P("files")});function P(e){q=e,document.querySelectorAll(".mode-btn").forEach(n=>n.classList.remove("active"));const t=document.getElementById(e==="sessions"?"mode-sessions":"mode-files");t&&t.classList.add("active"),e==="sessions"?L():K()}async function L(){i.innerHTML='<div class="sidebar-section-label">Sessions</div><button class="new-session-sidebar-btn" id="ns-btn">+ New Session</button>';try{const f=(await(await fetch("/api/sidebar/sessions")).json()).recent||[];for(const r of f){const o=document.createElement("div");o.className="session-item"+(r.name===p?" active":""),o.setAttribute("data-session",r.name),o.innerHTML=`<svg viewBox="0 0 24 24" fill="currentColor"><path d="${r.attached?"M19 4H5a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2zm0 14H5V6h14v12z":"M4 6h16v2H4V6zm0 5h16v2H4v-2zm0 5h16v2H4v-2z"}"></svg>
-			<span>${k(r.name)}</span>
-			<button class="session-edit-btn" data-session="${k(r.name)}" title="Edit session"><svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 000-1.41l-2.34-2.34a1 1 0 00-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg></button>
-`,o.addEventListener("click",l=>{l.target.closest(".session-edit-btn")||N(r.name)}),i.appendChild(o);const a=o.querySelector(".session-edit-btn");a&&a.addEventListener("click",l=>{l.stopPropagation(),Q(r.name,a)})}}catch{i.innerHTML+='<div class="file-tree-empty">Failed to load sessions</div>'}const e=document.getElementById("ns-btn");e&&e.addEventListener("click",()=>document.getElementById("new-session-modal")?.classList.add("open"))}function k(e){return e.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;")}async function N(e){if(!(p===e&&s)){T.style.display="none",b.style.display="none",y.style.display="",y.classList.add("terminal-pending"),H(),s&&(s.destroy(),s=null),p=e;for(const t of i.querySelectorAll(".session-item"))t.classList.toggle("active",t.getAttribute("data-session")===e);try{s=await V(y,e,{terminal:E.terminal,scrollback:E.scrollback,theme:E.theme,renderer:E.renderer})}catch(t){console.error("[shell] terminal init failed:",t);const n=t&&typeof t=="object"&&"message"in t?t.message:String(t);y.textContent="Failed to open terminal for "+e+": "+n,y.classList.remove("terminal-pending")}}}let I=[];function K(){if(I=E.fsRoots||[],I.length===0){if(p){X(p);return}i.innerHTML='<div class="file-tree-info">Open a session first, then switch to Files to browse its directory.</div>';return}i.innerHTML="";for(const e of I){const t=document.createElement("div");t.className="file-tree-item",t.innerHTML=`<svg viewBox="0 0 24 24" fill="currentColor" class="file-icon"><path d="M10 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z"/></svg> ${k(e)}`,t.addEventListener("click",()=>h(e)),i.appendChild(t)}}async function X(e){i.innerHTML='<div class="file-tree-empty">Loading...</div>';try{const n=await(await fetch("/api/fs/session-path?session="+encodeURIComponent(e))).json();n.path?h(n.path):i.innerHTML='<div class="file-tree-info">Could not determine session directory.</div>'}catch{i.innerHTML='<div class="file-tree-error">Failed to get session directory</div>'}}async function h(e){u=e,i.innerHTML='<div class="file-tree-empty">Loading...</div>';try{const n=await(await fetch("/api/fs/list?path="+encodeURIComponent(e))).json();i.innerHTML="";const f=Y(e);if(f&&!I.some(a=>e===a)){const a=document.createElement("div");a.className="file-tree-item",a.innerHTML="..",a.addEventListener("click",()=>h(f)),i.appendChild(a)}if(n.dirs)for(const o of n.dirs){const a=o.split("/").pop()||o.split("\\").pop(),l=document.createElement("div");l.className="file-tree-item",l.innerHTML=`<svg viewBox="0 0 24 24" fill="currentColor" class="file-icon"><path d="M10 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z"/></svg> ${k(a)}`,l.addEventListener("click",()=>h(o)),i.appendChild(l)}else i.innerHTML="";const r=n.files||[];for(const o of r){const a=o.split("/").pop()||o.split("\\").pop(),l=document.createElement("div");l.className="file-tree-item file",l.innerHTML=`<span class="file-icon">\u{1F4C4}</span> ${k(a)}`,l.addEventListener("click",()=>Z(o)),i.appendChild(l)}}catch{i.innerHTML='<div class="file-tree-error">Failed to load directory</div>'}}function Y(e){const t=e.lastIndexOf("/");return t<=0?null:e.substring(0,t)}async function Z(e){B=e,y.style.display="none",s&&(s.destroy(),s=null,p=null),H(),b.style.display="none",T.style.display="flex",$.textContent=e,c.textContent="Loading...",v.style.display="none";try{const t=await fetch("/api/file?path="+encodeURIComponent(e));if(!t.ok){const f=await t.json();c.textContent=f.error||"Failed to load",w.value="";return}const n=await t.json();w.value=n.content,S=n.content,F=n.content,c.textContent=n.size+" bytes",v.style.display=""}catch{c.textContent="Failed to load",w.value=""}}w.addEventListener("input",()=>{S=w.value}),v.addEventListener("click",async()=>{v.textContent="Saving...",v.disabled=!0;try{const e=await fetch("/api/file",{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify({path:B,content:S})});if(!e.ok){const t=await e.json();c.textContent=t.error||"Save failed";return}F=S,c.textContent="Saved"}catch{c.textContent="Save failed"}finally{v.disabled=!1,v.textContent="Save"}}),A.addEventListener("click",async()=>{if(confirm("Delete "+B+"?"))try{const e=await fetch("/api/file/delete",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({path:B})});if(!e.ok){const t=await e.json();c.textContent=t.error||"Delete failed";return}T.style.display="none",b.style.display="flex",u&&h(u)}catch{c.textContent="Delete failed"}}),J.addEventListener("click",()=>{T.style.display="none",b.style.display="flex",u&&h(u)}),U.addEventListener("click",async()=>{const e=j.value.trim();if(!e)return;const t=u+"/"+e;try{const n=await fetch("/api/file/touch",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({path:t})});if(!n.ok){const f=await n.json();c.textContent=f.error||"Create failed";return}j.value="",u&&h(u)}catch{c.textContent="Create failed"}}),document.getElementById("mode-settings").addEventListener("click",()=>{const e=D.classList.toggle("open");M.classList.toggle("open",e)}),M.addEventListener("click",()=>{D.classList.remove("open"),M.classList.remove("open")});let g="";const C=document.createElement("div");C.className="session-popover-backdrop",document.body.appendChild(C);const m=document.createElement("div");m.id="session-popover",m.className="session-popover",m.style.display="none",m.innerHTML=`<div class="sp-field">
+import { initTerminal } from './terminal-core.js';
+// ── Config ──
+const shellCfg = window.__TMUX_WEB_SHELL__;
+// ── State ──
+let currentTerminal = null;
+let currentSession = null;
+let currentMode = 'sessions';
+let currentFileDir = '';
+let currentFilePath = '';
+let currentFileContent = '';
+let currentFileOriginal = '';
+// ── DOM refs ──
+const sidebarContent = document.getElementById('sidebar-content');
+const mainPlaceholder = document.getElementById('main-placeholder');
+const terminalContainer = document.getElementById('terminal-container');
+const fileEditor = document.getElementById('file-editor');
+const fePath = document.getElementById('fe-path');
+const feStatus = document.getElementById('fe-status');
+const feContent = document.getElementById('fe-content');
+const feSave = document.getElementById('fe-save');
+const feDelete = document.getElementById('fe-delete');
+const feBack = document.getElementById('fe-back');
+const feNewName = document.getElementById('fe-new-name');
+const feNewBtn = document.getElementById('fe-new-btn');
+const settingsBackdrop = document.getElementById('settings-backdrop');
+const settingsPopover = document.getElementById('settings-popover');
+// ── Mode switching ──
+const sidebar = document.querySelector('.sidebar');
+function isNarrow() {
+    return window.matchMedia('(max-width: 640px)').matches;
+}
+function collapseSidebar() {
+    if (isNarrow())
+        sidebar.classList.add('collapsed');
+}
+function expandSidebar() {
+    sidebar.classList.remove('collapsed');
+}
+document.getElementById('mode-sessions').addEventListener('click', () => { expandSidebar(); setMode('sessions'); });
+document.getElementById('mode-files').addEventListener('click', () => { expandSidebar(); setMode('files'); });
+function setMode(mode) {
+    currentMode = mode;
+    document.querySelectorAll('.mode-btn').forEach((btn) => btn.classList.remove('active'));
+    const btn = document.getElementById(mode === 'sessions' ? 'mode-sessions' : 'mode-files');
+    if (btn)
+        btn.classList.add('active');
+    if (mode === 'sessions') {
+        renderSessionList();
+    }
+    else {
+        renderFileRoots();
+    }
+}
+// ── Sessions mode ──
+async function renderSessionList() {
+    sidebarContent.innerHTML = '<div class="sidebar-section-label">Sessions</div><button class="new-session-sidebar-btn" id="ns-btn">+ New Session</button>';
+    try {
+        const res = await fetch('/api/sidebar/sessions');
+        const data = await res.json();
+        const sessions = data.recent || [];
+        for (const s of sessions) {
+            const el = document.createElement('div');
+            el.className = 'session-item' + (s.name === currentSession ? ' active' : '');
+            el.setAttribute('data-session', s.name);
+            el.innerHTML = `<svg viewBox="0 0 24 24" fill="currentColor"><path d="${s.attached ? 'M19 4H5a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2zm0 14H5V6h14v12z' : 'M4 6h16v2H4V6zm0 5h16v2H4v-2zm0 5h16v2H4v-2z'}"></svg>
+			<span>${escHtml(s.name)}</span>
+			<button class="session-edit-btn" data-session="${escHtml(s.name)}" title="Edit session"><svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 000-1.41l-2.34-2.34a1 1 0 00-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg></button>
+`;
+            el.addEventListener('click', (e) => {
+                if (e.target.closest('.session-edit-btn'))
+                    return;
+                openSession(s.name);
+            });
+            sidebarContent.appendChild(el);
+            // Wire up edit button
+            const editBtn = el.querySelector('.session-edit-btn');
+            if (editBtn)
+                editBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    showSessionPopover(s.name, editBtn);
+                });
+        }
+    }
+    catch {
+        sidebarContent.innerHTML += '<div class="file-tree-empty">Failed to load sessions</div>';
+    }
+    // Wire up new session button
+    const nsBtn = document.getElementById('ns-btn');
+    if (nsBtn)
+        nsBtn.addEventListener('click', () => document.getElementById('new-session-modal')?.classList.add('open'));
+}
+function escHtml(s) {
+    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+async function openSession(name) {
+    if (currentSession === name && currentTerminal)
+        return; // already open
+    // Hide file editor, show terminal
+    fileEditor.style.display = 'none';
+    mainPlaceholder.style.display = 'none';
+    terminalContainer.style.display = '';
+    terminalContainer.classList.add('terminal-pending');
+    collapseSidebar();
+    // Destroy old terminal
+    if (currentTerminal) {
+        currentTerminal.destroy();
+        currentTerminal = null;
+    }
+    currentSession = name;
+    // Update sidebar active indicator
+    for (const el of sidebarContent.querySelectorAll('.session-item')) {
+        el.classList.toggle('active', el.getAttribute('data-session') === name);
+    }
+    try {
+        currentTerminal = await initTerminal(terminalContainer, name, {
+            terminal: shellCfg.terminal,
+            scrollback: shellCfg.scrollback,
+            theme: shellCfg.theme,
+            renderer: shellCfg.renderer,
+        });
+    }
+    catch (err) {
+        console.error('[shell] terminal init failed:', err);
+        const msg = (err && typeof err === 'object' && 'message' in err) ? err.message : String(err);
+        terminalContainer.textContent = 'Failed to open terminal for ' + name + ': ' + msg;
+        terminalContainer.classList.remove('terminal-pending');
+    }
+}
+// ── Files mode ──
+let fsRoots = [];
+function renderFileRoots() {
+    fsRoots = shellCfg.fsRoots || [];
+    if (fsRoots.length === 0) {
+        if (currentSession) {
+            loadFileDirForSession(currentSession);
+            return;
+        }
+        sidebarContent.innerHTML = '<div class="file-tree-info">Open a session first, then switch to Files to browse its directory.</div>';
+        return;
+    }
+    sidebarContent.innerHTML = '';
+    for (const root of fsRoots) {
+        const el = document.createElement('div');
+        el.className = 'file-tree-item';
+        el.innerHTML = `<svg viewBox="0 0 24 24" fill="currentColor" class="file-icon"><path d="M10 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z"/></svg> ${escHtml(root)}`;
+        el.addEventListener('click', () => loadFileDir(root));
+        sidebarContent.appendChild(el);
+    }
+}
+async function loadFileDirForSession(session) {
+    sidebarContent.innerHTML = '<div class="file-tree-empty">Loading...</div>';
+    try {
+        const res = await fetch('/api/fs/session-path?session=' + encodeURIComponent(session));
+        const data = await res.json();
+        if (data.path) {
+            loadFileDir(data.path);
+        }
+        else {
+            sidebarContent.innerHTML = '<div class="file-tree-info">Could not determine session directory.</div>';
+        }
+    }
+    catch {
+        sidebarContent.innerHTML = '<div class="file-tree-error">Failed to get session directory</div>';
+    }
+}
+async function loadFileDir(dirPath) {
+    currentFileDir = dirPath;
+    sidebarContent.innerHTML = '<div class="file-tree-empty">Loading...</div>';
+    try {
+        const res = await fetch('/api/fs/list?path=' + encodeURIComponent(dirPath));
+        const data = await res.json();
+        sidebarContent.innerHTML = '';
+        // Parent dir link
+        const parent = getParentDir(dirPath);
+        if (parent) {
+            const isRoot = fsRoots.some((r) => dirPath === r);
+            if (!isRoot) {
+                const el = document.createElement('div');
+                el.className = 'file-tree-item';
+                el.innerHTML = '..';
+                el.addEventListener('click', () => loadFileDir(parent));
+                sidebarContent.appendChild(el);
+            }
+        }
+        // Dirs
+        if (data.dirs) {
+            for (const d of data.dirs) {
+                const name = d.split('/').pop() || d.split('\\').pop();
+                const el = document.createElement('div');
+                el.className = 'file-tree-item';
+                el.innerHTML = `<svg viewBox="0 0 24 24" fill="currentColor" class="file-icon"><path d="M10 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z"/></svg> ${escHtml(name)}`;
+                el.addEventListener('click', () => loadFileDir(d));
+                sidebarContent.appendChild(el);
+            }
+        }
+        else {
+            sidebarContent.innerHTML = '';
+        }
+        // Files
+        const files = data.files || [];
+        for (const f of files) {
+            const name = f.split('/').pop() || f.split('\\').pop();
+            const el = document.createElement('div');
+            el.className = 'file-tree-item file';
+            el.innerHTML = `<span class="file-icon">📄</span> ${escHtml(name)}`;
+            el.addEventListener('click', () => openFileEditor(f));
+            sidebarContent.appendChild(el);
+        }
+    }
+    catch {
+        sidebarContent.innerHTML = '<div class="file-tree-error">Failed to load directory</div>';
+    }
+}
+function getParentDir(p) {
+    const idx = p.lastIndexOf('/');
+    if (idx <= 0)
+        return null;
+    return p.substring(0, idx);
+}
+async function openFileEditor(filePath) {
+    currentFilePath = filePath;
+    // Hide terminal, show file editor
+    terminalContainer.style.display = 'none';
+    if (currentTerminal) {
+        currentTerminal.destroy();
+        currentTerminal = null;
+        currentSession = null;
+    }
+    collapseSidebar();
+    mainPlaceholder.style.display = 'none';
+    fileEditor.style.display = 'flex';
+    fePath.textContent = filePath;
+    feStatus.textContent = 'Loading...';
+    feSave.style.display = 'none';
+    try {
+        const res = await fetch('/api/file?path=' + encodeURIComponent(filePath));
+        if (!res.ok) {
+            const err = await res.json();
+            feStatus.textContent = err.error || 'Failed to load';
+            feContent.value = '';
+            return;
+        }
+        const data = await res.json();
+        feContent.value = data.content;
+        currentFileContent = data.content;
+        currentFileOriginal = data.content;
+        feStatus.textContent = data.size + ' bytes';
+        feSave.style.display = '';
+    }
+    catch {
+        feStatus.textContent = 'Failed to load';
+        feContent.value = '';
+    }
+}
+// ── File editor events ──
+feContent.addEventListener('input', () => {
+    currentFileContent = feContent.value;
+});
+feSave.addEventListener('click', async () => {
+    feSave.textContent = 'Saving...';
+    feSave.disabled = true;
+    try {
+        const res = await fetch('/api/file', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ path: currentFilePath, content: currentFileContent }),
+        });
+        if (!res.ok) {
+            const err = await res.json();
+            feStatus.textContent = err.error || 'Save failed';
+            return;
+        }
+        currentFileOriginal = currentFileContent;
+        feStatus.textContent = 'Saved';
+    }
+    catch {
+        feStatus.textContent = 'Save failed';
+    }
+    finally {
+        feSave.disabled = false;
+        feSave.textContent = 'Save';
+    }
+});
+feDelete.addEventListener('click', async () => {
+    if (!confirm('Delete ' + currentFilePath + '?'))
+        return;
+    try {
+        const res = await fetch('/api/file/delete', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ path: currentFilePath }),
+        });
+        if (!res.ok) {
+            const err = await res.json();
+            feStatus.textContent = err.error || 'Delete failed';
+            return;
+        }
+        fileEditor.style.display = 'none';
+        mainPlaceholder.style.display = 'flex';
+        if (currentFileDir)
+            loadFileDir(currentFileDir);
+    }
+    catch {
+        feStatus.textContent = 'Delete failed';
+    }
+});
+feBack.addEventListener('click', () => {
+    fileEditor.style.display = 'none';
+    mainPlaceholder.style.display = 'flex';
+    if (currentFileDir)
+        loadFileDir(currentFileDir);
+});
+feNewBtn.addEventListener('click', async () => {
+    const name = feNewName.value.trim();
+    if (!name)
+        return;
+    const fullPath = currentFileDir + '/' + name;
+    try {
+        const res = await fetch('/api/file/touch', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ path: fullPath }),
+        });
+        if (!res.ok) {
+            const err = await res.json();
+            feStatus.textContent = err.error || 'Create failed';
+            return;
+        }
+        feNewName.value = '';
+        if (currentFileDir)
+            loadFileDir(currentFileDir);
+    }
+    catch {
+        feStatus.textContent = 'Create failed';
+    }
+});
+// ── Settings popover ──
+document.getElementById('mode-settings').addEventListener('click', () => {
+    const open = settingsPopover.classList.toggle('open');
+    settingsBackdrop.classList.toggle('open', open);
+});
+settingsBackdrop.addEventListener('click', () => {
+    settingsPopover.classList.remove('open');
+    settingsBackdrop.classList.remove('open');
+});
+// ── Session edit popover ──
+let spSessionName = '';
+const spBackdrop = document.createElement('div');
+spBackdrop.className = 'session-popover-backdrop';
+document.body.appendChild(spBackdrop);
+const spPopover = document.createElement('div');
+spPopover.id = 'session-popover';
+spPopover.className = 'session-popover';
+spPopover.style.display = 'none';
+spPopover.innerHTML = `<div class="sp-field">
   <label>Rename session</label>
   <input type="text" id="sp-name" />
 </div>
@@ -10,5 +361,152 @@ import{initTerminal as V}from"./terminal-core.js";const E=window.__TMUX_WEB_SHEL
   <button class="btn" id="sp-cancel">Cancel</button>
 </div>
 <hr class="sp-divider" />
-<button class="btn danger" id="sp-delete">Delete session</button>`,document.body.appendChild(m);function G(e){const t=e.getBoundingClientRect();m.style.top=t.bottom+4+"px",m.style.left=Math.max(8,Math.min(t.left,window.innerWidth-240))+"px"}function Q(e,t){g=e;const n=document.getElementById("sp-name");n.value=e,C.classList.add("open"),m.style.display="block",G(t),setTimeout(()=>n.focus(),50)}function x(){C.classList.remove("open"),m.style.display="none"}C.addEventListener("click",x),document.getElementById("sp-save").addEventListener("click",async()=>{const e=document.getElementById("sp-name").value.trim();if(!e||e===g){x();return}try{if(!(await fetch("/api/sessions/rename",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({oldName:g,newName:e})})).ok)return;x(),L(),p===g&&N(e)}catch{}}),document.getElementById("sp-delete").addEventListener("click",async()=>{if(confirm('Delete session "'+g+'"?'))try{if(!(await fetch("/api/sessions/kill",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({name:g})})).ok)return;x(),p===g&&(s&&(s.destroy(),s=null),p=null,y.style.display="none",b.style.display="flex"),L()}catch{}}),document.getElementById("sp-cancel").addEventListener("click",x);const ee={esc:"\x1B",tab:"	","s-tab":"\x1B[Z",up:"\x1B[A",down:"\x1B[B",left:"\x1B[D",right:"\x1B[C",space:" ",enter:"\r",exit:"exit\r",yes:"yes\r"};document.getElementById("mobile-keys").addEventListener("click",e=>{const t=e.target.closest("button[data-key]");if(!t||!s)return;const n=ee[t.dataset.key];n&&(s.sendInput(n),s.focus())});const d=document.getElementById("mk-input"),R=document.getElementById("mk-send");function _(){if(!d||!s)return;const e=d.value;e&&(s.sendInput(e+"\r"),d.value="",d.rows=1,s.focus())}if(d&&(d.addEventListener("input",()=>{d.rows=1;const e=d.value.split(`
-`).length;d.rows=Math.min(e,4)}),d.addEventListener("keydown",e=>{e.key==="Enter"&&!e.shiftKey&&(e.preventDefault(),_())})),R&&R.addEventListener("click",_),window.visualViewport){const e=document.querySelector(".app-layout"),t=()=>{e&&(e.style.height=window.visualViewport.height+"px"),window.scrollTo(0,0),document.documentElement.scrollTop=0,document.body.scrollTop=0};window.visualViewport.addEventListener("resize",t),window.addEventListener("orientationchange",()=>setTimeout(t,100)),document.addEventListener("touchstart",()=>{(window.scrollY>0||document.documentElement.scrollTop>0)&&window.scrollTo(0,0)},{passive:!0})}window.__openSession=N,window.__refreshSidebar=L,L(),H();
+<button class="btn danger" id="sp-delete">Delete session</button>`;
+document.body.appendChild(spPopover);
+function positionPopover(anchorEl) {
+    const rect = anchorEl.getBoundingClientRect();
+    spPopover.style.top = (rect.bottom + 4) + 'px';
+    spPopover.style.left = Math.max(8, Math.min(rect.left, window.innerWidth - 240)) + 'px';
+}
+function showSessionPopover(name, anchorEl) {
+    spSessionName = name;
+    const input = document.getElementById('sp-name');
+    input.value = name;
+    spBackdrop.classList.add('open');
+    spPopover.style.display = 'block';
+    positionPopover(anchorEl);
+    setTimeout(() => input.focus(), 50);
+}
+function closeSessionPopover() {
+    spBackdrop.classList.remove('open');
+    spPopover.style.display = 'none';
+}
+spBackdrop.addEventListener('click', closeSessionPopover);
+document.getElementById('sp-save').addEventListener('click', async () => {
+    const newName = document.getElementById('sp-name').value.trim();
+    if (!newName || newName === spSessionName) {
+        closeSessionPopover();
+        return;
+    }
+    try {
+        const res = await fetch('/api/sessions/rename', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ oldName: spSessionName, newName }),
+        });
+        if (!res.ok)
+            return;
+        closeSessionPopover();
+        renderSessionList();
+        if (currentSession === spSessionName)
+            openSession(newName);
+    }
+    catch { }
+});
+document.getElementById('sp-delete').addEventListener('click', async () => {
+    if (!confirm('Delete session "' + spSessionName + '"?'))
+        return;
+    try {
+        const res = await fetch('/api/sessions/kill', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: spSessionName }),
+        });
+        if (!res.ok)
+            return;
+        closeSessionPopover();
+        if (currentSession === spSessionName) {
+            if (currentTerminal) {
+                currentTerminal.destroy();
+                currentTerminal = null;
+            }
+            currentSession = null;
+            terminalContainer.style.display = 'none';
+            mainPlaceholder.style.display = 'flex';
+        }
+        renderSessionList();
+    }
+    catch { }
+});
+document.getElementById('sp-cancel').addEventListener('click', closeSessionPopover);
+// ── Mobile key toolbar ──
+const keyMap = {
+    esc: '\x1b',
+    tab: '\t',
+    's-tab': '\x1b[Z',
+    up: '\x1b[A',
+    down: '\x1b[B',
+    left: '\x1b[D',
+    right: '\x1b[C',
+    space: ' ',
+    enter: '\r',
+    exit: 'exit\r',
+    yes: 'yes\r',
+};
+document.getElementById('mobile-keys').addEventListener('click', (e) => {
+    const btn = e.target.closest('button[data-key]');
+    if (!btn || !currentTerminal)
+        return;
+    const seq = keyMap[btn.dataset.key];
+    if (seq) {
+        currentTerminal.sendInput(seq);
+        currentTerminal.focus();
+    }
+});
+// ── Mobile keyboard input ──
+const mkInput = document.getElementById('mk-input');
+const mkSend = document.getElementById('mk-send');
+function sendMkText() {
+    if (!mkInput || !currentTerminal)
+        return;
+    const text = mkInput.value;
+    if (!text)
+        return;
+    currentTerminal.sendInput(text + '\r');
+    mkInput.value = '';
+    mkInput.rows = 1;
+    currentTerminal.focus();
+}
+if (mkInput) {
+    mkInput.addEventListener('input', () => {
+        mkInput.rows = 1;
+        const lines = mkInput.value.split('\n').length;
+        mkInput.rows = Math.min(lines, 4);
+    });
+    mkInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            sendMkText();
+        }
+    });
+}
+if (mkSend) {
+    mkSend.addEventListener('click', sendMkText);
+}
+// ── iOS keyboard: prevent page push-up ──
+if (window.visualViewport) {
+    const appLayout = document.querySelector('.app-layout');
+    const clampLayout = () => {
+        // Keep layout inside visual viewport height
+        if (appLayout)
+            appLayout.style.height = window.visualViewport.height + 'px';
+        // iOS auto-scrolls the page when keyboard opens, pushing content up.
+        // Scroll back to top immediately to counteract this.
+        window.scrollTo(0, 0);
+        document.documentElement.scrollTop = 0;
+        document.body.scrollTop = 0;
+    };
+    window.visualViewport.addEventListener('resize', clampLayout);
+    window.addEventListener('orientationchange', () => setTimeout(clampLayout, 100));
+    // Also reset scroll on any touch that might trigger keyboard
+    document.addEventListener('touchstart', () => {
+        if (window.scrollY > 0 || document.documentElement.scrollTop > 0) {
+            window.scrollTo(0, 0);
+        }
+    }, { passive: true });
+}
+// ── Init ──
+window.__openSession = openSession;
+window.__refreshSidebar = renderSessionList;
+renderSessionList();
+collapseSidebar();

@@ -1,1 +1,37 @@
-import{readSettings as e,writeSettings as n}from"./settings.js";const t=[{id:"commandbar",label:"Command bar",description:"\u2318K session search + quick actions",kind:"builtin",isEnabled:a=>a.commandbar===!0,async enable(){const a=await e();await n({...a,commandbar:!0}),console.log("\u2713 command bar enabled")},async disable(){const a=await e();await n({...a,commandbar:!1}),console.log("\u2713 command bar disabled")}},{id:"agents",label:"Agents page",description:"watch AI agents (Claude, Codex, OpenCode, Cursor) in recently-viewed panes",kind:"builtin",isEnabled:a=>a.agents===!0,async enable(){const a=await e();await n({...a,agents:!0}),console.log("\u2713 agents page enabled")},async disable(){const a=await e();await n({...a,agents:!1}),console.log("\u2713 agents page disabled")}}];export{t as SETUP_FEATURES};
+import { readSettings, writeSettings } from './settings.js';
+export const SETUP_FEATURES = [
+    {
+        id: 'commandbar',
+        label: 'Command bar',
+        description: '⌘K session search + quick actions',
+        kind: 'builtin',
+        isEnabled: (cfg) => cfg.commandbar === true,
+        async enable() {
+            const cfg = await readSettings();
+            await writeSettings({ ...cfg, commandbar: true });
+            console.log('✓ command bar enabled');
+        },
+        async disable() {
+            const cfg = await readSettings();
+            await writeSettings({ ...cfg, commandbar: false });
+            console.log('✓ command bar disabled');
+        },
+    },
+    {
+        id: 'agents',
+        label: 'Agents page',
+        description: 'watch AI agents (Claude, Codex, OpenCode, Cursor) in recently-viewed panes',
+        kind: 'builtin',
+        isEnabled: (cfg) => cfg.agents === true,
+        async enable() {
+            const cfg = await readSettings();
+            await writeSettings({ ...cfg, agents: true });
+            console.log('✓ agents page enabled');
+        },
+        async disable() {
+            const cfg = await readSettings();
+            await writeSettings({ ...cfg, agents: false });
+            console.log('✓ agents page disabled');
+        },
+    },
+];
