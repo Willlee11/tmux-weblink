@@ -61,9 +61,64 @@ export function renderShell(cfg: ShellConfig): string {
     display: flex; align-items: center;
     font-size: 11px; font-family: var(--font-mono);
     color: color-mix(in srgb, var(--page-fg) 55%, transparent);
-    cursor: default;
+    cursor: pointer;
     margin: 0 12px;
     white-space: nowrap;
+    padding: 4px 6px;
+    border-radius: 4px;
+    transition: background 0.15s;
+  }
+  .sys-status:hover { background: color-mix(in srgb, var(--panel-accent) 8%, transparent); }
+
+  /* ── Process popover ── */
+  #process-panel {
+    position: fixed; top: 52px; right: 12px; z-index: 300;
+    background: var(--panel-bg); border: 1px solid var(--panel-border);
+    border-radius: 8px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.25);
+    min-width: 340px; max-width: 480px;
+    max-height: 70vh;
+    display: none; flex-direction: column;
+    font-size: 12px;
+  }
+  #process-panel.open { display: flex; }
+  #process-panel .panel-header {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--panel-border);
+    font-weight: 600; font-size: 11px; text-transform: uppercase;
+    letter-spacing: 0.5px; color: var(--panel-muted);
+  }
+  #process-panel .panel-header button {
+    background: none; border: none; color: var(--panel-muted);
+    cursor: pointer; padding: 2px 6px; border-radius: 4px; font-size: 14px;
+  }
+  #process-panel .panel-header button:hover { color: var(--page-fg); background: color-mix(in srgb, var(--panel-accent) 8%, transparent); }
+  #process-panel .proc-list { overflow-y: auto; flex: 1; padding: 4px 0; }
+  #process-panel .proc-row {
+    display: flex; align-items: center; gap: 6px;
+    padding: 4px 12px;
+  }
+  #process-panel .proc-row:hover { background: color-mix(in srgb, var(--panel-accent) 4%, transparent); }
+  #process-panel .proc-mem { width: 44px; text-align: right; font-family: var(--font-mono); color: var(--panel-muted); flex-shrink: 0; }
+  #process-panel .proc-rss { width: 60px; text-align: right; font-family: var(--font-mono); color: var(--panel-muted); flex-shrink: 0; }
+  #process-panel .proc-cmd {
+    flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    color: var(--page-fg);
+  }
+  #process-panel .proc-kill {
+    background: none; border: none; color: var(--panel-muted);
+    cursor: pointer; padding: 2px 6px; border-radius: 4px; font-size: 13px; flex-shrink: 0;
+  }
+  #process-panel .proc-kill:hover { color: #ef4444; background: color-mix(in srgb, #ef4444 10%, transparent); }
+  #process-panel .proc-empty { padding: 24px; text-align: center; color: var(--panel-muted); }
+
+  @media (max-width: 600px) {
+    #process-panel {
+      top: auto; bottom: 0; left: 0; right: 0;
+      min-width: 0; max-width: none; max-height: 60vh;
+      border-radius: 12px 12px 0 0;
+    }
   }
 
   /* ── App layout ── */
@@ -431,6 +486,14 @@ export function renderShell(cfg: ShellConfig): string {
   <div class="sys-status" id="sys-status">RAM ${initMemPct}% / CPU ${initCpuLoad < 10 ? initCpuLoad.toFixed(1) : Math.round(initCpuLoad)}</div>
 </header>
 
+<div id="process-panel">
+  <div class="panel-header">
+    <span>Top Processes</span>
+    <button id="proc-close" aria-label="Close">&times;</button>
+  </div>
+  <div class="proc-list" id="proc-list"></div>
+</div>
+
 <div class="app-layout">
   <aside class="sidebar">
     <div class="sidebar-content" id="sidebar-content"></div>
@@ -568,6 +631,82 @@ ${newSessionModalScript('__onSessionCreated')}
   }
   poll();
   setInterval(poll, 5000);
+})();
+</script>
+<script>
+(function(){
+  var statusEl = document.getElementById('sys-status');
+  var panel = document.getElementById('process-panel');
+  var list = document.getElementById('proc-list');
+  var closeBtn = document.getElementById('proc-close');
+  if (!statusEl || !panel || !list || !closeBtn) return;
+
+  function loadProcs(){
+    list.innerHTML = '<div class="proc-empty">Loading\u2026</div>';
+    fetch('/api/system/processes').then(function(r){ return r.json(); }).then(function(procs){
+      if (!Array.isArray(procs) || !procs.length) {
+        list.innerHTML = '<div class="proc-empty">No processes</div>';
+        return;
+      }
+      var html = '';
+      for (var i = 0; i < procs.length; i++) {
+        var p = procs[i];
+        var rss = p.rss;
+        var rssStr = rss < 1048576 ? (rss / 1024).toFixed(0) + 'K' : (rss / 1048576).toFixed(1) + 'M';
+        html += '<div class="proc-row" data-pid="' + p.pid + '">'
+          + '<span class="proc-mem">' + p.mem + '%</span>'
+          + '<span class="proc-rss">' + rssStr + '</span>'
+          + '<span class="proc-cmd" title="' + escAttr(p.command) + '">' + escHtml(p.command) + '</span>'
+          + '<button class="proc-kill" title="Kill PID ' + p.pid + '">&times;</button>'
+          + '</div>';
+      }
+      list.innerHTML = html;
+      // Wire kill buttons
+      var rows = list.querySelectorAll('.proc-row');
+      for (var j = 0; j < rows.length; j++) {
+        var btn = rows[j].querySelector('.proc-kill');
+        if (!btn) continue;
+        btn.addEventListener('click', function(e){
+          var row = e.target.closest('.proc-row');
+          if (!row || !confirm('Kill PID ' + row.dataset.pid + '?')) return;
+          fetch('/api/system/kill', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ pid: parseInt(row.dataset.pid, 10) }),
+          }).then(function(r){ return r.json(); }).then(function(data){
+            if (data.ok) { row.style.opacity = '0.3'; }
+            else { alert('Failed: ' + (data.error || 'unknown')); }
+          }).catch(function(){ alert('Network error'); });
+        });
+      }
+    }).catch(function(){
+      list.innerHTML = '<div class="proc-empty">Failed to load</div>';
+    });
+  }
+
+  function openPanel(){
+    panel.classList.add('open');
+    loadProcs();
+  }
+
+  function closePanel(){ panel.classList.remove('open'); }
+
+  statusEl.addEventListener('click', function(e){
+    if (panel.classList.contains('open')) { closePanel(); }
+    else { openPanel(); }
+  });
+  closeBtn.addEventListener('click', closePanel);
+  document.addEventListener('click', function(e){
+    if (panel.classList.contains('open') && !panel.contains(e.target) && e.target !== statusEl) {
+      closePanel();
+    }
+  });
+  document.addEventListener('keydown', function(e){
+    if (e.key === 'Escape' && panel.classList.contains('open')) closePanel();
+  });
+
+  function escHtml(s){ return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  function escAttr(s){ return s.replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 })();
 </script>
 </body>

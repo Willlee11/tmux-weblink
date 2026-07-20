@@ -1,4 +1,4 @@
-import{cssVarsStyle as g}from"../theme.js";import{commandbarCSS as f,commandbarHTML as u,commandbarScript as v}from"../commandbar.js";import{newSessionModalCSS as h,newSessionModalHTML as y,newSessionModalScript as k,reducedMotion as w}from"../shared-layout.js";import{icon as n}from"../icons.js";import{getSystemStatus as S}from"../system-monitor.js";function E(o){return o.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;")}function a(o="var(--panel-accent)"){return`box-shadow: 0 0 0 2px ${o}; outline: none;`}function j(o){const{theme:e,commandbarEnabled:t,commandbarSessions:l,fsRoots:d,terminalCfg:p,renderer:i,scrollback:c}=o,s=S(),b=s.memory.percent,r=s.cpu.loadAvg[0],x=`
+import{cssVarsStyle as g}from"../theme.js";import{commandbarCSS as f,commandbarHTML as u,commandbarScript as v}from"../commandbar.js";import{newSessionModalCSS as h,newSessionModalHTML as y,newSessionModalScript as k,reducedMotion as w}from"../shared-layout.js";import{icon as n}from"../icons.js";import{getSystemStatus as S}from"../system-monitor.js";function T(o){return o.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;")}function r(o="var(--panel-accent)"){return`box-shadow: 0 0 0 2px ${o}; outline: none;`}function M(o){const{theme:e,commandbarEnabled:t,commandbarSessions:l,fsRoots:p,terminalCfg:d,renderer:i,scrollback:c}=o,s=S(),b=s.memory.percent,a=s.cpu.loadAvg[0],m=`
   *, *::before, *::after { box-sizing: border-box; }
   html, body {
     background: var(--page-bg); color: var(--page-fg);
@@ -28,9 +28,64 @@ import{cssVarsStyle as g}from"../theme.js";import{commandbarCSS as f,commandbarH
     display: flex; align-items: center;
     font-size: 11px; font-family: var(--font-mono);
     color: color-mix(in srgb, var(--page-fg) 55%, transparent);
-    cursor: default;
+    cursor: pointer;
     margin: 0 12px;
     white-space: nowrap;
+    padding: 4px 6px;
+    border-radius: 4px;
+    transition: background 0.15s;
+  }
+  .sys-status:hover { background: color-mix(in srgb, var(--panel-accent) 8%, transparent); }
+
+  /* \u2500\u2500 Process popover \u2500\u2500 */
+  #process-panel {
+    position: fixed; top: 52px; right: 12px; z-index: 300;
+    background: var(--panel-bg); border: 1px solid var(--panel-border);
+    border-radius: 8px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.25);
+    min-width: 340px; max-width: 480px;
+    max-height: 70vh;
+    display: none; flex-direction: column;
+    font-size: 12px;
+  }
+  #process-panel.open { display: flex; }
+  #process-panel .panel-header {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--panel-border);
+    font-weight: 600; font-size: 11px; text-transform: uppercase;
+    letter-spacing: 0.5px; color: var(--panel-muted);
+  }
+  #process-panel .panel-header button {
+    background: none; border: none; color: var(--panel-muted);
+    cursor: pointer; padding: 2px 6px; border-radius: 4px; font-size: 14px;
+  }
+  #process-panel .panel-header button:hover { color: var(--page-fg); background: color-mix(in srgb, var(--panel-accent) 8%, transparent); }
+  #process-panel .proc-list { overflow-y: auto; flex: 1; padding: 4px 0; }
+  #process-panel .proc-row {
+    display: flex; align-items: center; gap: 6px;
+    padding: 4px 12px;
+  }
+  #process-panel .proc-row:hover { background: color-mix(in srgb, var(--panel-accent) 4%, transparent); }
+  #process-panel .proc-mem { width: 44px; text-align: right; font-family: var(--font-mono); color: var(--panel-muted); flex-shrink: 0; }
+  #process-panel .proc-rss { width: 60px; text-align: right; font-family: var(--font-mono); color: var(--panel-muted); flex-shrink: 0; }
+  #process-panel .proc-cmd {
+    flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    color: var(--page-fg);
+  }
+  #process-panel .proc-kill {
+    background: none; border: none; color: var(--panel-muted);
+    cursor: pointer; padding: 2px 6px; border-radius: 4px; font-size: 13px; flex-shrink: 0;
+  }
+  #process-panel .proc-kill:hover { color: #ef4444; background: color-mix(in srgb, #ef4444 10%, transparent); }
+  #process-panel .proc-empty { padding: 24px; text-align: center; color: var(--panel-muted); }
+
+  @media (max-width: 600px) {
+    #process-panel {
+      top: auto; bottom: 0; left: 0; right: 0;
+      min-width: 0; max-width: none; max-height: 60vh;
+      border-radius: 12px 12px 0 0;
+    }
   }
 
   /* \u2500\u2500 App layout \u2500\u2500 */
@@ -73,7 +128,7 @@ import{cssVarsStyle as g}from"../theme.js";import{commandbarCSS as f,commandbarH
   }
   .sidebar-footer .mode-btn:hover { color: var(--panel-accent); background: color-mix(in srgb, var(--panel-accent) 8%, transparent); }
   .sidebar-footer .mode-btn.active { color: var(--panel-accent); background: color-mix(in srgb, var(--panel-accent) 10%, transparent); }
-  .sidebar-footer .mode-btn:focus-visible { ${a()} }
+  .sidebar-footer .mode-btn:focus-visible { ${r()} }
 
   /* \u2500\u2500 Sidebar session mode \u2500\u2500 */
   .session-item {
@@ -95,7 +150,7 @@ import{cssVarsStyle as g}from"../theme.js";import{commandbarCSS as f,commandbarH
   }
   .session-item:hover .session-edit-btn { display: flex; align-items: center; }
   .session-edit-btn:hover { color: var(--panel-accent); background: color-mix(in srgb, var(--panel-accent) 8%, transparent); }
-  .session-edit-btn:focus-visible { ${a()} }
+  .session-edit-btn:focus-visible { ${r()} }
 
   .sidebar-section-label {
     font-size: var(--text-xs); text-transform: uppercase; letter-spacing: 0.05em;
@@ -112,7 +167,7 @@ import{cssVarsStyle as g}from"../theme.js";import{commandbarCSS as f,commandbarH
     color: var(--panel-accent); border-color: var(--panel-accent);
     background: color-mix(in srgb, var(--panel-accent) 6%, transparent);
   }
-  .new-session-sidebar-btn:focus-visible { ${a()} }
+  .new-session-sidebar-btn:focus-visible { ${r()} }
   .new-session-sidebar-btn svg { width: 16px; height: 16px; fill: currentColor; }
 
   /* \u2500\u2500 Sidebar files mode \u2500\u2500 */
@@ -186,7 +241,7 @@ import{cssVarsStyle as g}from"../theme.js";import{commandbarCSS as f,commandbarH
     color: var(--page-fg); transition: opacity 0.15s; text-decoration: none;
   }
   .btn:hover { opacity: 0.85; }
-  .btn:focus-visible { ${a()} }
+  .btn:focus-visible { ${r()} }
   .btn.primary { background: var(--panel-accent); border-color: var(--panel-accent); color: var(--panel-accent-on); font-weight: 500; }
   .btn.primary:hover { opacity: 0.9; }
   .btn.danger { color: #b91c1c; border-color: color-mix(in srgb, #b91c1c 30%, transparent); }
@@ -347,7 +402,7 @@ import{cssVarsStyle as g}from"../theme.js";import{commandbarCSS as f,commandbarH
     .sidebar.collapsed .sidebar-content { display: none; }
     .sidebar.collapsed { max-height: 48px; overflow: hidden; }
   }
-  `,z=JSON.stringify(e.terminal).replace(/</g,"\\u003c"),m=JSON.stringify({terminal:p,scrollback:c,theme:e.terminal,renderer:i,fsRoots:d,commandbarEnabled:t}).replace(/</g,"\\u003c");return`<!DOCTYPE html>
+  `,z=JSON.stringify(e.terminal).replace(/</g,"\\u003c"),x=JSON.stringify({terminal:d,scrollback:c,theme:e.terminal,renderer:i,fsRoots:p,commandbarEnabled:t}).replace(/</g,"\\u003c");return`<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
@@ -356,7 +411,7 @@ import{cssVarsStyle as g}from"../theme.js";import{commandbarCSS as f,commandbarH
 <title>tmux-weblink</title>
 <style>
   ${g(e.shell)}
-  ${x}
+  ${m}
 </style>
 </head>
 <body>
@@ -383,8 +438,16 @@ import{cssVarsStyle as g}from"../theme.js";import{commandbarCSS as f,commandbarH
   <div class="header-actions">
     ${t?`<button class="header-btn" id="cmdbar-btn" title="Search" aria-label="Search">${n("search")}</button>`:""}
   </div>
-  <div class="sys-status" id="sys-status">RAM ${b}% / CPU ${r<10?r.toFixed(1):Math.round(r)}</div>
+  <div class="sys-status" id="sys-status">RAM ${b}% / CPU ${a<10?a.toFixed(1):Math.round(a)}</div>
 </header>
+
+<div id="process-panel">
+  <div class="panel-header">
+    <span>Top Processes</span>
+    <button id="proc-close" aria-label="Close">&times;</button>
+  </div>
+  <div class="proc-list" id="proc-list"></div>
+</div>
 
 <div class="app-layout">
   <aside class="sidebar">
@@ -487,7 +550,7 @@ ${y()}
 ${t?u():""}
 
 <script>
-window.__TMUX_WEB_SHELL__ = ${m};
+window.__TMUX_WEB_SHELL__ = ${x};
 </script>
 <script type="module">
 await import('/assets/shell-client.js');
@@ -525,5 +588,81 @@ ${k("__onSessionCreated")}
   setInterval(poll, 5000);
 })();
 </script>
+<script>
+(function(){
+  var statusEl = document.getElementById('sys-status');
+  var panel = document.getElementById('process-panel');
+  var list = document.getElementById('proc-list');
+  var closeBtn = document.getElementById('proc-close');
+  if (!statusEl || !panel || !list || !closeBtn) return;
+
+  function loadProcs(){
+    list.innerHTML = '<div class="proc-empty">Loading\u2026</div>';
+    fetch('/api/system/processes').then(function(r){ return r.json(); }).then(function(procs){
+      if (!Array.isArray(procs) || !procs.length) {
+        list.innerHTML = '<div class="proc-empty">No processes</div>';
+        return;
+      }
+      var html = '';
+      for (var i = 0; i < procs.length; i++) {
+        var p = procs[i];
+        var rss = p.rss;
+        var rssStr = rss < 1048576 ? (rss / 1024).toFixed(0) + 'K' : (rss / 1048576).toFixed(1) + 'M';
+        html += '<div class="proc-row" data-pid="' + p.pid + '">'
+          + '<span class="proc-mem">' + p.mem + '%</span>'
+          + '<span class="proc-rss">' + rssStr + '</span>'
+          + '<span class="proc-cmd" title="' + escAttr(p.command) + '">' + escHtml(p.command) + '</span>'
+          + '<button class="proc-kill" title="Kill PID ' + p.pid + '">&times;</button>'
+          + '</div>';
+      }
+      list.innerHTML = html;
+      // Wire kill buttons
+      var rows = list.querySelectorAll('.proc-row');
+      for (var j = 0; j < rows.length; j++) {
+        var btn = rows[j].querySelector('.proc-kill');
+        if (!btn) continue;
+        btn.addEventListener('click', function(e){
+          var row = e.target.closest('.proc-row');
+          if (!row || !confirm('Kill PID ' + row.dataset.pid + '?')) return;
+          fetch('/api/system/kill', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ pid: parseInt(row.dataset.pid, 10) }),
+          }).then(function(r){ return r.json(); }).then(function(data){
+            if (data.ok) { row.style.opacity = '0.3'; }
+            else { alert('Failed: ' + (data.error || 'unknown')); }
+          }).catch(function(){ alert('Network error'); });
+        });
+      }
+    }).catch(function(){
+      list.innerHTML = '<div class="proc-empty">Failed to load</div>';
+    });
+  }
+
+  function openPanel(){
+    panel.classList.add('open');
+    loadProcs();
+  }
+
+  function closePanel(){ panel.classList.remove('open'); }
+
+  statusEl.addEventListener('click', function(e){
+    if (panel.classList.contains('open')) { closePanel(); }
+    else { openPanel(); }
+  });
+  closeBtn.addEventListener('click', closePanel);
+  document.addEventListener('click', function(e){
+    if (panel.classList.contains('open') && !panel.contains(e.target) && e.target !== statusEl) {
+      closePanel();
+    }
+  });
+  document.addEventListener('keydown', function(e){
+    if (e.key === 'Escape' && panel.classList.contains('open')) closePanel();
+  });
+
+  function escHtml(s){ return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  function escAttr(s){ return s.replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+})();
+</script>
 </body>
-</html>`}export{j as renderShell};
+</html>`}export{M as renderShell};

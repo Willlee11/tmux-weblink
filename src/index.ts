@@ -63,7 +63,7 @@ import {
 } from "./lib/tmux-capture.js";
 import { readTerminalBufferConfig } from "./lib/terminal-config.js";
 import { ImageUploadError, saveUploadedImage } from "./lib/image-upload.js";
-import { getSystemStatus } from "./lib/system-monitor.js";
+import { getSystemStatus, getTopProcesses, killProcess } from "./lib/system-monitor.js";
 import {
 	listSessionWindows,
 	selectSessionWindow,
@@ -729,10 +729,24 @@ app.post("/api/theme", requireAuth(), async (c) => {
 });
 
 app.get("/api/system/status", requireAuth(), (c) => {
-		return c.json(getSystemStatus());
-	});
+	return c.json(getSystemStatus());
+});
 
-	app.get("/api/sessions", requireAuth(), (c) => {
+app.get("/api/system/processes", requireAuth(), (c) => {
+	return c.json(getTopProcesses());
+});
+
+app.post("/api/system/kill", requireAuth(), async (c) => {
+	const { pid } = await c.req.json();
+	if (typeof pid !== "number" || !Number.isInteger(pid) || pid <= 0) {
+		return c.json({ error: "invalid pid" }, 400);
+	}
+	const result = killProcess(pid);
+	if (!result.ok) return c.json({ error: result.error }, 500);
+	return c.json({ ok: true });
+});
+
+app.get("/api/sessions", requireAuth(), (c) => {
 	if (!commandbarEnabled) return c.json({ error: "commandbar disabled" }, 404);
 	return c.json(buildCommandbarSessions(listSessions(), getSessionAccessMap()));
 });
