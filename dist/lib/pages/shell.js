@@ -1,4 +1,4 @@
-import{cssVarsStyle as b}from"../theme.js";import{commandbarCSS as m,commandbarHTML as x,commandbarScript as g}from"../commandbar.js";import{newSessionModalCSS as f,newSessionModalHTML as u,newSessionModalScript as h,reducedMotion as v}from"../shared-layout.js";import{icon as n}from"../icons.js";function $(a){return a.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;")}function o(a="var(--panel-accent)"){return`box-shadow: 0 0 0 2px ${a}; outline: none;`}function C(a){const{theme:e,commandbarEnabled:t,commandbarSessions:i,fsRoots:s,terminalCfg:l,renderer:r,scrollback:d}=a,p=`
+import{cssVarsStyle as g}from"../theme.js";import{commandbarCSS as f,commandbarHTML as u,commandbarScript as v}from"../commandbar.js";import{newSessionModalCSS as h,newSessionModalHTML as y,newSessionModalScript as k,reducedMotion as w}from"../shared-layout.js";import{icon as n}from"../icons.js";import{getSystemStatus as S}from"../system-monitor.js";function E(o){return o.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;")}function a(o="var(--panel-accent)"){return`box-shadow: 0 0 0 2px ${o}; outline: none;`}function j(o){const{theme:e,commandbarEnabled:t,commandbarSessions:l,fsRoots:d,terminalCfg:p,renderer:i,scrollback:c}=o,s=S(),b=s.memory.percent,r=s.cpu.loadAvg[0],x=`
   *, *::before, *::after { box-sizing: border-box; }
   html, body {
     background: var(--page-bg); color: var(--page-fg);
@@ -25,30 +25,12 @@ import{cssVarsStyle as b}from"../theme.js";import{commandbarCSS as m,commandbarH
 
   /* \u2500\u2500 System status in header \u2500\u2500 */
   .sys-status {
-    display: flex; align-items: center; gap: 8px;
+    display: flex; align-items: center;
     font-size: 11px; font-family: var(--font-mono);
-    color: var(--panel-muted); cursor: default;
+    color: color-mix(in srgb, var(--page-fg) 55%, transparent);
+    cursor: default;
     margin: 0 12px;
-  }
-  .sys-status .mem-bar {
-    width: 40px; height: 6px;
-    background: color-mix(in srgb, var(--panel-muted) 20%, transparent);
-    border-radius: 3px; overflow: hidden;
-  }
-  .sys-status .mem-bar-fill {
-    height: 100%; border-radius: 3px;
-    transition: width 0.5s ease;
-  }
-  .sys-status .mem-bar-fill.low { background: var(--panel-success, #16a34a); }
-  .sys-status .mem-bar-fill.mid { background: #eab308; }
-  .sys-status .mem-bar-fill.high { background: #ef4444; }
-  .sys-status .mem-text { min-width: 3ch; text-align: right; }
-  .sys-status .cpu-text { color: color-mix(in srgb, var(--panel-muted) 70%, transparent); }
-  @media (max-width: 720px) {
-    .sys-status .cpu-text { display: none; }
-  }
-  @media (max-width: 540px) {
-    .sys-status { display: none; }
+    white-space: nowrap;
   }
 
   /* \u2500\u2500 App layout \u2500\u2500 */
@@ -91,7 +73,7 @@ import{cssVarsStyle as b}from"../theme.js";import{commandbarCSS as m,commandbarH
   }
   .sidebar-footer .mode-btn:hover { color: var(--panel-accent); background: color-mix(in srgb, var(--panel-accent) 8%, transparent); }
   .sidebar-footer .mode-btn.active { color: var(--panel-accent); background: color-mix(in srgb, var(--panel-accent) 10%, transparent); }
-  .sidebar-footer .mode-btn:focus-visible { ${o()} }
+  .sidebar-footer .mode-btn:focus-visible { ${a()} }
 
   /* \u2500\u2500 Sidebar session mode \u2500\u2500 */
   .session-item {
@@ -113,7 +95,7 @@ import{cssVarsStyle as b}from"../theme.js";import{commandbarCSS as m,commandbarH
   }
   .session-item:hover .session-edit-btn { display: flex; align-items: center; }
   .session-edit-btn:hover { color: var(--panel-accent); background: color-mix(in srgb, var(--panel-accent) 8%, transparent); }
-  .session-edit-btn:focus-visible { ${o()} }
+  .session-edit-btn:focus-visible { ${a()} }
 
   .sidebar-section-label {
     font-size: var(--text-xs); text-transform: uppercase; letter-spacing: 0.05em;
@@ -130,7 +112,7 @@ import{cssVarsStyle as b}from"../theme.js";import{commandbarCSS as m,commandbarH
     color: var(--panel-accent); border-color: var(--panel-accent);
     background: color-mix(in srgb, var(--panel-accent) 6%, transparent);
   }
-  .new-session-sidebar-btn:focus-visible { ${o()} }
+  .new-session-sidebar-btn:focus-visible { ${a()} }
   .new-session-sidebar-btn svg { width: 16px; height: 16px; fill: currentColor; }
 
   /* \u2500\u2500 Sidebar files mode \u2500\u2500 */
@@ -204,7 +186,7 @@ import{cssVarsStyle as b}from"../theme.js";import{commandbarCSS as m,commandbarH
     color: var(--page-fg); transition: opacity 0.15s; text-decoration: none;
   }
   .btn:hover { opacity: 0.85; }
-  .btn:focus-visible { ${o()} }
+  .btn:focus-visible { ${a()} }
   .btn.primary { background: var(--panel-accent); border-color: var(--panel-accent); color: var(--panel-accent-on); font-weight: 500; }
   .btn.primary:hover { opacity: 0.9; }
   .btn.danger { color: #b91c1c; border-color: color-mix(in srgb, #b91c1c 30%, transparent); }
@@ -356,16 +338,16 @@ import{cssVarsStyle as b}from"../theme.js";import{commandbarCSS as m,commandbarH
   .file-roots-list li svg { width: 20px; height: 20px; flex-shrink: 0; fill: var(--panel-accent); }
 
   /* \u2500\u2500 Commandbar \u2500\u2500 */
-  ${t?m():""}
-  ${v()}
-  ${f()}
+  ${t?f():""}
+  ${w()}
+  ${h()}
   @media (max-width: 640px) {
     .app-layout { flex-direction: column; }
     .sidebar { flex: 0 0 auto; border-right: none; border-bottom: 1px solid var(--panel-border); transition: max-height 0.2s; }
     .sidebar.collapsed .sidebar-content { display: none; }
     .sidebar.collapsed { max-height: 48px; overflow: hidden; }
   }
-  `,y=JSON.stringify(e.terminal).replace(/</g,"\\u003c"),c=JSON.stringify({terminal:l,scrollback:d,theme:e.terminal,renderer:r,fsRoots:s,commandbarEnabled:t}).replace(/</g,"\\u003c");return`<!DOCTYPE html>
+  `,z=JSON.stringify(e.terminal).replace(/</g,"\\u003c"),m=JSON.stringify({terminal:p,scrollback:c,theme:e.terminal,renderer:i,fsRoots:d,commandbarEnabled:t}).replace(/</g,"\\u003c");return`<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
@@ -373,8 +355,8 @@ import{cssVarsStyle as b}from"../theme.js";import{commandbarCSS as m,commandbarH
 <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 <title>tmux-weblink</title>
 <style>
-  ${b(e.shell)}
-  ${p}
+  ${g(e.shell)}
+  ${x}
 </style>
 </head>
 <body>
@@ -398,14 +380,10 @@ import{cssVarsStyle as b}from"../theme.js";import{commandbarCSS as m,commandbarH
 
 <header class="fixed-header">
   <div class="brand"><a href="/">tmux<span>-weblink</span></a></div>
-  <div class="sys-status" id="sys-status">
-    <span class="mem-text" id="sys-mem-text">--</span>
-    <span class="mem-bar"><span class="mem-bar-fill" id="sys-mem-bar" style="width:0%"></span></span>
-    <span class="cpu-text" id="sys-cpu-text">--</span>
-  </div>
   <div class="header-actions">
     ${t?`<button class="header-btn" id="cmdbar-btn" title="Search" aria-label="Search">${n("search")}</button>`:""}
   </div>
+  <div class="sys-status" id="sys-status">RAM ${b}% / CPU ${r<10?r.toFixed(1):Math.round(r)}</div>
 </header>
 
 <div class="app-layout">
@@ -471,7 +449,7 @@ import{cssVarsStyle as b}from"../theme.js";import{commandbarCSS as m,commandbarH
   <hr class="settings-divider" />
   <div class="settings-item">
     <span>Terminal renderer</span>
-    <span style="font-size:var(--text-xs);color:var(--panel-muted)">${r==="ghostty"?"Ghostty":"xterm.js"}</span>
+    <span style="font-size:var(--text-xs);color:var(--panel-muted)">${i==="ghostty"?"Ghostty":"xterm.js"}</span>
   </div>
   <hr class="settings-divider" />
   <div style="padding:4px 0">
@@ -505,21 +483,21 @@ import{cssVarsStyle as b}from"../theme.js";import{commandbarCSS as m,commandbarH
 })();
 </script>
 
-${u()}
-${t?x():""}
+${y()}
+${t?u():""}
 
 <script>
-window.__TMUX_WEB_SHELL__ = ${c};
+window.__TMUX_WEB_SHELL__ = ${m};
 </script>
 <script type="module">
 await import('/assets/shell-client.js');
-${t?g(i,[]):""}
+${t?v(l,[]):""}
 // Wrapper: refresh sidebar list, then open session
 window.__onSessionCreated = async function(name) {
   await window.__refreshSidebar();
   window.__openSession(name);
 };
-${h("__onSessionCreated")}
+${k("__onSessionCreated")}
 </script>
 <script>
 // Sync app-layout height to visual viewport so mobile keyboard doesn't overlap
@@ -534,18 +512,13 @@ ${h("__onSessionCreated")}
 </script>
 <script>
 (function(){
-  var memText = document.getElementById('sys-mem-text');
-  var memBar  = document.getElementById('sys-mem-bar');
-  var cpuText = document.getElementById('sys-cpu-text');
-  if (!memText) return;
+  var el = document.getElementById('sys-status');
+  if (!el) return;
   function poll(){
     fetch('/api/system/status').then(function(r){ return r.json(); }).then(function(s){
       var p = s.memory.percent;
-      memText.textContent = p + '%';
-      memBar.style.width = p + '%';
-      memBar.className = 'mem-bar-fill ' + (p >= 85 ? 'high' : p >= 70 ? 'mid' : 'low');
       var load = s.cpu.loadAvg[0];
-      cpuText.textContent = 'CPU ' + (load < 10 ? load.toFixed(1) : Math.round(load));
+      el.textContent = 'RAM ' + p + '% / CPU ' + (load < 10 ? load.toFixed(1) : Math.round(load));
     }).catch(function(){});
   }
   poll();
@@ -553,4 +526,4 @@ ${h("__onSessionCreated")}
 })();
 </script>
 </body>
-</html>`}export{C as renderShell};
+</html>`}export{j as renderShell};

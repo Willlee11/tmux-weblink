@@ -4,6 +4,7 @@ import type { TerminalBufferConfig } from '../terminal-config.js';
 import { commandbarCSS, commandbarHTML, commandbarScript, type CommandbarSession } from '../commandbar.js';
 import { newSessionModalCSS, newSessionModalHTML, newSessionModalScript, reducedMotion } from '../shared-layout.js';
 import { icon } from '../icons.js';
+import { getSystemStatus } from '../system-monitor.js';
 
 export type ShellConfig = {
 	theme: TmuxWebTheme;
@@ -25,6 +26,10 @@ function focusRing(accent = 'var(--panel-accent)'): string {
 
 export function renderShell(cfg: ShellConfig): string {
 	const { theme, commandbarEnabled, commandbarSessions, fsRoots, terminalCfg, renderer, scrollback } = cfg;
+
+	const sys = getSystemStatus();
+	const initMemPct = sys.memory.percent;
+	const initCpuLoad = sys.cpu.loadAvg[0];
 
 	const shellCSS = `
   *, *::before, *::after { box-sizing: border-box; }
@@ -53,30 +58,12 @@ export function renderShell(cfg: ShellConfig): string {
 
   /* ── System status in header ── */
   .sys-status {
-    display: flex; align-items: center; gap: 8px;
+    display: flex; align-items: center;
     font-size: 11px; font-family: var(--font-mono);
-    color: var(--panel-muted); cursor: default;
+    color: color-mix(in srgb, var(--page-fg) 55%, transparent);
+    cursor: default;
     margin: 0 12px;
-  }
-  .sys-status .mem-bar {
-    width: 40px; height: 6px;
-    background: color-mix(in srgb, var(--panel-muted) 20%, transparent);
-    border-radius: 3px; overflow: hidden;
-  }
-  .sys-status .mem-bar-fill {
-    height: 100%; border-radius: 3px;
-    transition: width 0.5s ease;
-  }
-  .sys-status .mem-bar-fill.low { background: var(--panel-success, #16a34a); }
-  .sys-status .mem-bar-fill.mid { background: #eab308; }
-  .sys-status .mem-bar-fill.high { background: #ef4444; }
-  .sys-status .mem-text { min-width: 3ch; text-align: right; }
-  .sys-status .cpu-text { color: color-mix(in srgb, var(--panel-muted) 70%, transparent); }
-  @media (max-width: 720px) {
-    .sys-status .cpu-text { display: none; }
-  }
-  @media (max-width: 540px) {
-    .sys-status { display: none; }
+    white-space: nowrap;
   }
 
   /* ── App layout ── */
@@ -438,14 +425,10 @@ export function renderShell(cfg: ShellConfig): string {
 
 <header class="fixed-header">
   <div class="brand"><a href="/">tmux<span>-weblink</span></a></div>
-  <div class="sys-status" id="sys-status">
-    <span class="mem-text" id="sys-mem-text">--</span>
-    <span class="mem-bar"><span class="mem-bar-fill" id="sys-mem-bar" style="width:0%"></span></span>
-    <span class="cpu-text" id="sys-cpu-text">--</span>
-  </div>
   <div class="header-actions">
     ${commandbarEnabled ? `<button class="header-btn" id="cmdbar-btn" title="Search" aria-label="Search">${icon('search')}</button>` : ''}
   </div>
+  <div class="sys-status" id="sys-status">RAM ${initMemPct}% / CPU ${initCpuLoad < 10 ? initCpuLoad.toFixed(1) : Math.round(initCpuLoad)}</div>
 </header>
 
 <div class="app-layout">
@@ -574,18 +557,13 @@ ${newSessionModalScript('__onSessionCreated')}
 </script>
 <script>
 (function(){
-  var memText = document.getElementById('sys-mem-text');
-  var memBar  = document.getElementById('sys-mem-bar');
-  var cpuText = document.getElementById('sys-cpu-text');
-  if (!memText) return;
+  var el = document.getElementById('sys-status');
+  if (!el) return;
   function poll(){
     fetch('/api/system/status').then(function(r){ return r.json(); }).then(function(s){
       var p = s.memory.percent;
-      memText.textContent = p + '%';
-      memBar.style.width = p + '%';
-      memBar.className = 'mem-bar-fill ' + (p >= 85 ? 'high' : p >= 70 ? 'mid' : 'low');
       var load = s.cpu.loadAvg[0];
-      cpuText.textContent = 'CPU ' + (load < 10 ? load.toFixed(1) : Math.round(load));
+      el.textContent = 'RAM ' + p + '% / CPU ' + (load < 10 ? load.toFixed(1) : Math.round(load));
     }).catch(function(){});
   }
   poll();

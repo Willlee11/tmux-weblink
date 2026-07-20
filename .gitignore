@@ -30,3 +30,4 @@ bun.lockb
 .DS_Store
 .idea/
 .vscode/
+.local
