@@ -1,4 +1,4 @@
-import{cssVarsStyle as g}from"../theme.js";import{commandbarCSS as f,commandbarHTML as u,commandbarScript as v}from"../commandbar.js";import{newSessionModalCSS as h,newSessionModalHTML as y,newSessionModalScript as k,reducedMotion as w}from"../shared-layout.js";import{icon as n}from"../icons.js";import{getSystemStatus as S}from"../system-monitor.js";function T(o){return o.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;")}function r(o="var(--panel-accent)"){return`box-shadow: 0 0 0 2px ${o}; outline: none;`}function M(o){const{theme:e,commandbarEnabled:t,commandbarSessions:l,fsRoots:p,terminalCfg:d,renderer:i,scrollback:c}=o,s=S(),b=s.memory.percent,a=s.cpu.loadAvg[0],m=`
+import{cssVarsStyle as g}from"../theme.js";import{commandbarCSS as x,commandbarHTML as f,commandbarScript as v}from"../commandbar.js";import{newSessionModalCSS as h,newSessionModalHTML as y,newSessionModalScript as k,reducedMotion as w}from"../shared-layout.js";import{icon as n}from"../icons.js";import{getSystemStatus as S}from"../system-monitor.js";function M(o){return o.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;")}function r(o="var(--panel-accent)"){return`box-shadow: 0 0 0 2px ${o}; outline: none;`}function P(o){const{theme:e,commandbarEnabled:t,commandbarSessions:l,fsRoots:p,terminalCfg:d,renderer:i,scrollback:c}=o,s=S(),b=s.memory.percent,a=s.cpu.loadAvg[0],m=`
   *, *::before, *::after { box-sizing: border-box; }
   html, body {
     background: var(--page-bg); color: var(--page-fg);
@@ -376,9 +376,6 @@ import{cssVarsStyle as g}from"../theme.js";import{commandbarCSS as f,commandbarH
   .mobile-keys .mk-input button:hover {
     background: color-mix(in srgb, var(--panel-success) 12%, transparent);
   }
-  @media (max-width: 640px) {
-    .mobile-keys { display: flex; }
-  }
 
   /* \u2500\u2500 File list view (when no root selected) \u2500\u2500 */
   .file-roots-list { list-style: none; padding: 0; margin: 16px; }
@@ -393,16 +390,20 @@ import{cssVarsStyle as g}from"../theme.js";import{commandbarCSS as f,commandbarH
   .file-roots-list li svg { width: 20px; height: 20px; flex-shrink: 0; fill: var(--panel-accent); }
 
   /* \u2500\u2500 Commandbar \u2500\u2500 */
-  ${t?f():""}
+  ${t?x():""}
   ${w()}
   ${h()}
   @media (max-width: 640px) {
     .app-layout { flex-direction: column; }
     .sidebar { flex: 0 0 auto; border-right: none; border-bottom: 1px solid var(--panel-border); transition: max-height 0.2s; }
     .sidebar.collapsed .sidebar-content { display: none; }
+    .sidebar.collapsed .sidebar-footer { display: none; }
     .sidebar.collapsed { max-height: 48px; overflow: hidden; }
+    .mobile-keys { display: flex; }
+    .mobile-keys .mk-buttons { display: none; }
+    .mobile-keys.mk-focused .mk-buttons { display: flex; flex-wrap: wrap; gap: 4px; }
   }
-  `,z=JSON.stringify(e.terminal).replace(/</g,"\\u003c"),x=JSON.stringify({terminal:d,scrollback:c,theme:e.terminal,renderer:i,fsRoots:p,commandbarEnabled:t}).replace(/</g,"\\u003c");return`<!DOCTYPE html>
+  `,z=JSON.stringify(e.terminal).replace(/</g,"\\u003c"),u=JSON.stringify({terminal:d,scrollback:c,theme:e.terminal,renderer:i,fsRoots:p,commandbarEnabled:t}).replace(/</g,"\\u003c");return`<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
@@ -434,7 +435,7 @@ import{cssVarsStyle as g}from"../theme.js";import{commandbarCSS as f,commandbarH
 </script>
 
 <header class="fixed-header">
-  <div class="brand"><a href="/">tmux<span>-weblink</span></a></div>
+  <div class="brand" id="brand-toggle">tmux<span>-weblink</span></div>
   <div class="header-actions">
     ${t?`<button class="header-btn" id="cmdbar-btn" title="Search" aria-label="Search">${n("search")}</button>`:""}
   </div>
@@ -485,17 +486,19 @@ import{cssVarsStyle as g}from"../theme.js";import{commandbarCSS as f,commandbarH
         <textarea id="mk-input" placeholder="Type or voice input\u2026" autocapitalize="off" autocomplete="off" autocorrect="off" spellcheck="false" rows="1"></textarea>
         <button id="mk-send" type="button" title="Send (Enter)">&#9166;</button>
       </div>
-      <button data-key="esc">ESC</button>
-      <button data-key="tab">Tab</button>
-      <button data-key="s-tab">S-Tab</button>
-      <button data-key="up">\u2191</button>
-      <button data-key="down">\u2193</button>
-      <button data-key="left">\u2190</button>
-      <button data-key="right">\u2192</button>
-      <button data-key="space">\u2423</button>
-      <button data-key="enter">\u21B5 Enter</button>
-      <button data-key="exit">Exit</button>
-      <button data-key="yes">Yes</button>
+      <div class="mk-buttons" id="mk-buttons">
+        <button data-key="esc">ESC</button>
+        <button data-key="tab">Tab</button>
+        <button data-key="s-tab">S-Tab</button>
+        <button data-key="up">\u2191</button>
+        <button data-key="down">\u2193</button>
+        <button data-key="left">\u2190</button>
+        <button data-key="right">\u2192</button>
+        <button data-key="space">\u2423</button>
+        <button data-key="enter">\u21B5 Enter</button>
+        <button data-key="exit">Exit</button>
+        <button data-key="yes">Yes</button>
+      </div>
     </div>
   </main>
 </div>
@@ -547,10 +550,10 @@ import{cssVarsStyle as g}from"../theme.js";import{commandbarCSS as f,commandbarH
 </script>
 
 ${y()}
-${t?u():""}
+${t?f():""}
 
 <script>
-window.__TMUX_WEB_SHELL__ = ${x};
+window.__TMUX_WEB_SHELL__ = ${u};
 </script>
 <script type="module">
 await import('/assets/shell-client.js');
@@ -664,5 +667,36 @@ ${k("__onSessionCreated")}
   function escAttr(s){ return s.replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 })();
 </script>
+<script>
+(function(){
+  /* Logo toggle sidebar */
+  var brand = document.getElementById('brand-toggle');
+  var sbar = document.querySelector('.sidebar');
+  if (brand && sbar) {
+    brand.addEventListener('click', function(e) {
+      sbar.classList.toggle('collapsed');
+    });
+  }
+
+  /* Mobile keys: show buttons on input focus, hide on blur */
+  var mkInput = document.getElementById('mk-input');
+  var mobileKeys = document.getElementById('mobile-keys');
+  var hideTimer = null;
+  if (mkInput && mobileKeys) {
+    mkInput.addEventListener('focus', function() {
+      clearTimeout(hideTimer);
+      mobileKeys.classList.add('mk-focused');
+    });
+    mkInput.addEventListener('blur', function() {
+      hideTimer = setTimeout(function() {
+        mobileKeys.classList.remove('mk-focused');
+      }, 200);
+    });
+    mobileKeys.addEventListener('mousedown', function() {
+      clearTimeout(hideTimer);
+    });
+  }
+})();
+</script>
 </body>
-</html>`}export{M as renderShell};
+</html>`}export{P as renderShell};

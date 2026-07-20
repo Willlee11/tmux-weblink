@@ -541,3 +541,4 @@ if (window.visualViewport) {
 (window as any).__openSession = openSession;
 (window as any).__refreshSidebar = renderSessionList;
 renderSessionList();
+collapseSidebar();

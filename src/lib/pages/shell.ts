@@ -409,9 +409,6 @@ export function renderShell(cfg: ShellConfig): string {
   .mobile-keys .mk-input button:hover {
     background: color-mix(in srgb, var(--panel-success) 12%, transparent);
   }
-  @media (max-width: 640px) {
-    .mobile-keys { display: flex; }
-  }
 
   /* ── File list view (when no root selected) ── */
   .file-roots-list { list-style: none; padding: 0; margin: 16px; }
@@ -433,7 +430,11 @@ export function renderShell(cfg: ShellConfig): string {
     .app-layout { flex-direction: column; }
     .sidebar { flex: 0 0 auto; border-right: none; border-bottom: 1px solid var(--panel-border); transition: max-height 0.2s; }
     .sidebar.collapsed .sidebar-content { display: none; }
+    .sidebar.collapsed .sidebar-footer { display: none; }
     .sidebar.collapsed { max-height: 48px; overflow: hidden; }
+    .mobile-keys { display: flex; }
+    .mobile-keys .mk-buttons { display: none; }
+    .mobile-keys.mk-focused .mk-buttons { display: flex; flex-wrap: wrap; gap: 4px; }
   }
   `;
 
@@ -479,7 +480,7 @@ export function renderShell(cfg: ShellConfig): string {
 </script>
 
 <header class="fixed-header">
-  <div class="brand"><a href="/">tmux<span>-weblink</span></a></div>
+  <div class="brand" id="brand-toggle">tmux<span>-weblink</span></div>
   <div class="header-actions">
     ${commandbarEnabled ? `<button class="header-btn" id="cmdbar-btn" title="Search" aria-label="Search">${icon('search')}</button>` : ''}
   </div>
@@ -530,17 +531,19 @@ export function renderShell(cfg: ShellConfig): string {
         <textarea id="mk-input" placeholder="Type or voice input…" autocapitalize="off" autocomplete="off" autocorrect="off" spellcheck="false" rows="1"></textarea>
         <button id="mk-send" type="button" title="Send (Enter)">&#9166;</button>
       </div>
-      <button data-key="esc">ESC</button>
-      <button data-key="tab">Tab</button>
-      <button data-key="s-tab">S-Tab</button>
-      <button data-key="up">↑</button>
-      <button data-key="down">↓</button>
-      <button data-key="left">←</button>
-      <button data-key="right">→</button>
-      <button data-key="space">␣</button>
-      <button data-key="enter">↵ Enter</button>
-      <button data-key="exit">Exit</button>
-      <button data-key="yes">Yes</button>
+      <div class="mk-buttons" id="mk-buttons">
+        <button data-key="esc">ESC</button>
+        <button data-key="tab">Tab</button>
+        <button data-key="s-tab">S-Tab</button>
+        <button data-key="up">↑</button>
+        <button data-key="down">↓</button>
+        <button data-key="left">←</button>
+        <button data-key="right">→</button>
+        <button data-key="space">␣</button>
+        <button data-key="enter">↵ Enter</button>
+        <button data-key="exit">Exit</button>
+        <button data-key="yes">Yes</button>
+      </div>
     </div>
   </main>
 </div>
@@ -707,6 +710,37 @@ ${newSessionModalScript('__onSessionCreated')}
 
   function escHtml(s){ return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
   function escAttr(s){ return s.replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+})();
+</script>
+<script>
+(function(){
+  /* Logo toggle sidebar */
+  var brand = document.getElementById('brand-toggle');
+  var sbar = document.querySelector('.sidebar');
+  if (brand && sbar) {
+    brand.addEventListener('click', function(e) {
+      sbar.classList.toggle('collapsed');
+    });
+  }
+
+  /* Mobile keys: show buttons on input focus, hide on blur */
+  var mkInput = document.getElementById('mk-input');
+  var mobileKeys = document.getElementById('mobile-keys');
+  var hideTimer = null;
+  if (mkInput && mobileKeys) {
+    mkInput.addEventListener('focus', function() {
+      clearTimeout(hideTimer);
+      mobileKeys.classList.add('mk-focused');
+    });
+    mkInput.addEventListener('blur', function() {
+      hideTimer = setTimeout(function() {
+        mobileKeys.classList.remove('mk-focused');
+      }, 200);
+    });
+    mobileKeys.addEventListener('mousedown', function() {
+      clearTimeout(hideTimer);
+    });
+  }
 })();
 </script>
 </body>
