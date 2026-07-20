@@ -1,10 +1,4 @@
-import { notesDbScript } from './notes-db.js';
-import { notesUtilsScript } from './notes-utils.js';
-import { closeOtherDrawersExcept, wrapDrawerScript } from './drawer-script.js';
-import { drawerResizeCSS, drawerResizeHandleHTML, drawerResizeScript } from './drawer-resize.js';
-import { escapeHtml } from './html.js';
-export function notesDrawerCSS() {
-    return `
+import{notesDbScript as o}from"./notes-db.js";import{notesUtilsScript as n}from"./notes-utils.js";import{closeOtherDrawersExcept as r,wrapDrawerScript as a}from"./drawer-script.js";import{drawerResizeCSS as s,drawerResizeHandleHTML as i,drawerResizeScript as d}from"./drawer-resize.js";import{escapeHtml as c}from"./html.js";function m(){return`
   #notes-backdrop {
     position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 999;
     opacity: 0; pointer-events: none; transition: opacity 0.2s ease;
@@ -17,7 +11,7 @@ export function notesDrawerCSS() {
     transform: translateX(100%); transition: transform 0.25s ease;
   }
   #notes-drawer.open { transform: translateX(0); }
-  ${drawerResizeCSS()}
+  ${s()}
   .drawer-header {
     display: flex; justify-content: space-between; align-items: center;
     padding: 10px 16px; border-bottom: 1px solid var(--panel-border);
@@ -76,15 +70,12 @@ export function notesDrawerCSS() {
   #notes-editor a:hover { text-decoration: underline; }
   @media (max-width: 560px) {
     #notes-drawer { width: min(100vw - 16px, 400px); }
-  }`;
-}
-export function notesDrawerHTML(title) {
-    return `
+  }`}function g(e){return`
 <div id="notes-backdrop"></div>
 <div id="notes-drawer" class="resizable-drawer">
-  ${drawerResizeHandleHTML()}
+  ${i()}
   <div class="drawer-header">
-    <span>${escapeHtml(title)}</span>
+    <span>${c(e)}</span>
     <button id="drawer-close">&times;</button>
   </div>
   <div class="drawer-toolbar">
@@ -95,18 +86,11 @@ export function notesDrawerHTML(title) {
     </div>
   </div>
   <div id="notes-editor"></div>
-</div>`;
-}
-// notesDrawerScript inlines the DB helpers and utils so callers only need one include.
-// innerHTML is used only after content passes through escapeHTML() then linkifyHTML(),
-// making it safe against XSS from user-controlled note text.
-export function notesDrawerScript(scope) {
-    const scopeJs = JSON.stringify(scope);
-    return wrapDrawerScript('notes', `
-const NOTES_SCOPE = ${scopeJs};
-${notesDbScript()}
-${notesUtilsScript()}
-${drawerResizeScript('notes-drawer', 'tmux-web:drawer-width:notes', 360)}
+</div>`}function f(e){const t=JSON.stringify(e);return a("notes",`
+const NOTES_SCOPE = ${t};
+${o()}
+${n()}
+${d("notes-drawer","tmux-web:drawer-width:notes",360)}
 
 const notesBackdrop = document.getElementById('notes-backdrop');
 const notesDrawer = document.getElementById('notes-drawer');
@@ -133,7 +117,7 @@ async function renderNote() {
 }
 
 function openDrawer() {
-  ${closeOtherDrawersExcept('notes')}
+  ${r("notes")}
   notesDrawer.classList.add('open');
   notesBackdrop.classList.add('open');
   renderNote();
@@ -223,5 +207,4 @@ window.addEventListener('popstate', () => {
 
 if (new URLSearchParams(location.search).get('tab') === 'notes') {
   openDrawer();
-}`, 'closeDrawer');
-}
+}`,"closeDrawer")}export{m as notesDrawerCSS,g as notesDrawerHTML,f as notesDrawerScript};

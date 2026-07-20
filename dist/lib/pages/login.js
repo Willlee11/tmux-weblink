@@ -1,23 +1,12 @@
-import { cssVarsStyle } from '../theme.js';
-export function renderLoginPage(opts) {
-    const { setupMode, error, theme } = opts;
-    const title = setupMode ? 'Set your password' : 'Welcome back';
-    const button = setupMode ? 'Set Password' : 'Sign in';
-    const hint = setupMode
-        ? 'Choose a strong password to secure this server.'
-        : 'Enter your password to continue to your sessions.';
-    const errorBlock = error
-        ? `<div class="login-error">${escapeHtml(error)}</div>`
-        : '';
-    return `<!DOCTYPE html>
+import{cssVarsStyle as d}from"../theme.js";function p(r){const{setupMode:e,error:o,theme:i}=r,a=e?"Set your password":"Welcome back",t=e?"Set Password":"Sign in",s=e?"Choose a strong password to secure this server.":"Enter your password to continue to your sessions.",l=o?`<div class="login-error">${n(o)}</div>`:"";return`<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-<title>${setupMode ? 'Set Password' : 'Sign In'} · tmux-weblink</title>
+<title>${e?"Set Password":"Sign In"} \xB7 tmux-weblink</title>
 <style>
-  ${cssVarsStyle(theme.shell)}
+  ${d(i.shell)}
   *, *::before, *::after { box-sizing: border-box; }
   html, body {
     background: var(--page-bg);
@@ -137,20 +126,18 @@ export function renderLoginPage(opts) {
 <body>
   <div class="login-card">
     <div class="login-eyebrow">tmux-weblink</div>
-    <h1>${title}</h1>
-    <p>${escapeHtml(hint)}</p>
-    ${errorBlock}
+    <h1>${a}</h1>
+    <p>${n(s)}</p>
+    ${l}
     <form id="login-form">
       <div class="login-field">
         <label for="password">Password</label>
         <input type="password" id="password" name="password" autocomplete="current-password" required autofocus minlength="8" />
       </div>
-      <button type="submit" class="login-btn" id="submit-btn">${button}</button>
+      <button type="submit" class="login-btn" id="submit-btn">${t}</button>
     </form>
     <div class="login-footer">
-      ${setupMode
-        ? `<a href="/login">Back to sign in</a>`
-        : `First time? <a href="/login?setup=1">Set password</a>`}
+      ${e?'<a href="/login">Back to sign in</a>':'First time? <a href="/login?setup=1">Set password</a>'}
     </div>
   </div>
   <script>
@@ -159,7 +146,7 @@ export function renderLoginPage(opts) {
       const password = document.getElementById('password');
       const submit = document.getElementById('submit-btn');
       const error = document.querySelector('.login-error');
-      const setupMode = ${JSON.stringify(setupMode)};
+      const setupMode = ${JSON.stringify(e)};
 
       function setError(msg) {
         if (!msg) return;
@@ -173,7 +160,7 @@ export function renderLoginPage(opts) {
       form.addEventListener('submit', async (e) => {
         e.preventDefault();
         submit.disabled = true;
-        submit.innerHTML = ${JSON.stringify(button)} + '<span class="spinner"></span>';
+        submit.innerHTML = ${JSON.stringify(t)} + '<span class="spinner"></span>';
         try {
           const res = await fetch('/api/auth/password', {
             method: 'POST',
@@ -184,7 +171,7 @@ export function renderLoginPage(opts) {
           if (!res.ok) {
             setError(data.error || 'Authentication failed');
             submit.disabled = false;
-            submit.textContent = ${JSON.stringify(button)};
+            submit.textContent = ${JSON.stringify(t)};
             return;
           }
           if (data.token) {
@@ -195,19 +182,10 @@ export function renderLoginPage(opts) {
         } catch (err) {
           setError('Network error. Please try again.');
           submit.disabled = false;
-          submit.textContent = ${JSON.stringify(button)};
+          submit.textContent = ${JSON.stringify(t)};
         }
       });
     })();
   </script>
 </body>
-</html>`;
-}
-function escapeHtml(value) {
-    return value
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#39;');
-}
+</html>`}function n(r){return r.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;")}export{p as renderLoginPage};
