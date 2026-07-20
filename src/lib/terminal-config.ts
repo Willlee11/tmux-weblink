@@ -15,7 +15,7 @@ export function readTerminalBufferConfig(): TerminalBufferConfig {
 	return {
 		initialLines: parsePositiveInt(process.env.TMUX_WEB_INITIAL_LINES, 1000),
 		historyChunk: parsePositiveInt(process.env.TMUX_WEB_HISTORY_CHUNK, 500),
-		syncIdleMs: parsePositiveInt(process.env.TMUX_WEB_SYNC_IDLE_MS, 200),
-		syncMaxMs: parsePositiveInt(process.env.TMUX_WEB_SYNC_MAX_MS, 3000),
+		syncIdleMs: parsePositiveInt(process.env.TMUX_WEB_SYNC_IDLE_MS, 20),
+		syncMaxMs: parsePositiveInt(process.env.TMUX_WEB_SYNC_MAX_MS, 500),
 	};
 }

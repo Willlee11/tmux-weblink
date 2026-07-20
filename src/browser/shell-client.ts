@@ -81,6 +81,7 @@ async function renderSessionList() {
 		for (const s of sessions) {
 			const el = document.createElement('div');
 			el.className = 'session-item' + (s.name === currentSession ? ' active' : '');
+			el.setAttribute('data-session', s.name);
 			el.innerHTML = `<svg viewBox="0 0 24 24" fill="currentColor"><path d="${s.attached ? 'M19 4H5a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2zm0 14H5V6h14v12z' : 'M4 6h16v2H4V6zm0 5h16v2H4v-2zm0 5h16v2H4v-2z'}"></svg>
 			<span>${escHtml(s.name)}</span>
 			<button class="session-edit-btn" data-session="${escHtml(s.name)}" title="Edit session"><svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 000-1.41l-2.34-2.34a1 1 0 00-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg></button>
@@ -127,7 +128,11 @@ function escHtml(s: string): string {
 		}
 		currentSession = name;
 
-		// Start new terminal
+		// Update sidebar active indicator
+		for (const el of sidebarContent.querySelectorAll('.session-item')) {
+			el.classList.toggle('active', el.getAttribute('data-session') === name);
+		}
+
 		try {
 			currentTerminal = await initTerminal(terminalContainer, name, {
 				terminal: shellCfg.terminal,

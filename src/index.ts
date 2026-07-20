@@ -1285,7 +1285,7 @@ wss.on("connection", (ws: WebSocket, _req: import("http").IncomingMessage, sessi
 				const data = capturePaneTail(paneTarget, initialLines);
 				sendServerMessage(ws, { type: "snapshot", data: toCrlf(data), lines: initialLines });
 			} catch {
-				// No snapshot — client waits for live PTY output
+				sendServerMessage(ws, { type: "data", data: "\r\n" });
 			}
 		}
 	};
