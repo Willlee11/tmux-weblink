@@ -1,1 +1,263 @@
-import{execFileSync as o}from"node:child_process";import{randomUUID as c}from"node:crypto";import{ARM_SCAN_INTERVAL_MS as u,isValidDelayMs as h,MAX_TIMER_MS as n}from"./schedule-delay.js";const T=10080*60*1e3;function m(a,e,s){const t=`${a}:${e}`;o("tmux",["send-keys","-t",t,"-l",s],{timeout:5e3}),o("tmux",["send-keys","-t",t,"Enter"],{timeout:5e3})}function w(a){if(!a||typeof a!="object")return!1;const e=a;return typeof e.delayMs=="number"&&h(e.delayMs)}function y(a){if(!a||typeof a!="object")return!1;const e=a;return typeof e.sessionName=="string"&&e.sessionName.length>0&&typeof e.windowIndex=="number"&&Number.isInteger(e.windowIndex)&&e.windowIndex>=0&&typeof e.text=="string"&&e.text.length>0&&e.text.length<=4096&&typeof e.delayMs=="number"&&h(e.delayMs)}class I{deps;scheduledTasks=new Map;now;setTimer;clearTimer;setIntervalFn;clearIntervalFn;armScanIntervalMs;createId;sendKeys;onError;onMissedTask;historyRetentionMs;scanIntervalHandle=null;constructor(e){this.deps=e,this.now=e.now??Date.now,this.setTimer=e.setTimer??setTimeout,this.clearTimer=e.clearTimer??clearTimeout,this.setIntervalFn=e.setInterval??setInterval,this.clearIntervalFn=e.clearInterval??clearInterval,this.armScanIntervalMs=e.armScanIntervalMs??u,this.createId=e.createId??c,this.sendKeys=e.sendKeys??m,this.onError=e.onError??(s=>console.error(s)),this.onMissedTask=e.onMissedTask??(()=>{}),this.historyRetentionMs=e.historyRetentionMs??T}record(e){this.deps.db.data.triggeredTasks??=[],this.deps.db.data.triggeredTasks.push(e);const s=this.now()-this.historyRetentionMs;this.deps.db.data.triggeredTasks=this.deps.db.data.triggeredTasks.filter(t=>t.triggeredAt>=s)}listTriggered(){this.deps.db.data.triggeredTasks??=[];const e=this.now()-this.historyRetentionMs;return this.deps.db.data.triggeredTasks.filter(s=>s.triggeredAt>=e).sort((s,t)=>t.triggeredAt-s.triggeredAt)}async restoreFromDb(){const e=this.now(),s=[];for(const r of this.deps.db.data.scheduledTasks)r.fireAt<=e?(s.push(r.id),this.onMissedTask(r),this.record({...r,triggeredAt:e,status:"missed"})):this.registerTask(r);this.deps.db.data.triggeredTasks??=[];const t=this.deps.db.data.triggeredTasks.length,i=e-this.historyRetentionMs;this.deps.db.data.triggeredTasks=this.deps.db.data.triggeredTasks.filter(r=>r.triggeredAt>=i);const d=this.deps.db.data.triggeredTasks.length!==t;s.length&&(this.deps.db.data.scheduledTasks=this.deps.db.data.scheduledTasks.filter(r=>!s.includes(r.id))),(s.length||d)&&await this.deps.db.write(),this.scanPending(),this.startScanLoop()}list(e){return[...this.scheduledTasks.values()].filter(s=>!e||s.sessionName===e).map(({id:s,sessionName:t,windowIndex:i,text:d,fireAt:r,createdAt:l})=>({id:s,sessionName:t,windowIndex:i,text:d,fireAt:r,createdAt:l,remainingMs:Math.max(0,r-this.now())})).sort((s,t)=>s.fireAt-t.fireAt)}async create(e){const s=this.createId(),t=this.now(),i={id:s,sessionName:e.sessionName,windowIndex:e.windowIndex,text:e.text,fireAt:t+e.delayMs,createdAt:t};return this.registerTask(i),this.deps.db.data.scheduledTasks.push(i),await this.deps.db.write(),this.tryArm(i.id),i}async reschedule(e,s){const t=this.scheduledTasks.get(e);if(!t)return null;this.disarmTask(e);const i={...t,fireAt:this.now()+s};this.registerTask(i);const d=this.deps.db.data.scheduledTasks.findIndex(r=>r.id===e);return d>=0&&(this.deps.db.data.scheduledTasks[d]=i),await this.deps.db.write(),this.tryArm(e),i}async delete(e){return this.scheduledTasks.get(e)?(this.disarmTask(e),this.scheduledTasks.delete(e),this.deps.db.data.scheduledTasks=this.deps.db.data.scheduledTasks.filter(t=>t.id!==e),await this.deps.db.write(),!0):!1}cleanup(){if(this.scanIntervalHandle!=null){try{this.clearIntervalFn(this.scanIntervalHandle)}catch{}this.scanIntervalHandle=null}for(const e of this.scheduledTasks.values())if(e.timeoutHandle!=null)try{this.clearTimer(e.timeoutHandle)}catch{}this.scheduledTasks.clear()}scanPending(){for(const e of[...this.scheduledTasks.values()]){const s=e.fireAt-this.now();if(s<=0){e.timeoutHandle!=null&&this.disarmTask(e.id),this.fireTask(e);continue}s<=n&&e.timeoutHandle==null&&this.armTask(e)}}registerTask(e){this.scheduledTasks.set(e.id,{...e,timeoutHandle:null})}disarmTask(e){const s=this.scheduledTasks.get(e);s&&s.timeoutHandle!=null&&(this.clearTimer(s.timeoutHandle),s.timeoutHandle=null)}tryArm(e){const s=this.scheduledTasks.get(e);if(!s)return;const t=s.fireAt-this.now();if(t<=0){this.fireTask(s);return}t<=n&&s.timeoutHandle==null&&this.armTask(s)}armTask(e){const s=e.fireAt-this.now();if(s<=0){this.fireTask(e);return}this.disarmTask(e.id);const t=Math.min(s,n),i=this.setTimer(()=>this.onTimer(e.id),t);this.scheduledTasks.set(e.id,{...e,timeoutHandle:i})}onTimer(e){const s=this.scheduledTasks.get(e);if(s){if(s.timeoutHandle=null,s.fireAt<=this.now()){this.fireTask(s);return}this.armTask(s)}}startScanLoop(){this.scanIntervalHandle==null&&(this.scanIntervalHandle=this.setIntervalFn(()=>this.scanPending(),this.armScanIntervalMs))}fireTask(e){if(!this.scheduledTasks.has(e.id))return;this.disarmTask(e.id);const s=this.now(),t={id:e.id,sessionName:e.sessionName,windowIndex:e.windowIndex,text:e.text,fireAt:e.fireAt,createdAt:e.createdAt};try{this.sendKeys(e.sessionName,e.windowIndex,e.text),this.record({...t,triggeredAt:s,status:"ok"})}catch(i){const d=String(i?.message??i);this.onError(`[scheduler] send-keys to ${e.sessionName}:${e.windowIndex} failed: ${d}`),this.record({...t,triggeredAt:s,status:"error",error:d})}this.scheduledTasks.delete(e.id),this.deps.db.data.scheduledTasks=this.deps.db.data.scheduledTasks.filter(i=>i.id!==e.id),this.deps.db.write().catch(this.onError)}}export{I as SchedulerService,w as isValidRescheduleInput,y as isValidScheduleInput,m as sendTmuxKeys};
+import { execFileSync } from 'node:child_process';
+import { randomUUID } from 'node:crypto';
+import { ARM_SCAN_INTERVAL_MS, isValidDelayMs, MAX_TIMER_MS } from './schedule-delay.js';
+const DEFAULT_HISTORY_RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
+export function sendTmuxKeys(sessionName, windowIndex, text) {
+    const target = `${sessionName}:${windowIndex}`;
+    execFileSync('tmux', ['send-keys', '-t', target, '-l', text], { timeout: 5000 });
+    execFileSync('tmux', ['send-keys', '-t', target, 'Enter'], { timeout: 5000 });
+}
+export function isValidRescheduleInput(input) {
+    if (!input || typeof input !== 'object')
+        return false;
+    const body = input;
+    return typeof body.delayMs === 'number' && isValidDelayMs(body.delayMs);
+}
+export function isValidScheduleInput(input) {
+    if (!input || typeof input !== 'object')
+        return false;
+    const body = input;
+    return (typeof body.sessionName === 'string' && body.sessionName.length > 0 &&
+        typeof body.windowIndex === 'number' && Number.isInteger(body.windowIndex) && body.windowIndex >= 0 &&
+        typeof body.text === 'string' && body.text.length > 0 && body.text.length <= 4096 &&
+        typeof body.delayMs === 'number' && isValidDelayMs(body.delayMs));
+}
+export class SchedulerService {
+    deps;
+    scheduledTasks = new Map();
+    now;
+    setTimer;
+    clearTimer;
+    setIntervalFn;
+    clearIntervalFn;
+    armScanIntervalMs;
+    createId;
+    sendKeys;
+    onError;
+    onMissedTask;
+    historyRetentionMs;
+    scanIntervalHandle = null;
+    constructor(deps) {
+        this.deps = deps;
+        this.now = deps.now ?? Date.now;
+        this.setTimer = deps.setTimer ?? setTimeout;
+        this.clearTimer = deps.clearTimer ?? clearTimeout;
+        this.setIntervalFn = deps.setInterval ?? setInterval;
+        this.clearIntervalFn = deps.clearInterval ?? clearInterval;
+        this.armScanIntervalMs = deps.armScanIntervalMs ?? ARM_SCAN_INTERVAL_MS;
+        this.createId = deps.createId ?? randomUUID;
+        this.sendKeys = deps.sendKeys ?? sendTmuxKeys;
+        this.onError = deps.onError ?? ((err) => console.error(err));
+        this.onMissedTask = deps.onMissedTask ?? (() => { });
+        this.historyRetentionMs = deps.historyRetentionMs ?? DEFAULT_HISTORY_RETENTION_MS;
+    }
+    /** Append a triggered-task record and prune any that fall outside the retention window. */
+    record(rec) {
+        this.deps.db.data.triggeredTasks ??= [];
+        this.deps.db.data.triggeredTasks.push(rec);
+        const cutoff = this.now() - this.historyRetentionMs;
+        this.deps.db.data.triggeredTasks = this.deps.db.data.triggeredTasks.filter((r) => r.triggeredAt >= cutoff);
+    }
+    /** History of fired/missed tasks within the retention window, newest first. */
+    listTriggered() {
+        this.deps.db.data.triggeredTasks ??= [];
+        const cutoff = this.now() - this.historyRetentionMs;
+        return this.deps.db.data.triggeredTasks
+            .filter((r) => r.triggeredAt >= cutoff)
+            .sort((a, b) => b.triggeredAt - a.triggeredAt);
+    }
+    async restoreFromDb() {
+        const now = this.now();
+        const missed = [];
+        for (const task of this.deps.db.data.scheduledTasks) {
+            if (task.fireAt <= now) {
+                missed.push(task.id);
+                this.onMissedTask(task);
+                this.record({ ...task, triggeredAt: now, status: 'missed' });
+            }
+            else {
+                this.registerTask(task);
+            }
+        }
+        // Prune stale history on startup even when nothing was missed.
+        this.deps.db.data.triggeredTasks ??= [];
+        const before = this.deps.db.data.triggeredTasks.length;
+        const cutoff = now - this.historyRetentionMs;
+        this.deps.db.data.triggeredTasks = this.deps.db.data.triggeredTasks.filter((r) => r.triggeredAt >= cutoff);
+        const prunedHistory = this.deps.db.data.triggeredTasks.length !== before;
+        if (missed.length) {
+            this.deps.db.data.scheduledTasks = this.deps.db.data.scheduledTasks.filter((t) => !missed.includes(t.id));
+        }
+        if (missed.length || prunedHistory) {
+            await this.deps.db.write();
+        }
+        this.scanPending();
+        this.startScanLoop();
+    }
+    list(sessionName) {
+        return [...this.scheduledTasks.values()]
+            .filter((task) => !sessionName || task.sessionName === sessionName)
+            .map(({ id, sessionName, windowIndex, text, fireAt, createdAt }) => ({
+            id,
+            sessionName,
+            windowIndex,
+            text,
+            fireAt,
+            createdAt,
+            remainingMs: Math.max(0, fireAt - this.now()),
+        }))
+            .sort((a, b) => a.fireAt - b.fireAt);
+    }
+    async create(input) {
+        const id = this.createId();
+        const createdAt = this.now();
+        const task = {
+            id,
+            sessionName: input.sessionName,
+            windowIndex: input.windowIndex,
+            text: input.text,
+            fireAt: createdAt + input.delayMs,
+            createdAt,
+        };
+        this.registerTask(task);
+        this.deps.db.data.scheduledTasks.push(task);
+        await this.deps.db.write();
+        this.tryArm(task.id);
+        return task;
+    }
+    async reschedule(id, delayMs) {
+        const task = this.scheduledTasks.get(id);
+        if (!task)
+            return null;
+        this.disarmTask(id);
+        const updatedTask = { ...task, fireAt: this.now() + delayMs };
+        this.registerTask(updatedTask);
+        const idx = this.deps.db.data.scheduledTasks.findIndex((t) => t.id === id);
+        if (idx >= 0)
+            this.deps.db.data.scheduledTasks[idx] = updatedTask;
+        await this.deps.db.write();
+        this.tryArm(id);
+        return updatedTask;
+    }
+    async delete(id) {
+        const task = this.scheduledTasks.get(id);
+        if (!task)
+            return false;
+        this.disarmTask(id);
+        this.scheduledTasks.delete(id);
+        this.deps.db.data.scheduledTasks = this.deps.db.data.scheduledTasks.filter((t) => t.id !== id);
+        await this.deps.db.write();
+        return true;
+    }
+    cleanup() {
+        if (this.scanIntervalHandle != null) {
+            try {
+                this.clearIntervalFn(this.scanIntervalHandle);
+            }
+            catch { }
+            this.scanIntervalHandle = null;
+        }
+        for (const task of this.scheduledTasks.values()) {
+            if (task.timeoutHandle != null) {
+                try {
+                    this.clearTimer(task.timeoutHandle);
+                }
+                catch { }
+            }
+        }
+        this.scheduledTasks.clear();
+    }
+    /** Visible for tests that need to trigger a scan without waiting for the interval. */
+    scanPending() {
+        for (const task of [...this.scheduledTasks.values()]) {
+            const remaining = task.fireAt - this.now();
+            if (remaining <= 0) {
+                if (task.timeoutHandle != null)
+                    this.disarmTask(task.id);
+                this.fireTask(task);
+                continue;
+            }
+            if (remaining <= MAX_TIMER_MS && task.timeoutHandle == null) {
+                this.armTask(task);
+            }
+        }
+    }
+    registerTask(task) {
+        this.scheduledTasks.set(task.id, { ...task, timeoutHandle: null });
+    }
+    disarmTask(id) {
+        const task = this.scheduledTasks.get(id);
+        if (!task)
+            return;
+        if (task.timeoutHandle != null) {
+            this.clearTimer(task.timeoutHandle);
+            task.timeoutHandle = null;
+        }
+    }
+    tryArm(id) {
+        const task = this.scheduledTasks.get(id);
+        if (!task)
+            return;
+        const remaining = task.fireAt - this.now();
+        if (remaining <= 0) {
+            this.fireTask(task);
+            return;
+        }
+        if (remaining <= MAX_TIMER_MS && task.timeoutHandle == null) {
+            this.armTask(task);
+        }
+    }
+    armTask(task) {
+        const remaining = task.fireAt - this.now();
+        if (remaining <= 0) {
+            this.fireTask(task);
+            return;
+        }
+        this.disarmTask(task.id);
+        const delay = Math.min(remaining, MAX_TIMER_MS);
+        const timeoutHandle = this.setTimer(() => this.onTimer(task.id), delay);
+        this.scheduledTasks.set(task.id, { ...task, timeoutHandle });
+    }
+    onTimer(id) {
+        const task = this.scheduledTasks.get(id);
+        if (!task)
+            return;
+        task.timeoutHandle = null;
+        if (task.fireAt <= this.now()) {
+            this.fireTask(task);
+            return;
+        }
+        this.armTask(task);
+    }
+    startScanLoop() {
+        if (this.scanIntervalHandle != null)
+            return;
+        this.scanIntervalHandle = this.setIntervalFn(() => this.scanPending(), this.armScanIntervalMs);
+    }
+    fireTask(task) {
+        if (!this.scheduledTasks.has(task.id))
+            return;
+        this.disarmTask(task.id);
+        const triggeredAt = this.now();
+        const recordBase = {
+            id: task.id,
+            sessionName: task.sessionName,
+            windowIndex: task.windowIndex,
+            text: task.text,
+            fireAt: task.fireAt,
+            createdAt: task.createdAt,
+        };
+        try {
+            this.sendKeys(task.sessionName, task.windowIndex, task.text);
+            this.record({ ...recordBase, triggeredAt, status: 'ok' });
+        }
+        catch (err) {
+            const message = String(err?.message ?? err);
+            this.onError(`[scheduler] send-keys to ${task.sessionName}:${task.windowIndex} failed: ${message}`);
+            this.record({ ...recordBase, triggeredAt, status: 'error', error: message });
+        }
+        this.scheduledTasks.delete(task.id);
+        this.deps.db.data.scheduledTasks = this.deps.db.data.scheduledTasks.filter((t) => t.id !== task.id);
+        this.deps.db.write().catch(this.onError);
+    }
+}

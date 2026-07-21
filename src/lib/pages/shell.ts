@@ -391,7 +391,7 @@ export function renderShell(cfg: ShellConfig): string {
   .mobile-keys .mk-input textarea {
     flex: 1; resize: none; box-sizing: border-box;
     min-height: 38px; max-height: 80px;
-    background: var(--terminal-bg, rgba(0,0,0,0.28));
+    background: color-mix(in srgb, var(--page-bg), var(--panel-bg) 50%);
     color: var(--page-fg);
     border: 1px solid var(--panel-border);
     border-radius: 8px; padding: 6px 10px;
@@ -400,16 +400,22 @@ export function renderShell(cfg: ShellConfig): string {
   }
   .mobile-keys .mk-input textarea:focus {
     border-color: var(--panel-accent);
-    box-shadow: 0 0 0 2px color-mix(in srgb, var(--panel-accent) 12%, transparent);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--panel-accent) 15%, transparent);
   }
   .mobile-keys .mk-input textarea::placeholder { color: var(--panel-muted); opacity: 0.6; }
   .mobile-keys .mk-input button {
-    min-width: 44px;
-    border: 1px solid var(--panel-success); color: var(--panel-success);
-    background: var(--page-bg);
+    min-width: 44px; padding: 0 12px;
+    border: none; color: white;
+    background: var(--panel-success);
+    border-radius: 8px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    touch-action: manipulation;
   }
   .mobile-keys .mk-input button:hover {
-    background: color-mix(in srgb, var(--panel-success) 12%, transparent);
+    filter: brightness(1.15);
+  }
+  .mobile-keys .mk-input button:active {
+    filter: brightness(0.85);
   }
 
   /* ── File list view (when no root selected) ── */
@@ -536,7 +542,7 @@ export function renderShell(cfg: ShellConfig): string {
     <div class="mobile-keys" id="mobile-keys">
       <div class="mk-input">
         <textarea id="mk-input" placeholder="Type or voice input…" autocapitalize="off" autocomplete="off" autocorrect="off" spellcheck="false" rows="1"></textarea>
-        <button id="mk-send" type="button" title="Send (Enter)">&#9166;</button>
+        <button id="mk-send" type="button" title="Send (Enter)"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg></button>
       </div>
       <div class="mk-buttons" id="mk-buttons">
         <button data-key="esc">ESC</button>

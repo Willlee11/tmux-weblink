@@ -1,12 +1,20 @@
-import{cssVarsStyle as b}from"../theme.js";import{getThemeTemplates as h,THEME_TEMPLATE_IDS as x}from"../themes/index.js";function n(a){return a.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;")}function g(a,e){return`<!DOCTYPE html>
+import { cssVarsStyle } from '../theme.js';
+import { getThemeTemplates, THEME_TEMPLATE_IDS } from '../themes/index.js';
+function escapeHtml(s) {
+    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+// Shared <head> chrome + base CSS for the settings pages, matching the existing
+// page style (notes-index.ts / landing.ts).
+function pageHead(title, theme) {
+    return /* html */ `<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-<title>${n(a)} - tmux-web</title>
+<title>${escapeHtml(title)} - tmux-web</title>
 <style>
-  ${b(e.shell)}
+  ${cssVarsStyle(theme.shell)}
   html, body { background: var(--page-bg); color: var(--page-fg); min-height: 100%; font-family: var(--font-sans); }
   .container { max-width: 680px; margin: 80px auto; padding: 0 24px; }
   .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 28px; }
@@ -87,15 +95,33 @@ import{cssVarsStyle as b}from"../theme.js";import{getThemeTemplates as h,THEME_T
     .num-input { width: 100%; }
   }
 </style>
-</head>`}function f(a,e){let r="";return a&&(r+='<div class="saved-flash">\u2713 Saved. Restart tmux-web to apply.</div>'),e&&(r+=`<div class="error-flash">${n(e)}</div>`),r}function T(a){const{settings:e,renderer:r,rendererOverridden:i,theme:l,plugins:t,saved:d=!1,error:s}=a,c=e.commandbar===!0,o=e.terminalRenderer??"xterm",m=e.defaultView??"default",u=e.scheduleHistoryDays??7,v=t.length?t.map(p=>`<div class="plugin-row">
-      <span class="pkg">${n(p)}</span>
-      <form method="POST" action="/settings/plugins" onsubmit="return confirm('Remove ${n(p)}?');">
+</head>`;
+}
+function flashes(saved, error) {
+    let html = '';
+    if (saved)
+        html += `<div class="saved-flash">✓ Saved. Restart tmux-web to apply.</div>`;
+    if (error)
+        html += `<div class="error-flash">${escapeHtml(error)}</div>`;
+    return html;
+}
+export function renderSettings(opts) {
+    const { settings, renderer, rendererOverridden, theme, plugins, saved = false, error } = opts;
+    const commandbarOn = settings.commandbar === true;
+    const savedRenderer = settings.terminalRenderer ?? 'xterm';
+    const defaultView = settings.defaultView ?? 'default';
+    const scheduleHistoryDays = settings.scheduleHistoryDays ?? 7;
+    const pluginRows = plugins.length
+        ? plugins.map((p) => `<div class="plugin-row">
+      <span class="pkg">${escapeHtml(p)}</span>
+      <form method="POST" action="/settings/plugins" onsubmit="return confirm('Remove ${escapeHtml(p)}?');">
         <input type="hidden" name="action" value="remove" />
-        <input type="hidden" name="pkg" value="${n(p)}" />
+        <input type="hidden" name="pkg" value="${escapeHtml(p)}" />
         <button type="submit" class="btn danger">Remove</button>
       </form>
-    </div>`).join(`
-`):'<p class="desc" style="margin:0">No plugins enabled.</p>';return`${g("Settings",l)}
+    </div>`).join('\n')
+        : `<p class="desc" style="margin:0">No plugins enabled.</p>`;
+    return /* html */ `${pageHead('Settings', theme)}
 <body>
 <div class="container">
   <div class="page-header">
@@ -108,38 +134,38 @@ import{cssVarsStyle as b}from"../theme.js";import{getThemeTemplates as h,THEME_T
     <strong>restart the tmux-web process</strong> after making changes for them to take effect.
   </div>
 
-  ${f(d,s)}
+  ${flashes(saved, error)}
 
   <form method="POST" action="/settings">
     <div class="section">
       <h2>Command bar</h2>
-      <p class="desc">\u2318K session search + quick actions.</p>
-      <label class="row"><input type="checkbox" name="commandbar" ${c?"checked":""} /> Enable command bar</label>
+      <p class="desc">⌘K session search + quick actions.</p>
+      <label class="row"><input type="checkbox" name="commandbar" ${commandbarOn ? 'checked' : ''} /> Enable command bar</label>
     </div>
 
     <div class="section">
       <h2>Terminal library</h2>
       <p class="desc">Rendering engine for the terminal view.</p>
       <div class="radios">
-        <label class="row"><input type="radio" name="terminalRenderer" value="xterm" ${o==="xterm"?"checked":""} /> xterm.js (default)</label>
-        <label class="row"><input type="radio" name="terminalRenderer" value="ghostty" ${o==="ghostty"?"checked":""} /> ghostty-web</label>
+        <label class="row"><input type="radio" name="terminalRenderer" value="xterm" ${savedRenderer === 'xterm' ? 'checked' : ''} /> xterm.js (default)</label>
+        <label class="row"><input type="radio" name="terminalRenderer" value="ghostty" ${savedRenderer === 'ghostty' ? 'checked' : ''} /> ghostty-web</label>
       </div>
-      ${i?`<p class="override-note">\u26A0 A CLI flag or <code>TMUX_WEB_TERMINAL_RENDERER</code> env var is currently forcing <strong>${r}</strong>, overriding this setting for the running process.</p>`:""}
+      ${rendererOverridden ? `<p class="override-note">⚠ A CLI flag or <code>TMUX_WEB_TERMINAL_RENDERER</code> env var is currently forcing <strong>${renderer}</strong>, overriding this setting for the running process.</p>` : ''}
     </div>
 
     <div class="section">
       <h2>Default home tab</h2>
       <p class="desc">Which tab the home page opens on.</p>
       <div class="radios">
-        <label class="row"><input type="radio" name="defaultView" value="default" ${m==="default"?"checked":""} /> Default</label>
-        <label class="row"><input type="radio" name="defaultView" value="recent" ${m==="recent"?"checked":""} /> Last Updated</label>
+        <label class="row"><input type="radio" name="defaultView" value="default" ${defaultView === 'default' ? 'checked' : ''} /> Default</label>
+        <label class="row"><input type="radio" name="defaultView" value="recent" ${defaultView === 'recent' ? 'checked' : ''} /> Last Updated</label>
       </div>
     </div>
 
     <div class="section">
       <h2>Schedule history</h2>
-      <p class="desc">Days to keep the <code>/schedule</code> "Recently Triggered" history (fired &amp; missed tasks). 1\u2013365, default 7.</p>
-      <label class="row"><input type="number" class="num-input" name="scheduleHistoryDays" min="1" max="365" value="${u}" /> days</label>
+      <p class="desc">Days to keep the <code>/schedule</code> "Recently Triggered" history (fired &amp; missed tasks). 1–365, default 7.</p>
+      <label class="row"><input type="number" class="num-input" name="scheduleHistoryDays" min="1" max="365" value="${scheduleHistoryDays}" /> days</label>
     </div>
 
     <div class="form-actions">
@@ -150,7 +176,7 @@ import{cssVarsStyle as b}from"../theme.js";import{getThemeTemplates as h,THEME_T
   <div class="section" style="margin-top:16px">
     <h2>Plugins</h2>
     <p class="desc">Installed via npm into the tmux-web data dir. Add/remove runs npm and may take a few seconds.</p>
-    ${v}
+    ${pluginRows}
     <form method="POST" action="/settings/plugins" class="plugin-add">
       <input type="hidden" name="action" value="add" />
       <input type="text" id="pkg-input" name="pkg" placeholder="npm package name" autocomplete="off" />
@@ -161,18 +187,37 @@ import{cssVarsStyle as b}from"../theme.js";import{getThemeTemplates as h,THEME_T
   <div class="section">
     <h2>Theme</h2>
     <p class="desc">Shell chrome + terminal colors.</p>
-    <a href="/settings/theme" class="btn" style="display:inline-block;text-decoration:none">Customize theme \u2192</a>
+    <a href="/settings/theme" class="btn" style="display:inline-block;text-decoration:none">Customize theme →</a>
   </div>
 </div>
 </body>
-</html>`}const y={vscode:"VS Code",ghostty:"Ghostty","warm-clay":"Warm Clay","dark-cove":"Dark Cove"},w=["background","foreground","red","green","yellow","blue","magenta","cyan"];function S(a){const{theme:e,saved:r=!1}=a,i=h(),l=x.map(t=>{const d=i[t],s=e.template===t,c=w.map(o=>`<span class="swatch" style="background:${n(d.terminal[o])}" title="${o}"></span>`).join("");return`<label class="theme-card${s?" active":""}">
+</html>`;
+}
+const THEME_LABELS = {
+    vscode: 'VS Code',
+    ghostty: 'Ghostty',
+    'warm-clay': 'Warm Clay',
+    'dark-cove': 'Dark Cove',
+};
+const SWATCH_KEYS = ['background', 'foreground', 'red', 'green', 'yellow', 'blue', 'magenta', 'cyan'];
+export function renderThemeSettings(opts) {
+    const { theme, saved = false } = opts;
+    const templates = getThemeTemplates();
+    const cards = THEME_TEMPLATE_IDS.map((id) => {
+        const t = templates[id];
+        const active = theme.template === id;
+        const swatches = SWATCH_KEYS
+            .map((k) => `<span class="swatch" style="background:${escapeHtml(t.terminal[k])}" title="${k}"></span>`)
+            .join('');
+        return `<label class="theme-card${active ? ' active' : ''}">
       <div class="tname">
-        <input type="radio" name="template" value="${t}" ${s?"checked":""} style="accent-color:var(--panel-success)" />
-        ${n(y[t]??t)}
+        <input type="radio" name="template" value="${id}" ${active ? 'checked' : ''} style="accent-color:var(--panel-success)" />
+        ${escapeHtml(THEME_LABELS[id] ?? id)}
       </div>
-      <div class="swatches">${c}</div>
-    </label>`}).join(`
-`);return`${g("Theme",e)}
+      <div class="swatches">${swatches}</div>
+    </label>`;
+    }).join('\n');
+    return /* html */ `${pageHead('Theme', theme)}
 <body>
 <div class="container">
   <div class="page-header">
@@ -184,11 +229,11 @@ import{cssVarsStyle as b}from"../theme.js";import{getThemeTemplates as h,THEME_T
     <strong>Note:</strong> the active theme is applied immediately to new page renders.
   </div>
 
-  ${r?'<div class="saved-flash">\u2713 Theme saved.</div>':""}
+  ${saved ? '<div class="saved-flash">✓ Theme saved.</div>' : ''}
 
   <form method="POST" action="/settings/theme">
     <div class="theme-grid">
-      ${l}
+      ${cards}
     </div>
     <div class="form-actions" style="margin-top:16px">
       <button type="submit" class="btn primary">Save theme</button>
@@ -196,4 +241,5 @@ import{cssVarsStyle as b}from"../theme.js";import{getThemeTemplates as h,THEME_T
   </form>
 </div>
 </body>
-</html>`}export{T as renderSettings,S as renderThemeSettings};
+</html>`;
+}
