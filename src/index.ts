@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { chmodSync, existsSync, mkdirSync, readdirSync, readFileSync, statSync, unlinkSync, writeFileSync } from "node:fs";
 import { readFile } from "node:fs/promises";
+import { execSync } from "node:child_process";
 import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -392,6 +393,7 @@ app.get("/assets/:file", async (c) => {
 		};
 		return c.body(content, 200, {
 			"Content-Type": mime[ext] ?? "application/octet-stream",
+			"Cache-Control": ext === ".js" || ext === ".css" ? "no-cache" : "public, max-age=3600",
 		});
 	}
 	return c.notFound();
@@ -894,6 +896,132 @@ app.get("/api/fs/list", requireAuth(), (c) => {
 	}
 });
 
+
+// ── Git status API ─────────────────────────────────────────────────────────
+
+interface GitFileEntry {
+	path: string;
+	status: string; // 'M' 'A' 'D' '?' etc — effective status for display
+	staged: string;
+	unstaged: string;
+	additions: number;
+	deletions: number;
+}
+
+interface GitStatusResult {
+	repoRoot: string | null;
+	branch: string | null;
+	files: GitFileEntry[];
+	linesAdded: number;
+	linesRemoved: number;
+}
+
+function getGitStatus(dirPath: string): GitStatusResult {
+	const empty: GitStatusResult = { repoRoot: null, branch: null, files: [], linesAdded: 0, linesRemoved: 0 };
+	try {
+		// Find repo root
+		const repoRoot = execSync("git rev-parse --show-toplevel 2>/dev/null", {
+			cwd: dirPath, encoding: "utf-8", timeout: 3000,
+		}).trim();
+		if (!repoRoot) return empty;
+
+		// Current branch
+		let branch: string;
+		try {
+			branch = execSync("git branch --show-current 2>/dev/null", {
+				cwd: repoRoot, encoding: "utf-8", timeout: 3000,
+			}).trim();
+		} catch {
+			branch = execSync("git rev-parse --short HEAD 2>/dev/null", {
+				cwd: repoRoot, encoding: "utf-8", timeout: 3000,
+			}).trim();
+		}
+		if (!branch) branch = "HEAD";
+
+		// Porcelain status
+		let porcelain = "";
+		try {
+			porcelain = execSync("git status --porcelain 2>/dev/null", {
+				cwd: repoRoot, encoding: "utf-8", timeout: 3000,
+			});
+		} catch {}
+
+		const files: GitFileEntry[] = [];
+		for (const line of porcelain.split("\n")) {
+			if (!line.trim()) continue;
+			const staged = line[0];
+			const unstaged = line[1];
+			const filePath = line.substring(3).trim();
+			// Determine effective status for display
+			const effective = unstaged !== " " ? unstaged : staged;
+			files.push({ path: filePath, status: effective, staged, unstaged, additions: 0, deletions: 0 });
+		}
+
+		// Per-file diff stats (working tree vs HEAD)
+		const diffMap = new Map<string, { added: number; deleted: number }>();
+		try {
+			const numstat = execSync("git diff --numstat HEAD 2>/dev/null", {
+				cwd: repoRoot, encoding: "utf-8", timeout: 3000,
+			});
+			for (const line of numstat.split("\n")) {
+				if (!line.trim()) continue;
+				const parts = line.split("\t");
+				if (parts.length >= 3) {
+					const added = parseInt(parts[0], 10) || 0;
+					const deleted = parseInt(parts[1], 10) || 0;
+					diffMap.set(parts[2], { added, deleted });
+				}
+			}
+		} catch {}
+
+		// Apply diff stats to file entries
+		for (const f of files) {
+			const stats = diffMap.get(f.path);
+			if (stats) {
+				f.additions = stats.added;
+				f.deletions = stats.deleted;
+			}
+		}
+
+		// Total diff stats
+		let linesAdded = 0, linesRemoved = 0;
+		for (const f of files) {
+			linesAdded += f.additions;
+			linesRemoved += f.deletions;
+		}
+
+		// Count untracked file lines as additions (git diff --numstat skips them)
+		for (const f of files) {
+			if (f.status === "?" && f.additions === 0) {
+				try {
+					const fullPath = path.join(repoRoot, f.path);
+					const content = readFileSync(fullPath, "utf-8");
+					const lineCount = content.split("\n").length;
+					f.additions = lineCount;
+					linesAdded += lineCount;
+				} catch {}
+			}
+		}
+
+		return { repoRoot, branch, files, linesAdded, linesRemoved };
+	} catch {
+		return empty;
+	}
+}
+
+app.get("/api/git/status", requireAuth(), (c) => {
+	const rawPath = c.req.query("path");
+	if (!rawPath) return c.json({ error: "path is required" }, 400);
+	try {
+		const resolved = resolveFsPath(rawPath);
+		const status = getGitStatus(resolved);
+		return c.json(status);
+	} catch (err) {
+		if ((err as Error).message === "FS_ROOTS_NOT_CONFIGURED") return c.json({ error: "file access not configured" }, 403);
+		if ((err as Error).message === "PATH_NOT_ALLOWED") return c.json({ error: "path not allowed" }, 403);
+		return c.json({ repoRoot: null, branch: null, files: [], linesAdded: 0, linesRemoved: 0 });
+	}
+});
 
 // ── File API (requires TMUX_WEB_FS_ROOTS) ─────────────────────────────────
 

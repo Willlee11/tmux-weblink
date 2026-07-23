@@ -123,6 +123,7 @@ function escHtml(s: string): string {
 
 		// Destroy old terminal
 		if (currentTerminal) {
+			stopHeaderGitPolling();
 			currentTerminal.destroy();
 			currentTerminal = null;
 		}
@@ -140,6 +141,7 @@ function escHtml(s: string): string {
 				theme: shellCfg.theme,
 				renderer: shellCfg.renderer,
 			});
+			startHeaderGitPolling();
 		} catch (err) {
 			console.error('[shell] terminal init failed:', err);
 			const msg = (err && typeof err === 'object' && 'message' in err) ? (err as any).message : String(err);
@@ -151,6 +153,185 @@ function escHtml(s: string): string {
 // ── Files mode ──
 
 let fsRoots: string[] = [];
+let gitStatusCache: {
+	repoRoot: string | null;
+	branch: string | null;
+	files: { path: string; status: string; staged: string; unstaged: string; additions: number; deletions: number }[];
+	linesAdded: number;
+	linesRemoved: number;
+} | null = null;
+let gitLoading = false;
+
+function getGitFileStatus(filePath: string): string | null {
+	if (!gitStatusCache || !gitStatusCache.files.length) return null;
+	// git status paths are relative to repo root; our filePath is absolute.
+	// Try matching by relative path from repo root.
+	const repoRoot = gitStatusCache.repoRoot;
+	if (!repoRoot) return null;
+	if (!filePath.startsWith(repoRoot)) return null;
+	const relative = filePath.slice(repoRoot.length + 1); // +1 for trailing /
+	for (const f of gitStatusCache.files) {
+		if (f.path === relative) return f.status;
+	}
+	return null;
+}
+
+async function loadGitStatus(dirPath: string) {
+	gitLoading = true;
+	try {
+		const res = await fetch('/api/git/status?path=' + encodeURIComponent(dirPath));
+		if (res.ok) {
+			gitStatusCache = await res.json();
+		} else {
+			gitStatusCache = null;
+		}
+	} catch {
+		gitStatusCache = null;
+	} finally {
+		gitLoading = false;
+	}
+}
+
+function renderGitBranch() {
+	if (!gitStatusCache || !gitStatusCache.branch) return '';
+	const { branch, linesAdded, linesRemoved } = gitStatusCache;
+	let diffHtml = '';
+	if (linesAdded > 0 || linesRemoved > 0) {
+		diffHtml = `<div class="git-diff-stats">+<span class="add">${linesAdded}</span> <span class="del">-${linesRemoved}</span></div>`;
+	}
+	return `<div class="git-branch-badge">
+	<svg viewBox="0 0 16 16" fill="currentColor"><path d="M11.63 1.22a.75.75 0 00-1.06 0L5.99 5.8 4.12 3.93a.75.75 0 10-1.06 1.06L4.93 6.87A3.5 3.5 0 003 10.09v3.16a.75.75 0 001 0v-3.16a2.5 2.5 0 012.5-2.5h.27l-1.06 1.06a.75.75 0 001.06 1.06l2.37-2.38a.75.75 0 000-1.06L7.59 5.27l4.04-4.05a.75.75 0 000-1.06L11.63 1.22zM3.25 13.94a.75.75 0 01-.75-.75v-.69a.75.75 0 011.5 0v.69c0 .414-.336.75-.75.75z"/></svg>
+	${escHtml(branch)}</div>${diffHtml}`;
+}
+
+// ── Header git status ──
+
+const headerGitEl = document.getElementById('header-git')!;
+let headerGitRepoRoot: string | null = null;
+
+function updateHeaderGit(status: typeof gitStatusCache) {
+	if (!status || !status.branch) {
+		headerGitEl.style.display = 'none';
+		headerGitRepoRoot = null;
+		return;
+	}
+	headerGitRepoRoot = status.repoRoot;
+	const { branch, linesAdded, linesRemoved } = status;
+	let html = `<span class="branch">${escHtml(branch)}</span>`;
+	if (linesAdded > 0 || linesRemoved > 0) {
+		html += `<span class="diff-stats"><span class="sep">·</span>+<span class="diff-add">${linesAdded}</span> <span class="diff-del">-${linesRemoved}</span></span>`;
+	}
+	headerGitEl.innerHTML = html;
+	headerGitEl.style.display = 'block';
+}
+
+headerGitEl.addEventListener('click', (e) => {
+	if (headerGitRepoRoot && gitStatusCache && gitStatusCache.files.length > 0) {
+		e.stopPropagation();
+		showGitPopover();
+	}
+});
+
+// ── Git diff popover ──
+
+const gitPopover = document.getElementById('git-popover')!;
+const gitBackdrop = document.getElementById('git-popover-backdrop')!;
+
+function showGitPopover() {
+	if (!gitStatusCache || !gitStatusCache.files.length) return;
+	const files = gitStatusCache.files;
+	let html = `<div class="git-popover-header">${files.length} file${files.length > 1 ? 's' : ''} changed</div>`;
+	for (const f of files) {
+		const add = f.additions || 0;
+		const del = f.deletions || 0;
+		let statusBadge = '';
+		switch (f.status) {
+			case 'M': statusBadge = '<span class="git-file-status M">M</span>'; break;
+			case 'A': statusBadge = '<span class="git-file-status A">A</span>'; break;
+			case 'D': statusBadge = '<span class="git-file-status D">D</span>'; break;
+			case '?': statusBadge = '<span class="git-file-status ?">?</span>'; break;
+			case 'R': statusBadge = '<span class="git-file-status R">R</span>'; break;
+		}
+		html += `<div class="git-popover-item">
+		${statusBadge}<span class="file-path">${escHtml(f.path)}</span>
+		<span class="file-add">${add > 0 ? '+' + add : ''}</span>
+		<span class="file-del">${del > 0 ? '-' + del : ''}</span>
+	</div>`;
+	}
+	html += `<div class="git-popover-footer"><button id="git-popover-browse">Browse repository →</button></div>`;
+	gitPopover.innerHTML = html;
+
+	const headerRect = headerGitEl.getBoundingClientRect();
+	gitPopover.style.top = (headerRect.bottom + 4) + 'px';
+	gitPopover.style.left = Math.max(8, Math.min(headerRect.left, window.innerWidth - 400)) + 'px';
+
+	gitPopover.classList.add('open');
+	gitBackdrop.classList.add('open');
+
+	// Browse repository button
+	const browseRepoRoot = headerGitRepoRoot;
+	document.getElementById('git-popover-browse')!.addEventListener('click', () => {
+		closeGitPopover();
+		if (browseRepoRoot) {
+			// Directly switch to files mode and load repo root,
+			// bypassing renderFileRoots() to avoid interference
+			currentMode = 'files';
+			document.querySelectorAll('.mode-btn').forEach((b) => b.classList.remove('active'));
+			const fb = document.getElementById('mode-files');
+			if (fb) fb.classList.add('active');
+			loadFileDir(browseRepoRoot);
+		}
+	});
+}
+
+function closeGitPopover() {
+	gitPopover.classList.remove('open');
+	gitBackdrop.classList.remove('open');
+}
+
+gitBackdrop.addEventListener('click', closeGitPopover);
+
+document.addEventListener('keydown', (e) => {
+	if (e.key === 'Escape') {
+		closeGitPopover();
+		closeProcessPanel();
+	}
+});
+
+async function refreshHeaderGitForSession(session: string) {
+	try {
+		const res = await fetch('/api/fs/session-path?session=' + encodeURIComponent(session));
+		const data = await res.json();
+		if (data.path) {
+			const gitRes = await fetch('/api/git/status?path=' + encodeURIComponent(data.path));
+			if (gitRes.ok) {
+				const status = await gitRes.json();
+				gitStatusCache = status;
+				updateHeaderGit(status);
+				return;
+			}
+		}
+	} catch {}
+	gitStatusCache = null;
+	updateHeaderGit(null);
+}
+
+let headerGitTimer: ReturnType<typeof setInterval> | null = null;
+function startHeaderGitPolling() {
+	stopHeaderGitPolling();
+	if (currentSession) {
+		refreshHeaderGitForSession(currentSession);
+		headerGitTimer = setInterval(() => {
+			if (currentSession) refreshHeaderGitForSession(currentSession);
+		}, 30000);
+	}
+}
+function stopHeaderGitPolling() {
+	if (headerGitTimer) {
+		clearInterval(headerGitTimer);
+		headerGitTimer = null;
+	}
+}
 
 function renderFileRoots() {
 	fsRoots = shellCfg.fsRoots || [];
@@ -191,10 +372,18 @@ async function loadFileDir(dirPath: string) {
 	currentFileDir = dirPath;
 	sidebarContent.innerHTML = '<div class="file-tree-empty">Loading...</div>';
 
+	// Load git status in parallel
+	const gitPromise = loadGitStatus(dirPath);
+
 	try {
 		const res = await fetch('/api/fs/list?path=' + encodeURIComponent(dirPath));
 		const data = await res.json();
+		await gitPromise; // ensure git status is loaded
 		sidebarContent.innerHTML = '';
+
+		// Update header git and sidebar git
+		updateHeaderGit(gitStatusCache);
+		sidebarContent.innerHTML += renderGitBranch();
 
 		// Parent dir link
 		const parent = getParentDir(dirPath);
@@ -227,9 +416,21 @@ async function loadFileDir(dirPath: string) {
 		const files = data.files || [];
 		for (const f of files) {
 			const name = f.split('/').pop() || f.split('\\').pop();
+			const gitStatus = getGitFileStatus(f);
+			let gitClass = '';
+			let gitBadge = '';
+			if (gitStatus) {
+				switch (gitStatus) {
+					case 'M': gitClass = 'git-mod'; gitBadge = '<span class="git-file-status M">M</span>'; break;
+					case 'A': gitClass = 'git-add'; gitBadge = '<span class="git-file-status A">A</span>'; break;
+					case 'D': gitClass = 'git-del'; gitBadge = '<span class="git-file-status D">D</span>'; break;
+					case '?': gitClass = 'git-untracked'; gitBadge = '<span class="git-file-status ?">?</span>'; break;
+					case 'R': gitClass = 'git-mod'; gitBadge = '<span class="git-file-status R">R</span>'; break;
+				}
+			}
 			const el = document.createElement('div');
-			el.className = 'file-tree-item file';
-			el.innerHTML = `<span class="file-icon">📄</span> ${escHtml(name)}`;
+			el.className = 'file-tree-item file' + (gitClass ? ' ' + gitClass : '');
+			el.innerHTML = `<span class="file-icon">📄</span> ${gitBadge}${escHtml(name)}`;
 			el.addEventListener('click', () => openFileEditor(f));
 			sidebarContent.appendChild(el);
 		}
@@ -250,10 +451,12 @@ async function openFileEditor(filePath: string) {
 	// Hide terminal, show file editor
 	terminalContainer.style.display = 'none';
 	if (currentTerminal) {
+		stopHeaderGitPolling();
 		currentTerminal.destroy();
 		currentTerminal = null;
 		currentSession = null;
 	}
+	updateHeaderGit(null);
 	collapseSidebar();
 	mainPlaceholder.style.display = 'none';
 	fileEditor.style.display = 'flex';
@@ -540,6 +743,78 @@ if (window.visualViewport) {
 		}
 	}, { passive: true });
 }
+
+// ── Process panel (RAM click → top memory consumers) ──
+
+const processPanel = document.getElementById('process-panel')!;
+const procList = document.getElementById('proc-list')!;
+const procClose = document.getElementById('proc-close')!;
+const procBackdrop = document.getElementById('proc-backdrop')!;
+const ramEl = document.getElementById('header-ram')!;
+
+function loadProcesses() {
+	procList.innerHTML = '<div class="proc-empty">Loading…</div>';
+	fetch('/api/system/processes').then(r => r.json()).then((procs: any[]) => {
+		if (!Array.isArray(procs) || !procs.length) {
+			procList.innerHTML = '<div class="proc-empty">No processes</div>';
+			return;
+		}
+		let html = '';
+		for (const p of procs) {
+			const rss = p.rss;
+			const rssStr = rss < 1048576 ? (rss / 1024).toFixed(0) + 'K' : (rss / 1048576).toFixed(1) + 'M';
+			html += '<div class="proc-row" data-pid="' + p.pid + '">'
+				+ '<span class="proc-mem">' + p.mem + '%</span>'
+				+ '<span class="proc-rss">' + rssStr + '</span>'
+				+ '<span class="proc-cmd" title="' + escHtml(p.command) + '">' + escHtml(p.command) + '</span>'
+				+ '<button class="proc-kill" title="Kill PID ' + p.pid + '">&times;</button>'
+				+ '</div>';
+		}
+		procList.innerHTML = html;
+		// Wire kill buttons
+		for (const row of procList.querySelectorAll('.proc-row')) {
+			const btn = row.querySelector('.proc-kill');
+			if (!btn) continue;
+			btn.addEventListener('click', (e) => {
+				const r = (e.target as HTMLElement).closest('.proc-row') as HTMLElement;
+				if (!r || !confirm('Kill PID ' + r.dataset.pid + '?')) return;
+				fetch('/api/system/kill', {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({ pid: parseInt(r.dataset.pid!, 10) }),
+				}).then(res => res.json()).then(data => {
+					if (data.ok) { r.style.opacity = '0.3'; }
+					else { alert('Failed: ' + (data.error || 'unknown')); }
+				}).catch(() => alert('Network error'));
+			});
+		}
+	}).catch(() => {
+		procList.innerHTML = '<div class="proc-empty">Failed to load</div>';
+	});
+}
+
+function openProcessPanel() {
+	processPanel.classList.add('open');
+	procBackdrop.classList.add('open');
+	loadProcesses();
+}
+
+function closeProcessPanel() {
+	processPanel.classList.remove('open');
+	procBackdrop.classList.remove('open');
+}
+
+ramEl.addEventListener('click', (e) => {
+	e.stopPropagation();
+	if (processPanel.classList.contains('open')) {
+		closeProcessPanel();
+	} else {
+		openProcessPanel();
+	}
+});
+
+procClose.addEventListener('click', closeProcessPanel);
+procBackdrop.addEventListener('click', closeProcessPanel);
 
 // ── Init ──
 

@@ -2,7 +2,6 @@ import { cssVarsStyle } from '../theme.js';
 import { commandbarCSS, commandbarHTML, commandbarScript } from '../commandbar.js';
 import { newSessionModalCSS, newSessionModalHTML, newSessionModalScript, reducedMotion } from '../shared-layout.js';
 import { icon } from '../icons.js';
-import { getSystemStatus } from '../system-monitor.js';
 function escapeHtml(s) {
     return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
@@ -11,9 +10,7 @@ function focusRing(accent = 'var(--panel-accent)') {
 }
 export function renderShell(cfg) {
     const { theme, commandbarEnabled, commandbarSessions, fsRoots, terminalCfg, renderer, scrollback } = cfg;
-    const sys = getSystemStatus();
-    const initMemPct = sys.memory.percent;
-    const initCpuLoad = sys.cpu.loadAvg[0];
+    // ram fetched client-side
     const shellCSS = `
   *, *::before, *::after { box-sizing: border-box; }
   html, body {
@@ -30,81 +27,38 @@ export function renderShell(cfg) {
     background: color-mix(in srgb, var(--panel-bg) 92%, transparent);
     backdrop-filter: blur(12px);
     border-bottom: 1px solid var(--panel-border);
-    display: flex; justify-content: space-between; align-items: center;
+    display: flex; align-items: center; gap: 8px;
     padding-left: 12px; padding-right: 12px;
     box-sizing: border-box;
   }
   .fixed-header .brand {
     font-size: var(--text-base); font-weight: 600; color: var(--page-fg);
+    flex-shrink: 0;
   }
   .fixed-header .brand span { color: var(--panel-accent); font-weight: 500; }
   .fixed-header .brand a { color: inherit; text-decoration: none; }
-  .header-actions { display: flex; align-items: center; gap: 4px; }
-
-  /* ── System status in header ── */
-  .sys-status {
-    display: flex; align-items: center;
+  #header-git {
+    flex: 1; min-width: 0; text-align: center;
+    overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+    font-size: 11px; font-family: var(--font-mono);
+    color: var(--panel-muted); cursor: pointer;
+    padding: 0 4px; display: none;
+  }
+  #header-git:hover { color: var(--panel-accent); }
+  #header-git .branch { color: var(--panel-accent); font-weight: 500; }
+  #header-git .diff-add { color: #22c55e; }
+  #header-git .diff-del { color: #ef4444; }
+  #header-git .sep { margin: 0 3px; color: var(--panel-muted); opacity: 0.4; }
+  .header-actions { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
+  #header-ram {
+    flex-shrink: 0;
     font-size: 11px; font-family: var(--font-mono);
     color: color-mix(in srgb, var(--page-fg) 55%, transparent);
-    cursor: pointer;
-    margin: 0 12px;
-    white-space: nowrap;
-    padding: 4px 6px;
-    border-radius: 4px;
+    white-space: nowrap; cursor: pointer;
+    padding: 2px 4px; border-radius: 4px;
     transition: background 0.15s;
   }
-  .sys-status:hover { background: color-mix(in srgb, var(--panel-accent) 8%, transparent); }
-
-  /* ── Process popover ── */
-  #process-panel {
-    position: fixed; top: 52px; right: 12px; z-index: 300;
-    background: var(--panel-bg); border: 1px solid var(--panel-border);
-    border-radius: 8px;
-    box-shadow: 0 8px 24px rgba(0,0,0,0.25);
-    min-width: 340px; max-width: 480px;
-    max-height: 70vh;
-    display: none; flex-direction: column;
-    font-size: 12px;
-  }
-  #process-panel.open { display: flex; }
-  #process-panel .panel-header {
-    display: flex; justify-content: space-between; align-items: center;
-    padding: 8px 12px;
-    border-bottom: 1px solid var(--panel-border);
-    font-weight: 600; font-size: 11px; text-transform: uppercase;
-    letter-spacing: 0.5px; color: var(--panel-muted);
-  }
-  #process-panel .panel-header button {
-    background: none; border: none; color: var(--panel-muted);
-    cursor: pointer; padding: 2px 6px; border-radius: 4px; font-size: 14px;
-  }
-  #process-panel .panel-header button:hover { color: var(--page-fg); background: color-mix(in srgb, var(--panel-accent) 8%, transparent); }
-  #process-panel .proc-list { overflow-y: auto; flex: 1; padding: 4px 0; }
-  #process-panel .proc-row {
-    display: flex; align-items: center; gap: 6px;
-    padding: 4px 12px;
-  }
-  #process-panel .proc-row:hover { background: color-mix(in srgb, var(--panel-accent) 4%, transparent); }
-  #process-panel .proc-mem { width: 44px; text-align: right; font-family: var(--font-mono); color: var(--panel-muted); flex-shrink: 0; }
-  #process-panel .proc-rss { width: 60px; text-align: right; font-family: var(--font-mono); color: var(--panel-muted); flex-shrink: 0; }
-  #process-panel .proc-cmd {
-    flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-    color: var(--page-fg);
-  }
-  #process-panel .proc-kill {
-    background: none; border: none; color: var(--panel-muted);
-    cursor: pointer; padding: 2px 6px; border-radius: 4px; font-size: 13px; flex-shrink: 0;
-  }
-  #process-panel .proc-kill:hover { color: #ef4444; background: color-mix(in srgb, #ef4444 10%, transparent); }
-  #process-panel .proc-empty { padding: 24px; text-align: center; color: var(--panel-muted); }
-
-  @media (max-width: 600px) {
-    #process-panel {
-      top: auto; bottom: 0; left: 0; right: 0;
-      min-width: 0; max-width: none; max-height: 60vh;
-      border-radius: 12px 12px 0 0;
-    }
-  }
+  #header-ram:hover { background: color-mix(in srgb, var(--panel-accent) 8%, transparent); }
 
   /* ── App layout ── */
   .app-layout {
@@ -203,6 +157,133 @@ export function renderShell(cfg) {
   .file-tree-error { font-size: var(--text-xs); color: #b91c1c; padding: 12px; }
   .file-tree-info { font-size: var(--text-xs); color: var(--panel-muted); padding: 12px; line-height: 1.5; }
   .file-tree-info code { background: color-mix(in srgb, var(--panel-accent) 8%, transparent); padding: 2px 6px; border-radius: 4px; }
+
+  /* ── Git status indicators ── */
+  .git-branch-badge {
+    display: flex; align-items: center; gap: 6px;
+    padding: 4px 10px; margin: 4px 8px;
+    border-radius: 20px;
+    background: color-mix(in srgb, var(--panel-accent) 12%, transparent);
+    color: var(--panel-accent);
+    font-size: 11px; font-family: var(--font-mono);
+    font-weight: 500;
+  }
+  .git-branch-badge svg { width: 14px; height: 14px; flex-shrink: 0; }
+  .git-diff-stats {
+    font-size: 10px; color: var(--panel-muted);
+    margin: 2px 8px 6px 8px; padding: 0 10px;
+    font-family: var(--font-mono);
+  }
+  .git-diff-stats .add { color: #22c55e; }
+  .git-diff-stats .del { color: #ef4444; }
+  .file-tree-item.git-mod { border-left: 3px solid #eab308; padding-left: 7px; }
+  .file-tree-item.git-add { border-left: 3px solid #22c55e; padding-left: 7px; }
+  .file-tree-item.git-del { border-left: 3px solid #ef4444; padding-left: 7px; }
+  .file-tree-item.git-untracked { border-left: 3px solid var(--panel-muted); padding-left: 7px; opacity: 0.75; }
+  .git-file-status {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 16px; height: 16px; border-radius: 3px;
+    font-size: 9px; font-weight: 700; flex-shrink: 0;
+    margin-right: 2px;
+  }
+  .git-file-status.M { background: #eab30822; color: #eab308; }
+  .git-file-status.A { background: #22c55e22; color: #22c55e; }
+  .git-file-status.D { background: #ef444422; color: #ef4444; }
+  .git-file-status.\? { background: var(--panel-muted); color: var(--page-bg); }
+  .git-file-status.R { background: #3b82f622; color: #3b82f6; }
+  .git-loading {
+    font-size: 11px; color: var(--panel-muted);
+    padding: 4px 12px; font-style: italic;
+  }
+
+  /* ── Git diff popover ── */
+  .git-popover-backdrop {
+    display: none; position: fixed; inset: 0; z-index: 300;
+  }
+  .git-popover-backdrop.open { display: block; }
+  .git-popover {
+    display: none; position: fixed; z-index: 350;
+    background: var(--panel-bg); border: 1px solid var(--panel-border);
+    border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+    min-width: 320px; max-width: min(480px, calc(100vw - 24px)); max-height: 60vh;
+    overflow-y: auto; padding: 4px 0;
+  }
+  .git-popover.open { display: block; }
+  .git-popover-header {
+    padding: 8px 12px 4px; font-size: 10px; text-transform: uppercase;
+    letter-spacing: 0.05em; color: var(--panel-muted); font-weight: 500;
+  }
+  .git-popover-item {
+    display: flex; align-items: center; gap: 6px;
+    padding: 7px 12px; font-size: 11px; font-family: var(--font-mono);
+    color: var(--page-fg); cursor: default;
+  }
+  .git-popover-item:hover { background: color-mix(in srgb, var(--panel-accent) 6%, transparent); }
+  .git-popover-item .file-path {
+    flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .git-popover-item .file-add { color: #22c55e; flex-shrink: 0; width: 36px; text-align: right; }
+  .git-popover-item .file-del { color: #ef4444; flex-shrink: 0; width: 36px; text-align: right; }
+  .git-popover-footer {
+    padding: 6px 12px 6px; border-top: 1px solid var(--panel-border);
+  }
+  .git-popover-footer button {
+    width: 100%; padding: 8px; border: none; border-radius: 8px;
+    background: none; color: var(--panel-accent); font-size: var(--text-xs);
+    cursor: pointer; font-family: inherit;
+  }
+  .git-popover-footer button:hover { background: color-mix(in srgb, var(--panel-accent) 8%, transparent); }
+
+  /* ── Process panel (RAM click) ── */
+  #process-panel {
+    position: fixed; top: 52px; right: 12px; z-index: 300;
+    background: var(--panel-bg); border: 1px solid var(--panel-border);
+    border-radius: 8px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.25);
+    min-width: 340px; max-width: 480px;
+    max-height: 70vh;
+    display: none; flex-direction: column;
+    font-size: 12px;
+  }
+  #process-panel.open { display: flex; }
+  #process-panel .panel-header {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--panel-border);
+    font-weight: 600; font-size: 11px; text-transform: uppercase;
+    letter-spacing: 0.5px; color: var(--panel-muted);
+  }
+  #process-panel .panel-header button {
+    background: none; border: none; color: var(--panel-muted);
+    cursor: pointer; padding: 2px 6px; border-radius: 4px; font-size: 14px;
+  }
+  #process-panel .panel-header button:hover { color: var(--page-fg); background: color-mix(in srgb, var(--panel-accent) 8%, transparent); }
+  #process-panel .proc-list { overflow-y: auto; flex: 1; padding: 4px 0; }
+  #process-panel .proc-row {
+    display: flex; align-items: center; gap: 6px;
+    padding: 4px 12px;
+  }
+  #process-panel .proc-row:hover { background: color-mix(in srgb, var(--panel-accent) 4%, transparent); }
+  #process-panel .proc-mem { width: 44px; text-align: right; font-family: var(--font-mono); color: var(--panel-muted); flex-shrink: 0; }
+  #process-panel .proc-rss { width: 60px; text-align: right; font-family: var(--font-mono); color: var(--panel-muted); flex-shrink: 0; }
+  #process-panel .proc-cmd {
+    flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    color: var(--page-fg);
+  }
+  #process-panel .proc-kill {
+    background: none; border: none; color: var(--panel-muted);
+    cursor: pointer; padding: 2px 6px; border-radius: 4px; font-size: 13px; flex-shrink: 0;
+  }
+  #process-panel .proc-kill:hover { color: #ef4444; background: color-mix(in srgb, #ef4444 10%, transparent); }
+  #process-panel .proc-empty { padding: 24px; text-align: center; color: var(--panel-muted); }
+
+  @media (max-width: 600px) {
+    #process-panel {
+      top: auto; bottom: 0; left: 0; right: 0;
+      min-width: 0; max-width: none; max-height: 60vh;
+      border-radius: 12px 12px 0 0;
+    }
+  }
 
   /* ── Main area ── */
   .main-area {
@@ -478,16 +559,9 @@ export function renderShell(cfg) {
   <div class="header-actions">
     ${commandbarEnabled ? `<button class="header-btn" id="cmdbar-btn" title="Search" aria-label="Search">${icon('search')}</button>` : ''}
   </div>
-  <div class="sys-status" id="sys-status">RAM ${initMemPct}% / CPU ${initCpuLoad < 10 ? initCpuLoad.toFixed(1) : Math.round(initCpuLoad)}</div>
+  <div id="header-git" title="Click to browse repository"></div>
+  <span id="header-ram"></span>
 </header>
-
-<div id="process-panel">
-  <div class="panel-header">
-    <span>Top Processes</span>
-    <button id="proc-close" aria-label="Close">&times;</button>
-  </div>
-  <div class="proc-list" id="proc-list"></div>
-</div>
 
 <div class="app-layout">
   <aside class="sidebar">
@@ -570,6 +644,20 @@ export function renderShell(cfg) {
   </div>
 </div>
 
+<!-- Git diff popover -->
+<div class="git-popover-backdrop" id="git-popover-backdrop"></div>
+<div class="git-popover" id="git-popover"></div>
+
+<!-- Process panel (top memory consumers) -->
+<div class="git-popover-backdrop" id="proc-backdrop"></div>
+<div id="process-panel">
+  <div class="panel-header">
+    <span>Top Processes</span>
+    <button id="proc-close" aria-label="Close">&times;</button>
+  </div>
+  <div class="proc-list" id="proc-list"></div>
+</div>
+
 <script>
 (function() {
   var popover = document.getElementById('settings-popover');
@@ -617,93 +705,15 @@ ${newSessionModalScript('__onSessionCreated')}
 </script>
 <script>
 (function(){
-  var el = document.getElementById('sys-status');
+  var el = document.getElementById('header-ram');
   if (!el) return;
   function poll(){
     fetch('/api/system/status').then(function(r){ return r.json(); }).then(function(s){
-      var p = s.memory.percent;
-      var load = s.cpu.loadAvg[0];
-      el.textContent = 'RAM ' + p + '% / CPU ' + (load < 10 ? load.toFixed(1) : Math.round(load));
+      el.textContent = 'RAM ' + s.memory.percent + '%';
     }).catch(function(){});
   }
   poll();
-  setInterval(poll, 5000);
-})();
-</script>
-<script>
-(function(){
-  var statusEl = document.getElementById('sys-status');
-  var panel = document.getElementById('process-panel');
-  var list = document.getElementById('proc-list');
-  var closeBtn = document.getElementById('proc-close');
-  if (!statusEl || !panel || !list || !closeBtn) return;
-
-  function loadProcs(){
-    list.innerHTML = '<div class="proc-empty">Loading\u2026</div>';
-    fetch('/api/system/processes').then(function(r){ return r.json(); }).then(function(procs){
-      if (!Array.isArray(procs) || !procs.length) {
-        list.innerHTML = '<div class="proc-empty">No processes</div>';
-        return;
-      }
-      var html = '';
-      for (var i = 0; i < procs.length; i++) {
-        var p = procs[i];
-        var rss = p.rss;
-        var rssStr = rss < 1048576 ? (rss / 1024).toFixed(0) + 'K' : (rss / 1048576).toFixed(1) + 'M';
-        html += '<div class="proc-row" data-pid="' + p.pid + '">'
-          + '<span class="proc-mem">' + p.mem + '%</span>'
-          + '<span class="proc-rss">' + rssStr + '</span>'
-          + '<span class="proc-cmd" title="' + escAttr(p.command) + '">' + escHtml(p.command) + '</span>'
-          + '<button class="proc-kill" title="Kill PID ' + p.pid + '">&times;</button>'
-          + '</div>';
-      }
-      list.innerHTML = html;
-      // Wire kill buttons
-      var rows = list.querySelectorAll('.proc-row');
-      for (var j = 0; j < rows.length; j++) {
-        var btn = rows[j].querySelector('.proc-kill');
-        if (!btn) continue;
-        btn.addEventListener('click', function(e){
-          var row = e.target.closest('.proc-row');
-          if (!row || !confirm('Kill PID ' + row.dataset.pid + '?')) return;
-          fetch('/api/system/kill', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ pid: parseInt(row.dataset.pid, 10) }),
-          }).then(function(r){ return r.json(); }).then(function(data){
-            if (data.ok) { row.style.opacity = '0.3'; }
-            else { alert('Failed: ' + (data.error || 'unknown')); }
-          }).catch(function(){ alert('Network error'); });
-        });
-      }
-    }).catch(function(){
-      list.innerHTML = '<div class="proc-empty">Failed to load</div>';
-    });
-  }
-
-  function openPanel(){
-    panel.classList.add('open');
-    loadProcs();
-  }
-
-  function closePanel(){ panel.classList.remove('open'); }
-
-  statusEl.addEventListener('click', function(e){
-    if (panel.classList.contains('open')) { closePanel(); }
-    else { openPanel(); }
-  });
-  closeBtn.addEventListener('click', closePanel);
-  document.addEventListener('click', function(e){
-    if (panel.classList.contains('open') && !panel.contains(e.target) && e.target !== statusEl) {
-      closePanel();
-    }
-  });
-  document.addEventListener('keydown', function(e){
-    if (e.key === 'Escape' && panel.classList.contains('open')) closePanel();
-  });
-
-  function escHtml(s){ return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
-  function escAttr(s){ return s.replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  setInterval(poll, 10000);
 })();
 </script>
 <script>
