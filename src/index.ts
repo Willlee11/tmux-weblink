@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { chmodSync, existsSync, mkdirSync, readdirSync, readFileSync, statSync, unlinkSync, writeFileSync } from "node:fs";
 import { readFile } from "node:fs/promises";
-import { execSync } from "node:child_process";
+import { execSync, execFileSync, spawnSync } from "node:child_process";
 import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -1020,6 +1020,37 @@ app.get("/api/git/status", requireAuth(), (c) => {
 		if ((err as Error).message === "FS_ROOTS_NOT_CONFIGURED") return c.json({ error: "file access not configured" }, 403);
 		if ((err as Error).message === "PATH_NOT_ALLOWED") return c.json({ error: "path not allowed" }, 403);
 		return c.json({ repoRoot: null, branch: null, files: [], linesAdded: 0, linesRemoved: 0 });
+	}
+});
+
+app.get("/api/git/diff", requireAuth(), (c) => {
+	const repoPath = c.req.query("path");
+	const file = c.req.query("file");
+	if (!repoPath || !file) return c.json({ error: "path and file are required" }, 400);
+	try {
+		const resolved = resolveFsPath(repoPath);
+		console.error("[git/diff] path=%s resolved=%s file=%s", repoPath, resolved, file);
+
+		// Safety: ensure resolved path is an existing directory
+		if (!existsSync(resolved) || !statSync(resolved).isDirectory()) {
+			console.error("[git/diff] resolved path does not exist or is not a directory: %s", resolved);
+			return c.json({ error: "invalid repository path: " + resolved }, 400);
+		}
+
+		// Use execFileSync (direct spawn, bypasses shell)
+		try {
+			const diff = execFileSync("/usr/bin/git", ["diff", "HEAD", "--", file], { cwd: resolved, encoding: "utf-8", timeout: 5000 });
+			const stagedDiff = execFileSync("/usr/bin/git", ["diff", "--cached", "--", file], { cwd: resolved, encoding: "utf-8", timeout: 5000 });
+			return c.json({ diff, stagedDiff });
+		} catch (e) {
+			console.error("[git/diff] execFileSync failed:", (e as any)?.code, (e as Error).message);
+			throw e;
+		}
+	} catch (err) {
+		if ((err as Error).message === "FS_ROOTS_NOT_CONFIGURED") return c.json({ error: "file access not configured" }, 403);
+		if ((err as Error).message === "PATH_NOT_ALLOWED") return c.json({ error: "path not allowed" }, 403);
+		console.error("[git/diff] exception:", err);
+		return c.json({ error: String(err) }, 500);
 	}
 });
 

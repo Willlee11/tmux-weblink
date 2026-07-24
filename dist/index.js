@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { chmodSync, existsSync, mkdirSync, readdirSync, readFileSync, statSync, unlinkSync, writeFileSync } from "node:fs";
 import { readFile } from "node:fs/promises";
-import { execSync } from "node:child_process";
+import { execSync, execFileSync } from "node:child_process";
 import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -932,6 +932,54 @@ app.get("/api/git/status", requireAuth(), (c) => {
         if (err.message === "PATH_NOT_ALLOWED")
             return c.json({ error: "path not allowed" }, 403);
         return c.json({ repoRoot: null, branch: null, files: [], linesAdded: 0, linesRemoved: 0 });
+    }
+});
+app.get("/api/git/diff", requireAuth(), async (c) => {
+    const repoPath = c.req.query("path");
+    const file = c.req.query("file");
+    if (!repoPath || !file)
+        return c.json({ error: "path and file are required" }, 400);
+    try {
+        const resolved = resolveFsPath(repoPath);
+        console.error("[git/diff] path=%j resolved=%j file=%j", repoPath, resolved, file);
+        if (!existsSync(resolved) || !statSync(resolved).isDirectory()) {
+            console.error("[git/diff] resolved path does not exist or is not a directory: %s", resolved);
+            return c.json({ error: "invalid repository path: " + resolved }, 400);
+        }
+        let diff = "", stagedDiff = "";
+        // Attempt 1: execFileSync (direct spawn, no shell)
+        try {
+            diff = execFileSync("/usr/bin/git", ["diff", "HEAD", "--", file], { cwd: resolved, encoding: "utf-8", timeout: 5000 });
+        }
+        catch (e1) {
+            // Attempt 2: execSync via shell
+            console.error("[git/diff] execFileSync failed:", e1?.code, e1.message);
+            try {
+                diff = execSync(`git -C '${resolved.replace(/'/g, "'\\''")}' diff HEAD -- '${file.replace(/'/g, "'\\''")}'`, { encoding: "utf-8", timeout: 5000 });
+            }
+            catch (e2) {
+                console.error("[git/diff] execSync also failed:", e2?.code, e2.message);
+            }
+        }
+        // Same for staged diff
+        try {
+            stagedDiff = execFileSync("/usr/bin/git", ["diff", "--cached", "--", file], { cwd: resolved, encoding: "utf-8", timeout: 5000 });
+        }
+        catch (e1) {
+            try {
+                stagedDiff = execSync(`git -C '${resolved.replace(/'/g, "'\\''")}' diff --cached -- '${file.replace(/'/g, "'\\''")}'`, { encoding: "utf-8", timeout: 5000 });
+            }
+            catch { }
+        }
+        return c.json({ diff, stagedDiff });
+    }
+    catch (err) {
+        if (err.message === "FS_ROOTS_NOT_CONFIGURED")
+            return c.json({ error: "file access not configured" }, 403);
+        if (err.message === "PATH_NOT_ALLOWED")
+            return c.json({ error: "path not allowed" }, 403);
+        console.error("[git/diff] exception:", err);
+        return c.json({ error: String(err) }, 500);
     }
 });
 // ── File API (requires TMUX_WEB_FS_ROOTS) ─────────────────────────────────

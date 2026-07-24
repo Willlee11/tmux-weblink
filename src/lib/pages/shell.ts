@@ -55,7 +55,7 @@ export function renderShell(cfg: ShellConfig): string {
   .fixed-header .brand span { color: var(--panel-accent); font-weight: 500; }
   .fixed-header .brand a { color: inherit; text-decoration: none; }
   #header-git {
-    flex: 1; min-width: 0; text-align: center;
+    flex-shrink: 0; margin-left: auto;
     overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
     font-size: 11px; font-family: var(--font-mono);
     color: var(--panel-muted); cursor: pointer;
@@ -183,14 +183,16 @@ export function renderShell(cfg: ShellConfig): string {
     background: color-mix(in srgb, var(--panel-accent) 12%, transparent);
     color: var(--panel-accent);
     font-size: 11px; font-family: var(--font-mono);
-    font-weight: 500;
+    font-weight: 500; cursor: pointer;
   }
   .git-branch-badge svg { width: 14px; height: 14px; flex-shrink: 0; }
+  .sidebar-git:hover .git-branch-badge { background: color-mix(in srgb, var(--panel-accent) 18%, transparent); }
   .git-diff-stats {
     font-size: 10px; color: var(--panel-muted);
     margin: 2px 8px 6px 8px; padding: 0 10px;
-    font-family: var(--font-mono);
+    font-family: var(--font-mono); cursor: pointer;
   }
+  .sidebar-git:hover .git-diff-stats { color: var(--page-fg); }
   .git-diff-stats .add { color: #22c55e; }
   .git-diff-stats .del { color: #ef4444; }
   .file-tree-item.git-mod { border-left: 3px solid #eab308; padding-left: 7px; }
@@ -212,6 +214,29 @@ export function renderShell(cfg: ShellConfig): string {
     font-size: 11px; color: var(--panel-muted);
     padding: 4px 12px; font-style: italic;
   }
+
+  /* ── Git diff view in main area (wide screen) ── */
+  .gd-content {
+    flex: 1; overflow: auto;
+    background: var(--page-bg);
+    font-family: var(--font-mono);
+    font-size: 12px; line-height: 1.6;
+    padding: 8px 0;
+  }
+  .gd-content .diff-line {
+    display: flex; white-space: pre; min-height: 20px;
+    padding: 0 16px;
+  }
+  .gd-content .diff-line.add { background: #22c55e0d; color: #22c55e; }
+  .gd-content .diff-line.del { background: #ef44440d; color: #ef4444; }
+  .gd-content .diff-line.hunk { color: #3b82f6; }
+  .gd-content .diff-line.header { color: var(--panel-muted); font-weight: 500; }
+  .gd-content .diff-line .ln-no {
+    display: inline-block; width: 40px; text-align: right;
+    color: var(--panel-muted); opacity: 0.4; flex-shrink: 0; margin-right: 16px;
+    user-select: none;
+  }
+  .gd-content .diff-line .ln-body { flex: 1; overflow: hidden; }
 
   /* ── Git diff popover ── */
   .git-popover-backdrop {
@@ -250,6 +275,51 @@ export function renderShell(cfg: ShellConfig): string {
     cursor: pointer; font-family: inherit;
   }
   .git-popover-footer button:hover { background: color-mix(in srgb, var(--panel-accent) 8%, transparent); }
+
+  /* ── Git diff detail view ── */
+  .git-diff-view {
+    padding: 0; font-family: var(--font-mono);
+  }
+  .git-diff-view .diff-header {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 12px; border-bottom: 1px solid var(--panel-border);
+  }
+  .git-diff-view .diff-back {
+    background: none; border: none; color: var(--panel-accent);
+    cursor: pointer; padding: 2px 8px; border-radius: 6px;
+    font-size: 11px; font-family: inherit;
+  }
+  .git-diff-view .diff-back:hover { background: color-mix(in srgb, var(--panel-accent) 10%, transparent); }
+  .git-diff-view .diff-filename {
+    flex: 1; font-size: 11px; font-weight: 500; color: var(--page-fg);
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .git-diff-view .diff-filesize {
+    font-size: 10px; color: var(--panel-muted); flex-shrink: 0;
+  }
+  .git-diff-view .diff-content {
+    max-height: 50vh; overflow: auto;
+    padding: 8px 0; font-size: 10px; line-height: 1.5;
+  }
+  .git-diff-view .diff-line {
+    display: flex; white-space: pre; min-height: 18px;
+    padding: 0 12px;
+  }
+  .git-diff-view .diff-line.ln { background: var(--page-bg); }
+  .git-diff-view .diff-line.add { background: #22c55e12; color: #22c55e; }
+  .git-diff-view .diff-line.del { background: #ef444412; color: #ef4444; }
+  .git-diff-view .diff-line.header { color: var(--panel-muted); font-weight: 500; }
+  .git-diff-view .diff-line.hunk { color: #3b82f6; }
+  .git-diff-view .diff-line .ln-no {
+    display: inline-block; width: 36px; text-align: right;
+    color: var(--panel-muted); opacity: 0.5; flex-shrink: 0; margin-right: 12px;
+    user-select: none;
+  }
+  .git-diff-view .diff-line .ln-body { flex: 1; overflow: hidden; }
+  .git-diff-view .diff-empty {
+    padding: 24px 12px; text-align: center; color: var(--panel-muted);
+    font-size: 11px;
+  }
 
   /* ── Process panel (RAM click) ── */
   #process-panel {
@@ -612,6 +682,14 @@ export function renderShell(cfg: ShellConfig): string {
         <input type="text" id="fe-new-name" placeholder="filename.txt" spellcheck="false" />
         <button class="btn primary" id="fe-new-btn">New File</button>
       </div>
+    </div>
+    <div id="git-diff-view" style="display:none;flex:1;flex-direction:column">
+      <div class="file-editor-toolbar">
+        <span class="path" id="gd-path"></span>
+        <span class="status" id="gd-status"></span>
+        <button class="btn" id="gd-back">← Back</button>
+      </div>
+      <div class="gd-content" id="gd-content"></div>
     </div>
     <div class="mobile-keys" id="mobile-keys">
       <div class="mk-input">

@@ -195,18 +195,32 @@ async function loadGitStatus(dirPath: string) {
 function renderGitBranch() {
 	if (!gitStatusCache || !gitStatusCache.branch) return '';
 	const { branch, linesAdded, linesRemoved } = gitStatusCache;
-	let diffHtml = '';
+	let html = `<div class="sidebar-git"><div class="git-branch-badge">
+		<svg viewBox="0 0 16 16" fill="currentColor"><path d="M11.63 1.22a.75.75 0 00-1.06 0L5.99 5.8 4.12 3.93a.75.75 0 10-1.06 1.06L4.93 6.87A3.5 3.5 0 003 10.09v3.16a.75.75 0 001 0v-3.16a2.5 2.5 0 012.5-2.5h.27l-1.06 1.06a.75.75 0 001.06 1.06l2.37-2.38a.75.75 0 000-1.06L7.59 5.27l4.04-4.05a.75.75 0 000-1.06L11.63 1.22zM3.25 13.94a.75.75 0 01-.75-.75v-.69a.75.75 0 011.5 0v.69c0 .414-.336.75-.75.75z"/></svg>
+		${escHtml(branch)}</div>`;
 	if (linesAdded > 0 || linesRemoved > 0) {
-		diffHtml = `<div class="git-diff-stats">+<span class="add">${linesAdded}</span> <span class="del">-${linesRemoved}</span></div>`;
+		html += `<div class="git-diff-stats">+<span class="add">${linesAdded}</span> <span class="del">-${linesRemoved}</span></div>`;
 	}
-	return `<div class="git-branch-badge">
-	<svg viewBox="0 0 16 16" fill="currentColor"><path d="M11.63 1.22a.75.75 0 00-1.06 0L5.99 5.8 4.12 3.93a.75.75 0 10-1.06 1.06L4.93 6.87A3.5 3.5 0 003 10.09v3.16a.75.75 0 001 0v-3.16a2.5 2.5 0 012.5-2.5h.27l-1.06 1.06a.75.75 0 001.06 1.06l2.37-2.38a.75.75 0 000-1.06L7.59 5.27l4.04-4.05a.75.75 0 000-1.06L11.63 1.22zM3.25 13.94a.75.75 0 01-.75-.75v-.69a.75.75 0 011.5 0v.69c0 .414-.336.75-.75.75z"/></svg>
-	${escHtml(branch)}</div>${diffHtml}`;
+	return html + '</div>';
 }
+
+// Click sidebar git → open git popover
+sidebarContent.addEventListener('click', (e) => {
+	const el = (e.target as HTMLElement).closest('.sidebar-git');
+	if (el && headerGitRepoRoot && gitStatusCache) {
+		e.stopPropagation();
+		showGitPopover();
+	}
+});
 
 // ── Header git status ──
 
 const headerGitEl = document.getElementById('header-git')!;
+const gitDiffView = document.getElementById('git-diff-view')!;
+const gdPath = document.getElementById('gd-path')!;
+const gdStatus = document.getElementById('gd-status')!;
+const gdContent = document.getElementById('gd-content')!;
+const gdBack = document.getElementById('gd-back')!;
 let headerGitRepoRoot: string | null = null;
 
 function updateHeaderGit(status: typeof gitStatusCache) {
@@ -219,14 +233,14 @@ function updateHeaderGit(status: typeof gitStatusCache) {
 	const { branch, linesAdded, linesRemoved } = status;
 	let html = `<span class="branch">${escHtml(branch)}</span>`;
 	if (linesAdded > 0 || linesRemoved > 0) {
-		html += `<span class="diff-stats"><span class="sep">·</span>+<span class="diff-add">${linesAdded}</span> <span class="diff-del">-${linesRemoved}</span></span>`;
+		html += `<span class="sep">·</span>+<span class="diff-add">${linesAdded}</span> <span class="diff-del">-${linesRemoved}</span>`;
 	}
 	headerGitEl.innerHTML = html;
 	headerGitEl.style.display = 'block';
 }
 
 headerGitEl.addEventListener('click', (e) => {
-	if (headerGitRepoRoot && gitStatusCache && gitStatusCache.files.length > 0) {
+	if (headerGitRepoRoot && gitStatusCache) {
 		e.stopPropagation();
 		showGitPopover();
 	}
@@ -237,44 +251,19 @@ headerGitEl.addEventListener('click', (e) => {
 const gitPopover = document.getElementById('git-popover')!;
 const gitBackdrop = document.getElementById('git-popover-backdrop')!;
 
-function showGitPopover() {
-	if (!gitStatusCache || !gitStatusCache.files.length) return;
-	const files = gitStatusCache.files;
-	let html = `<div class="git-popover-header">${files.length} file${files.length > 1 ? 's' : ''} changed</div>`;
-	for (const f of files) {
-		const add = f.additions || 0;
-		const del = f.deletions || 0;
-		let statusBadge = '';
-		switch (f.status) {
-			case 'M': statusBadge = '<span class="git-file-status M">M</span>'; break;
-			case 'A': statusBadge = '<span class="git-file-status A">A</span>'; break;
-			case 'D': statusBadge = '<span class="git-file-status D">D</span>'; break;
-			case '?': statusBadge = '<span class="git-file-status ?">?</span>'; break;
-			case 'R': statusBadge = '<span class="git-file-status R">R</span>'; break;
-		}
-		html += `<div class="git-popover-item">
-		${statusBadge}<span class="file-path">${escHtml(f.path)}</span>
-		<span class="file-add">${add > 0 ? '+' + add : ''}</span>
-		<span class="file-del">${del > 0 ? '-' + del : ''}</span>
-	</div>`;
-	}
-	html += `<div class="git-popover-footer"><button id="git-popover-browse">Browse repository →</button></div>`;
-	gitPopover.innerHTML = html;
-
+function positionGitPopover() {
 	const headerRect = headerGitEl.getBoundingClientRect();
 	gitPopover.style.top = (headerRect.bottom + 4) + 'px';
 	gitPopover.style.left = Math.max(8, Math.min(headerRect.left, window.innerWidth - 400)) + 'px';
+}
 
-	gitPopover.classList.add('open');
-	gitBackdrop.classList.add('open');
-
-	// Browse repository button
+function addBrowseListener() {
 	const browseRepoRoot = headerGitRepoRoot;
-	document.getElementById('git-popover-browse')!.addEventListener('click', () => {
+	const btn = document.getElementById('git-popover-browse');
+	if (!btn) return;
+	btn.addEventListener('click', () => {
 		closeGitPopover();
 		if (browseRepoRoot) {
-			// Directly switch to files mode and load repo root,
-			// bypassing renderFileRoots() to avoid interference
 			currentMode = 'files';
 			document.querySelectorAll('.mode-btn').forEach((b) => b.classList.remove('active'));
 			const fb = document.getElementById('mode-files');
@@ -283,6 +272,207 @@ function showGitPopover() {
 		}
 	});
 }
+
+let gitFileListHtml = '';
+
+function showGitPopover() {
+	if (!gitStatusCache) return;
+	const files = gitStatusCache.files || [];
+	if (!files.length) {
+		gitPopover.innerHTML = `<div class="git-popover-header">No changes — clean working tree</div>
+		<div class="git-popover-footer"><button id="git-popover-browse">Browse repository →</button></div>`;
+	} else {
+		let html = `<div class="git-popover-header">${files.length} file${files.length > 1 ? 's' : ''} changed</div>`;
+		for (let i = 0; i < files.length; i++) {
+			const f = files[i];
+			const add = f.additions || 0;
+			const del = f.deletions || 0;
+			let statusBadge = '';
+			switch (f.status) {
+				case 'M': statusBadge = '<span class="git-file-status M">M</span>'; break;
+				case 'A': statusBadge = '<span class="git-file-status A">A</span>'; break;
+				case 'D': statusBadge = '<span class="git-file-status D">D</span>'; break;
+				case '?': statusBadge = '<span class="git-file-status ?">?</span>'; break;
+				case 'R': statusBadge = '<span class="git-file-status R">R</span>'; break;
+			}
+			html += `<div class="git-popover-item" data-idx="${i}">
+			${statusBadge}<span class="file-path">${escHtml(f.path)}</span>
+			<span class="file-add">${add > 0 ? '+' + add : ''}</span>
+			<span class="file-del">${del > 0 ? '-' + del : ''}</span>
+		</div>`;
+		}
+		html += `<div class="git-popover-footer"><button id="git-popover-browse">Browse repository →</button></div>`;
+		gitFileListHtml = html;
+		gitPopover.innerHTML = html;
+
+		// Attach click handlers to each file row
+		gitPopover.querySelectorAll('.git-popover-item').forEach((el) => {
+			const idx = parseInt((el as HTMLElement).dataset.idx || '0', 10);
+			const file = files[idx];
+			if (!file || file.status === 'D') return; // deleted files can't show diff
+			el.classList.add('clickable');
+			(el as HTMLElement).style.cursor = 'pointer';
+			el.addEventListener('click', () => showGitDiff(file.path));
+		});
+	}
+	positionGitPopover();
+	gitPopover.classList.add('open');
+	gitBackdrop.classList.add('open');
+	addBrowseListener();
+}
+
+function isWideScreen(): boolean {
+	return window.innerWidth >= 1024;
+}
+
+function buildDiffHtml(diff: string, stagedDiff: string): { html: string; lineCount: number } {
+	const combined = diff + (stagedDiff && diff ? '\n' : '') + stagedDiff;
+	const lines = combined.split('\n');
+	let html = '';
+	let oldLine = 0, newLine = 0;
+	for (const rawLine of lines) {
+		const line = rawLine;
+		if (line.startsWith('@@')) {
+			const m = line.match(/@@\s+-(\d+)[^+]*\+(\d+)/);
+			if (m) { oldLine = parseInt(m[1], 10) - 1; newLine = parseInt(m[2], 10) - 1; }
+			html += `<div class="diff-line hunk"><span class="ln-body">${escHtml(line)}</span></div>`;
+			continue;
+		}
+		if (line.startsWith('diff --git') || line.startsWith('index ') || line.startsWith('--- ') || line.startsWith('+++ ') || line.startsWith('new file') || line.startsWith('deleted file')) {
+			if (line.startsWith('diff --git')) {
+				html += `<div class="diff-line header"><span class="ln-body">${escHtml(line)}</span></div>`;
+			}
+			continue;
+		}
+		if (line.startsWith('+')) {
+			newLine++;
+			html += `<div class="diff-line add"><span class="ln-no">${newLine}</span><span class="ln-body">${escHtml(line)}</span></div>`;
+		} else if (line.startsWith('-')) {
+			oldLine++;
+			html += `<div class="diff-line del"><span class="ln-no">${oldLine}</span><span class="ln-body">${escHtml(line)}</span></div>`;
+		} else if (line.startsWith('\\')) {
+			html += `<div class="diff-line"><span class="ln-body">${escHtml(line)}</span></div>`;
+		} else {
+			if (!line && !oldLine && !newLine) continue;
+			oldLine++;
+			newLine++;
+			html += `<div class="diff-line"><span class="ln-no">${oldLine}</span><span class="ln-no" style="margin-right:12px">${newLine}</span><span class="ln-body">${escHtml(line)}</span></div>`;
+		}
+	}
+	return { html, lineCount: lines.length };
+}
+
+async function showGitDiff(filePath: string) {
+	const repoRoot = headerGitRepoRoot;
+	if (!repoRoot) return;
+	closeGitPopover();
+
+	if (isWideScreen()) {
+		// Show in main area
+		terminalContainer.style.display = 'none';
+		if (currentTerminal) {
+			stopHeaderGitPolling();
+			currentTerminal.destroy();
+			currentTerminal = null;
+			currentSession = null;
+		}
+		updateHeaderGit(null);
+		fileEditor.style.display = 'none';
+		mainPlaceholder.style.display = 'none';
+		gitDiffView.style.display = 'flex';
+		gdPath.textContent = filePath;
+		gdStatus.textContent = 'Loading…';
+		gdContent.innerHTML = '';
+		try {
+			const res = await fetch('/api/git/diff?path=' + encodeURIComponent(repoRoot) + '&file=' + encodeURIComponent(filePath));
+			if (!res.ok) throw new Error(await res.text());
+			const data = await res.json();
+			renderDiffInMain(filePath, data.diff, data.stagedDiff);
+		} catch (err) {
+			const msg = err instanceof Error ? err.message : String(err);
+			gdStatus.textContent = 'Error';
+			gdContent.innerHTML = `<div class="diff-empty" style="padding:24px;text-align:center;color:var(--panel-muted)">Error: ${escHtml(msg)}</div>`;
+		}
+	} else {
+		// Narrow screen: show in popover
+		gitPopover.innerHTML = `<div class="git-diff-view"><div class="diff-header">
+			<button class="diff-back">← Back</button>
+			<span class="diff-filename">${escHtml(filePath)}</span>
+			<span class="diff-loading">Loading…</span>
+		</div></div>`;
+		positionGitPopover();
+		gitPopover.classList.add('open');
+		gitBackdrop.classList.add('open');
+		try {
+			const res = await fetch('/api/git/diff?path=' + encodeURIComponent(repoRoot) + '&file=' + encodeURIComponent(filePath));
+			if (!res.ok) throw new Error(await res.text());
+			const data = await res.json();
+			renderDiffInPopover(filePath, data.diff, data.stagedDiff);
+		} catch (err) {
+			const msg = err instanceof Error ? err.message : String(err);
+			gitPopover.innerHTML = `<div class="git-diff-view"><div class="diff-header">
+				<button class="diff-back">← Back</button>
+				<span class="diff-filename">${escHtml(filePath)}</span>
+			</div><div class="diff-empty">Error loading diff: ${escHtml(msg)}</div></div>`;
+		}
+	}
+}
+
+function renderDiffInPopover(filePath: string, diff: string, stagedDiff: string) {
+	if (!diff && !stagedDiff) {
+		gitPopover.innerHTML = `<div class="git-diff-view"><div class="diff-header">
+			<button class="diff-back">← Back</button>
+			<span class="diff-filename">${escHtml(filePath)}</span>
+		</div><div class="diff-empty">No diff content available</div></div>`;
+		return;
+	}
+	const { html: diffLines, lineCount } = buildDiffHtml(diff, stagedDiff);
+	gitPopover.innerHTML = `<div class="git-diff-view"><div class="diff-header">
+		<button class="diff-back">← Back</button>
+		<span class="diff-filename">${escHtml(filePath)}</span>
+		<span class="diff-filesize">${lineCount} lines</span>
+	</div><div class="diff-content">${diffLines}</div></div>`;
+
+	gitPopover.querySelector('.diff-back')?.addEventListener('click', () => {
+		gitPopover.innerHTML = gitFileListHtml;
+		positionGitPopover();
+		if (gitStatusCache) {
+			gitPopover.querySelectorAll('.git-popover-item').forEach((el) => {
+				const idx = parseInt((el as HTMLElement).dataset.idx || '0', 10);
+				const file = gitStatusCache!.files[idx];
+				if (!file || file.status === 'D') return;
+				(el as HTMLElement).style.cursor = 'pointer';
+				el.addEventListener('click', () => showGitDiff(file.path));
+			});
+		}
+		addBrowseListener();
+	});
+}
+
+function renderDiffInMain(filePath: string, diff: string, stagedDiff: string) {
+	if (!diff && !stagedDiff) {
+		gdStatus.textContent = 'No diff';
+		gdContent.innerHTML = '<div class="diff-empty" style="padding:24px;text-align:center;color:var(--panel-muted)">No diff content available</div>';
+		return;
+	}
+	const { html: diffLines, lineCount } = buildDiffHtml(diff, stagedDiff);
+	gdPath.textContent = filePath;
+	gdStatus.textContent = lineCount + ' lines';
+	gdContent.innerHTML = diffLines;
+}
+
+function closeGitDiffView() {
+	gitDiffView.style.display = 'none';
+	if (currentSession) {
+		terminalContainer.style.display = '';
+		terminalContainer.classList.add('terminal-pending');
+		startHeaderGitPolling();
+	} else {
+		mainPlaceholder.style.display = 'flex';
+	}
+}
+
+gdBack.addEventListener('click', closeGitDiffView);
 
 function closeGitPopover() {
 	gitPopover.classList.remove('open');
