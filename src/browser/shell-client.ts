@@ -362,6 +362,8 @@ function buildDiffHtml(diff: string, stagedDiff: string): { html: string; lineCo
 	return { html, lineCount: lines.length };
 }
 
+let prevSessionForDiff: string | null = null;
+
 async function showGitDiff(filePath: string) {
 	const repoRoot = headerGitRepoRoot;
 	if (!repoRoot) return;
@@ -374,6 +376,7 @@ async function showGitDiff(filePath: string) {
 			stopHeaderGitPolling();
 			currentTerminal.destroy();
 			currentTerminal = null;
+			prevSessionForDiff = currentSession;
 			currentSession = null;
 		}
 		updateHeaderGit(null);
@@ -463,7 +466,12 @@ function renderDiffInMain(filePath: string, diff: string, stagedDiff: string) {
 
 function closeGitDiffView() {
 	gitDiffView.style.display = 'none';
-	if (currentSession) {
+	if (prevSessionForDiff) {
+		terminalContainer.style.display = '';
+		terminalContainer.classList.add('terminal-pending');
+		ve(prevSessionForDiff);
+		prevSessionForDiff = null;
+	} else if (currentSession) {
 		terminalContainer.style.display = '';
 		terminalContainer.classList.add('terminal-pending');
 		startHeaderGitPolling();

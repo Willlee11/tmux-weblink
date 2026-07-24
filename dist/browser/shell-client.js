@@ -346,7 +346,8 @@ function buildDiffHtml(diff, stagedDiff) {
     return { html, lineCount: lines.length };
 }
 async function showGitDiff(filePath) {
-    if (!headerGitRepoRoot)
+    const repoRoot = headerGitRepoRoot;
+    if (!repoRoot)
         return;
     closeGitPopover();
     if (isWideScreen()) {
@@ -356,6 +357,7 @@ async function showGitDiff(filePath) {
             stopHeaderGitPolling();
             currentTerminal.destroy();
             currentTerminal = null;
+            prevSessionForDiff = currentSession;
             currentSession = null;
         }
         updateHeaderGit(null);
@@ -366,7 +368,7 @@ async function showGitDiff(filePath) {
         gdStatus.textContent = 'Loading…';
         gdContent.innerHTML = '';
         try {
-            const res = await fetch('/api/git/diff?path=' + encodeURIComponent(headerGitRepoRoot) + '&file=' + encodeURIComponent(filePath));
+            const res = await fetch('/api/git/diff?path=' + encodeURIComponent(repoRoot) + '&file=' + encodeURIComponent(filePath));
             if (!res.ok)
                 throw new Error(await res.text());
             const data = await res.json();
@@ -389,7 +391,7 @@ async function showGitDiff(filePath) {
         gitPopover.classList.add('open');
         gitBackdrop.classList.add('open');
         try {
-            const res = await fetch('/api/git/diff?path=' + encodeURIComponent(headerGitRepoRoot) + '&file=' + encodeURIComponent(filePath));
+            const res = await fetch('/api/git/diff?path=' + encodeURIComponent(repoRoot) + '&file=' + encodeURIComponent(filePath));
             if (!res.ok)
                 throw new Error(await res.text());
             const data = await res.json();
@@ -445,9 +447,16 @@ function renderDiffInMain(filePath, diff, stagedDiff) {
     gdStatus.textContent = lineCount + ' lines';
     gdContent.innerHTML = diffLines;
 }
+let prevSessionForDiff = null;
 function closeGitDiffView() {
     gitDiffView.style.display = 'none';
-    if (currentSession) {
+    if (prevSessionForDiff) {
+        terminalContainer.style.display = '';
+        terminalContainer.classList.add('terminal-pending');
+        ve(prevSessionForDiff);
+        prevSessionForDiff = null;
+    }
+    else if (currentSession) {
         terminalContainer.style.display = '';
         terminalContainer.classList.add('terminal-pending');
         startHeaderGitPolling();

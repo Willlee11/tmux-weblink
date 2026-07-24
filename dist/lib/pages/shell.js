@@ -199,6 +199,9 @@ export function renderShell(cfg) {
   }
 
   /* ── Git diff view in main area (wide screen) ── */
+  #git-diff-view {
+    overflow: hidden;
+  }
   .gd-content {
     flex: 1; overflow: auto;
     background: var(--page-bg);
