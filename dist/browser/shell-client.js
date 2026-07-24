@@ -345,6 +345,7 @@ function buildDiffHtml(diff, stagedDiff) {
     }
     return { html, lineCount: lines.length };
 }
+let prevSessionForDiff = null;
 async function showGitDiff(filePath) {
     const repoRoot = headerGitRepoRoot;
     if (!repoRoot)
@@ -447,13 +448,12 @@ function renderDiffInMain(filePath, diff, stagedDiff) {
     gdStatus.textContent = lineCount + ' lines';
     gdContent.innerHTML = diffLines;
 }
-let prevSessionForDiff = null;
 function closeGitDiffView() {
     gitDiffView.style.display = 'none';
     if (prevSessionForDiff) {
         terminalContainer.style.display = '';
         terminalContainer.classList.add('terminal-pending');
-        ve(prevSessionForDiff);
+        openSession(prevSessionForDiff);
         prevSessionForDiff = null;
     }
     else if (currentSession) {

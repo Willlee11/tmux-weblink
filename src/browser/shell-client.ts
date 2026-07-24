@@ -469,7 +469,7 @@ function closeGitDiffView() {
 	if (prevSessionForDiff) {
 		terminalContainer.style.display = '';
 		terminalContainer.classList.add('terminal-pending');
-		ve(prevSessionForDiff);
+		openSession(prevSessionForDiff);
 		prevSessionForDiff = null;
 	} else if (currentSession) {
 		terminalContainer.style.display = '';
