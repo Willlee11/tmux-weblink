@@ -1,1 +1,0 @@
-import{initTerminal as o}from"./terminal-core.js";const e=window.__TMUX_WEB_TERMINAL__;if(!e)throw new Error("missing tmux-web terminal config");const i=document.getElementById("terminal-container");if(!i)throw new Error("missing terminal container");const{sessionName:r,...m}=e;o(i,r,m).then(n=>{window.tmuxWeb={sendInput:t=>n.sendInput(t),focusTerminal:()=>n.focus()}});
