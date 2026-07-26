@@ -47,7 +47,7 @@ export function isAlternateScreen(target: string): boolean {
  * Negative indices refer to scrollback; omit `end` to capture through the visible pane end.
  */
 export function capturePaneLines(target: string, start: number, end?: number): string {
-	const args = ["capture-pane", "-t", target, "-p", "-S", String(start)];
+	const args = ["capture-pane", "-t", target, "-p", "-e", "-S", String(start)];
 	if (end !== undefined) args.push("-E", String(end));
 	return tmux(args);
 }

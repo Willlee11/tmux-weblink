@@ -59,7 +59,6 @@ import {
 	getSessionPaneTarget,
 	capturePaneTail,
 	capturePaneHistoryChunk,
-	isAlternateScreen,
 	toCrlf,
 } from "./lib/tmux-capture.js";
 import { readTerminalBufferConfig } from "./lib/terminal-config.js";
@@ -1454,6 +1453,7 @@ wss.on("connection", (ws: WebSocket, _req: import("http").IncomingMessage, sessi
 	const { initialLines, historyChunk, syncIdleMs, syncMaxMs } = terminalBufferConfig;
 
 	let syncing = true;
+	let syncBuffer = '';
 	let syncIdleTimer: ReturnType<typeof setTimeout> | null = null;
 	let syncMaxTimer: ReturnType<typeof setTimeout> | null = null;
 	let paneTarget = sessionName;
@@ -1481,16 +1481,20 @@ wss.on("connection", (ws: WebSocket, _req: import("http").IncomingMessage, sessi
 			paneTarget = sessionName;
 		}
 
+		try {
+			const data = capturePaneTail(paneTarget, initialLines);
+			sendServerMessage(ws, { type: "snapshot", data: toCrlf(data), lines: initialLines });
+		} catch {
+			sendServerMessage(ws, { type: "data", data: "\r\n" });
+		}
 
-		if (!isAlternateScreen(paneTarget)) {
-			try {
-				const data = capturePaneTail(paneTarget, initialLines);
-				sendServerMessage(ws, { type: "snapshot", data: toCrlf(data), lines: initialLines });
-			} catch {
-				sendServerMessage(ws, { type: "data", data: "\r\n" });
-			}
+		// Flush buffered pty output so client gets tmux full escape-sequence redraw
+		if (syncBuffer) {
+			sendServerMessage(ws, { type: "data", data: syncBuffer });
+			syncBuffer = '';
 		}
 	};
+
 
 	const scheduleSyncEnd = () => {
 		if (!syncing) return;
@@ -1535,6 +1539,7 @@ wss.on("connection", (ws: WebSocket, _req: import("http").IncomingMessage, sessi
 
 		ptyProcess.onData((data: string) => {
 			if (syncing) {
+				syncBuffer += data;
 				scheduleSyncEnd();
 				return;
 			}
