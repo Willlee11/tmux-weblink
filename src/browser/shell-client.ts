@@ -14,7 +14,7 @@ const shellCfg = window.__TMUX_WEB_SHELL__!;
 
 let currentTerminal: TerminalInstance | null = null;
 let currentSession: string | null = null;
-let currentMode: 'sessions' | 'files' | 'browser' = 'sessions';
+let currentMode: 'sessions' | 'files' = 'sessions';
 let currentFileDir = '';
 let currentFilePath = '';
 let currentFileContent = '';
@@ -54,23 +54,17 @@ function expandSidebar() {
 
 document.getElementById('mode-sessions')!.addEventListener('click', () => { expandSidebar(); setMode('sessions'); });
 document.getElementById('mode-files')!.addEventListener('click', () => { expandSidebar(); setMode('files'); });
-document.getElementById('mode-browser')!.addEventListener('click', () => { expandSidebar(); setMode('browser'); });
 
-function setMode(mode: 'sessions' | 'files' | 'browser') {
+function setMode(mode: 'sessions' | 'files') {
 	currentMode = mode;
 	document.querySelectorAll('.mode-btn').forEach((btn) => btn.classList.remove('active'));
-	const btn = document.getElementById(mode === 'sessions' ? 'mode-sessions' : mode === 'files' ? 'mode-files' : 'mode-browser');
+	const btn = document.getElementById(mode === 'sessions' ? 'mode-sessions' : 'mode-files');
 	if (btn) btn.classList.add('active');
 
 	if (mode === 'sessions') {
-		exitBrowserMode();
 		renderSessionList();
-	} else if (mode === 'files') {
-		exitBrowserMode();
-		renderFileRoots();
 	} else {
-		enterBrowserMode();
-		renderTabs();
+		renderFileRoots();
 	}
 }
 
@@ -119,7 +113,6 @@ function escHtml(s: string): string {
 
 	async function openSession(name: string) {
 		if (currentSession === name && currentTerminal) return; // already open
-		exitBrowserMode();
 
 		// Hide file editor, show terminal
 		fileEditor.style.display = 'none';
@@ -375,7 +368,6 @@ async function showGitDiff(filePath: string) {
 	const repoRoot = headerGitRepoRoot;
 	if (!repoRoot) return;
 	closeGitPopover();
-	exitBrowserMode();
 
 	if (isWideScreen()) {
 		// Show in main area
@@ -653,7 +645,6 @@ function getParentDir(p: string): string | null {
 
 async function openFileEditor(filePath: string) {
 	currentFilePath = filePath;
-	exitBrowserMode();
 
 	// Hide terminal, show file editor
 	terminalContainer.style.display = 'none';
@@ -768,399 +759,6 @@ feNewBtn.addEventListener('click', async () => {
 		if (currentFileDir) loadFileDir(currentFileDir);
 	} catch {
 		feStatus.textContent = 'Create failed';
-	}
-});
-
-// ── Browser mode (server-side page proxy) ──
-
-type BrowserTab = {
-	id: string;
-	title: string;
-	url: string | null;
-	history: string[];
-	historyIdx: number;
-	error: string | null;
-	seq: number;
-};
-
-const browserView = document.getElementById('browser-view')!;
-const brBack = document.getElementById('br-back') as HTMLButtonElement;
-const brFwd = document.getElementById('br-fwd') as HTMLButtonElement;
-const brReload = document.getElementById('br-reload') as HTMLButtonElement;
-const brAddress = document.getElementById('br-address') as HTMLInputElement;
-const brNew = document.getElementById('br-new') as HTMLButtonElement;
-const browserContent = document.getElementById('browser-content')!;
-const mobileKeysEl = document.getElementById('mobile-keys')!;
-
-let browserTabs: BrowserTab[] = [];
-let activeTabId: string | null = null;
-let tabSeq = 0;
-let browserModeActive = false;
-let prevMainForBrowser: 'terminal' | 'files' | 'none' = 'none';
-let prevSessionForBrowser: string | null = null;
-
-const SEARCH_URL = 'https://html.duckduckgo.com/html/?q=';
-
-function activeTab(): BrowserTab | null {
-	if (!activeTabId) return null;
-	return browserTabs.find((t) => t.id === activeTabId) ?? null;
-}
-
-function globeSvg(size: number): string {
-	return `<svg viewBox="0 0 24 24" fill="currentColor" width="${size}" height="${size}"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg>`;
-}
-
-function normalizeInput(input: string): string {
-	let s = input.trim();
-	if (/^https?:\/\//i.test(s)) return s;
-	if (/^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(s)) return s; // explicit scheme (mailto:, etc.)
-	if (!/\s/.test(s) && /\./.test(s)) return 'https://' + s; // looks like a domain
-	if (/^(localhost|127\.0\.0\.1)(:\d+)?$/i.test(s)) return 'http://' + s;
-	return SEARCH_URL + encodeURIComponent(s); // single word or query → search
-}
-
-function newBrowserTab(): string {
-	tabSeq++;
-	const id = 't' + tabSeq;
-	browserTabs.push({ id, title: 'New Tab', url: null, history: [], historyIdx: -1, error: null, seq: 0 });
-	activeTabId = id;
-	renderTabs();
-	showStartPage();
-	return id;
-}
-
-function renderTabs() {
-	if (currentMode !== 'browser') return;
-	let html = '<div class="sidebar-section-label">Tabs</div>';
-	for (const tab of browserTabs) {
-		const active = tab.id === activeTabId ? ' active' : '';
-		html += `<div class="tab-item${active}" data-tab="${tab.id}">
-			<span class="tab-fav">${globeSvg(16)}</span>
-			<span class="tab-title">${escHtml(tab.title)}</span>
-			<button class="tab-close" data-close="${tab.id}" title="Close tab" aria-label="Close tab">&times;</button>
-		</div>`;
-	}
-	html += `<button class="tab-new" id="tab-new-btn"><svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg> New Tab</button>`;
-	sidebarContent.innerHTML = html;
-
-	sidebarContent.querySelectorAll('.tab-item').forEach((el) => {
-		el.addEventListener('click', (e) => {
-			if ((e.target as HTMLElement).closest('.tab-close')) return;
-			activateTab((el as HTMLElement).dataset.tab!);
-		});
-	});
-	sidebarContent.querySelectorAll('.tab-close').forEach((el) => {
-		el.addEventListener('click', (e) => {
-			e.stopPropagation();
-			closeTab((el as HTMLElement).dataset.close!);
-		});
-	});
-	const newBtn = document.getElementById('tab-new-btn');
-	if (newBtn) newBtn.addEventListener('click', () => { newBrowserTab(); brAddress.focus(); });
-}
-
-function activateTab(id: string) {
-	activeTabId = id;
-	renderTabs();
-	const tab = activeTab();
-	if (tab) {
-		brAddress.value = tab.url || '';
-		updateNavButtons();
-		if (tab.error) {
-			showErrorPage(tab.error);
-		} else if (tab.url) {
-			navigate(tab.id, tab.url, false);
-		} else {
-			showStartPage();
-		}
-	}
-}
-
-function closeTab(id: string) {
-	const idx = browserTabs.findIndex((t) => t.id === id);
-	if (idx === -1) return;
-	browserTabs.splice(idx, 1);
-	if (browserTabs.length === 0) {
-		activeTabId = null;
-		renderTabs();
-		showStartPage();
-		return;
-	}
-	if (activeTabId === id) {
-		activeTabId = browserTabs[Math.max(0, idx - 1)].id;
-		activateTab(activeTabId);
-	} else {
-		renderTabs();
-	}
-}
-
-function updateNavButtons() {
-	const tab = activeTab();
-	brBack.disabled = !tab || tab.historyIdx <= 0;
-	brFwd.disabled = !tab || tab.historyIdx >= tab.history.length - 1;
-}
-
-function showStartPage() {
-	browserContent.innerHTML = `<div class="browser-state">
-		<div class="big">${globeSvg(44)}</div>
-		<div>Type a URL or search terms in the address bar above.</div>
-		<div class="hint">Ctrl/Cmd-click any link to open it in a new tab.</div>
-	</div>`;
-	updateNavButtons();
-}
-
-function showErrorPage(msg: string) {
-	browserContent.innerHTML = `<div class="browser-state">
-		<div class="big" style="color:#ef4444">${globeSvg(44)}</div>
-		<div>Could not load page</div>
-		<div class="hint" style="color:#ef4444">${escHtml(msg)}</div>
-	</div>`;
-}
-
-function showLoading() {
-	browserContent.innerHTML = `<div class="browser-state">
-		<div class="big">${globeSvg(44)}</div>
-		<div>Loading…</div>
-	</div>`;
-}
-
-async function navigate(tabId: string, rawUrl: string, pushHistory: boolean) {
-	const tab = browserTabs.find((t) => t.id === tabId);
-	if (!tab) return;
-	const url = normalizeInput(rawUrl);
-	if (!url) return;
-	const mySeq = ++tab.seq;
-
-	if (pushHistory) {
-		tab.history = tab.history.slice(0, tab.historyIdx + 1);
-		tab.history.push(url);
-		tab.historyIdx = tab.history.length - 1;
-	}
-	tab.url = url;
-	tab.error = null;
-	if (activeTabId === tabId) {
-		brAddress.value = url;
-		updateNavButtons();
-		showLoading();
-	}
-
-	try {
-		const res = await fetch('/api/browse?url=' + encodeURIComponent(url) + '&tab=' + encodeURIComponent(tabId));
-		const data = await res.json();
-		if (tab.seq !== mySeq) return; // stale response
-		if (!res.ok || data.error) {
-			const errMsg = data.error || ('HTTP ' + res.status);
-			tab.error = errMsg;
-			if (activeTabId === tabId) showErrorPage(errMsg);
-			renderTabs();
-			return;
-		}
-		const finalUrl: string = data.finalUrl || url;
-		tab.url = finalUrl;
-		tab.title = data.title || tab.title;
-		tab.history[tab.historyIdx] = finalUrl;
-		if (activeTabId === tabId) {
-			brAddress.value = finalUrl;
-			updateNavButtons();
-			renderPage(data);
-		}
-		renderTabs();
-	} catch (err) {
-		if (tab.seq !== mySeq) return;
-		tab.error = 'Network error: ' + (err instanceof Error ? err.message : String(err));
-		if (activeTabId === tabId) showErrorPage(tab.error);
-		renderTabs();
-	}
-}
-
-function goBack() {
-	const tab = activeTab();
-	if (!tab || tab.historyIdx <= 0) return;
-	tab.historyIdx--;
-	navigate(tab.id, tab.history[tab.historyIdx], false);
-}
-
-function goForward() {
-	const tab = activeTab();
-	if (!tab || tab.historyIdx >= tab.history.length - 1) return;
-	tab.historyIdx++;
-	navigate(tab.id, tab.history[tab.historyIdx], false);
-}
-
-function renderPage(data: any) {
-	let html = '';
-	if (data.truncated) {
-		html += '<div class="browser-bar"><span class="err">Response truncated — page may be incomplete.</span></div>';
-	}
-	html += data.html || '';
-	browserContent.innerHTML = html;
-	attachContentHandlers();
-	browserContent.scrollTop = 0;
-}
-
-function attachContentHandlers() {
-	browserContent.querySelectorAll('a[href]').forEach((a) => {
-		a.addEventListener('click', (e) => {
-			const href = a.getAttribute('href') || '';
-			if (href.startsWith('/api/browse?')) {
-				e.preventDefault();
-				const me = e as MouseEvent;
-				let target: string | null = null;
-				try {
-					target = new URL(href, location.origin).searchParams.get('url');
-				} catch {
-					return;
-				}
-				if (!target) return;
-				if (me.ctrlKey || me.metaKey || me.shiftKey) {
-					const id = newBrowserTab();
-					navigate(id, target, true);
-				} else {
-					navigate(activeTabId!, target, true);
-				}
-			} else if (/^(about|blob|file):/i.test(href)) {
-				e.preventDefault();
-			}
-			// mailto/tel/sms and #frag links behave natively
-		});
-	});
-	browserContent.querySelectorAll('form').forEach((f) => {
-		f.addEventListener('submit', (e) => {
-			e.preventDefault();
-			const action = f.getAttribute('action') || '';
-			if (!action.startsWith('/api/browse/submit?')) return;
-			let tabId: string | null = null;
-			try {
-				tabId = new URL(action, location.origin).searchParams.get('tab') || activeTabId;
-			} catch {
-				tabId = activeTabId;
-			}
-			if (!tabId) return;
-			const fd = new FormData(f);
-			const params = new URLSearchParams();
-			fd.forEach((v, k) => params.append(k, String(v)));
-			submitForm(tabId, params);
-		});
-	});
-}
-
-async function submitForm(tabId: string, params: URLSearchParams) {
-	const tab = browserTabs.find((t) => t.id === tabId);
-	if (!tab) return;
-	const mySeq = ++tab.seq;
-	const action = params.get('__browse_action') || '';
-	params.delete('__browse_action');
-	params.delete('__browse_method');
-	if (activeTabId === tabId) showLoading();
-	try {
-		const res = await fetch('/api/browse/submit?tab=' + encodeURIComponent(tabId), {
-			method: 'POST',
-			headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-			body: params.toString(),
-		});
-		const data = await res.json();
-		if (tab.seq !== mySeq) return;
-		if (!res.ok || data.error) {
-			const errMsg = data.error || ('HTTP ' + res.status);
-			tab.error = errMsg;
-			if (activeTabId === tabId) showErrorPage(errMsg);
-			return;
-		}
-		const finalUrl: string = data.finalUrl || action || tab.url || '';
-		tab.url = finalUrl;
-		tab.title = data.title || tab.title;
-		tab.history = tab.history.slice(0, tab.historyIdx + 1);
-		tab.history.push(finalUrl);
-		tab.historyIdx = tab.history.length - 1;
-		tab.error = null;
-		if (activeTabId === tabId) {
-			brAddress.value = finalUrl;
-			updateNavButtons();
-			renderPage(data);
-		}
-		renderTabs();
-	} catch (err) {
-		if (tab.seq !== mySeq) return;
-		tab.error = 'Network error: ' + (err instanceof Error ? err.message : String(err));
-		if (activeTabId === tabId) showErrorPage(tab.error);
-	}
-}
-
-function enterBrowserMode() {
-	if (browserModeActive) return;
-	browserModeActive = true;
-	if (fileEditor.style.display !== 'none') {
-		prevMainForBrowser = 'files';
-		if (currentTerminal) { stopHeaderGitPolling(); currentTerminal.destroy(); currentTerminal = null; }
-	} else if (currentTerminal || terminalContainer.style.display !== 'none') {
-		prevMainForBrowser = 'terminal';
-		prevSessionForBrowser = currentSession;
-		if (currentTerminal) {
-			stopHeaderGitPolling();
-			currentTerminal.destroy();
-			currentTerminal = null;
-		}
-		currentSession = null;
-	} else {
-		prevMainForBrowser = 'none';
-	}
-	terminalContainer.style.display = 'none';
-	fileEditor.style.display = 'none';
-	gitDiffView.style.display = 'none';
-	mainPlaceholder.style.display = 'none';
-	updateHeaderGit(null);
-	mobileKeysEl.style.display = 'none';
-	browserView.style.display = 'flex';
-
-	if (!activeTabId) {
-		newBrowserTab();
-	} else {
-		renderTabs();
-		const tab = activeTab();
-		if (tab) {
-			brAddress.value = tab.url || '';
-			updateNavButtons();
-			if (tab.url) navigate(tab.id, tab.url, false);
-			else showStartPage();
-		}
-	}
-	expandSidebar();
-}
-
-function exitBrowserMode() {
-	if (!browserModeActive) return;
-	browserModeActive = false;
-	browserView.style.display = 'none';
-	mobileKeysEl.style.display = '';
-	if (prevMainForBrowser === 'files') {
-		fileEditor.style.display = 'flex';
-	} else if (prevMainForBrowser === 'terminal' && prevSessionForBrowser) {
-		const s = prevSessionForBrowser;
-		prevSessionForBrowser = null;
-		openSession(s);
-	} else if (currentSession) {
-		terminalContainer.style.display = '';
-		terminalContainer.classList.add('terminal-pending');
-		startHeaderGitPolling();
-	} else {
-		mainPlaceholder.style.display = 'flex';
-	}
-	prevMainForBrowser = 'none';
-}
-
-brBack.addEventListener('click', goBack);
-brFwd.addEventListener('click', goForward);
-brReload.addEventListener('click', () => {
-	const tab = activeTab();
-	if (tab && tab.url) navigate(tab.id, tab.url, false);
-});
-brNew.addEventListener('click', () => { newBrowserTab(); brAddress.focus(); brAddress.select(); });
-brAddress.addEventListener('keydown', (e) => {
-	if (e.key === 'Enter') {
-		e.preventDefault();
-		const id = activeTabId || newBrowserTab();
-		navigate(id, brAddress.value, true);
-		brAddress.blur();
 	}
 });
 

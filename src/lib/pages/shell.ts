@@ -324,97 +324,6 @@ export function renderShell(cfg: ShellConfig): string {
     font-size: 11px;
   }
 
-  /* ── Browser mode tabs (sidebar) ── */
-  .tab-item {
-    display: flex; align-items: center; gap: 8px;
-    padding: 8px 10px; border-radius: 8px;
-    cursor: pointer; font-size: var(--text-sm); color: var(--page-fg);
-    margin-bottom: 2px; min-width: 0;
-    transition: background 0.1s;
-  }
-  .tab-item:hover { background: color-mix(in srgb, var(--panel-accent) 8%, transparent); }
-  .tab-item.active { background: color-mix(in srgb, var(--panel-accent) 12%, transparent); color: var(--panel-accent); font-weight: 500; }
-  .tab-fav {
-    width: 16px; height: 16px; flex-shrink: 0;
-    font-size: 13px; line-height: 1; text-align: center;
-  }
-  .tab-fav svg { width: 16px; height: 16px; fill: currentColor; }
-  .tab-title {
-    flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
-  }
-  .tab-close {
-    display: none; align-items: center; justify-content: center;
-    width: 20px; height: 20px; flex-shrink: 0;
-    background: none; border: none; border-radius: 4px;
-    color: var(--panel-muted); cursor: pointer; font-size: 14px; line-height: 1;
-  }
-  .tab-item:hover .tab-close { display: flex; }
-  .tab-close:hover { color: var(--panel-accent); background: color-mix(in srgb, var(--panel-accent) 8%, transparent); }
-  .tab-close:focus-visible { ${focusRing()} }
-  .tab-new {
-    display: flex; align-items: center; justify-content: center; gap: 6px;
-    width: 100%; padding: 8px; margin-top: 6px;
-    background: none; border: 1px dashed var(--panel-border); border-radius: 8px;
-    color: var(--panel-muted); cursor: pointer; font-size: var(--text-sm); font-family: inherit;
-    transition: color 0.15s, border-color 0.15s, background 0.15s;
-  }
-  .tab-new:hover {
-    color: var(--panel-accent); border-color: var(--panel-accent);
-    background: color-mix(in srgb, var(--panel-accent) 6%, transparent);
-  }
-  .tab-new:focus-visible { ${focusRing()} }
-  .tab-new svg { width: 16px; height: 16px; fill: currentColor; }
-
-  /* ── Browser mode (main area) ── */
-  #browser-view { overflow: hidden; }
-  .browser-toolbar {
-    display: flex; align-items: center; gap: 6px;
-    padding: 8px 12px; border-bottom: 1px solid var(--panel-border);
-    flex-wrap: nowrap;
-  }
-  .bbtn {
-    display: inline-flex; align-items: center; justify-content: center;
-    width: 32px; height: 32px; flex-shrink: 0;
-    background: none; border: none; border-radius: 8px;
-    color: var(--panel-muted); cursor: pointer;
-    transition: color 0.15s, background 0.15s;
-  }
-  .bbtn:hover:not(:disabled) { color: var(--panel-accent); background: color-mix(in srgb, var(--panel-accent) 8%, transparent); }
-  .bbtn:disabled { opacity: 0.35; cursor: default; }
-  .bbtn:focus-visible { ${focusRing()} }
-  .bbtn svg { width: 18px; height: 18px; fill: currentColor; }
-  .br-address {
-    flex: 1; min-width: 0;
-    padding: 7px 12px;
-    background: var(--page-bg); border: 1px solid var(--panel-border);
-    border-radius: 8px; color: var(--page-fg); font-size: var(--text-sm);
-    font-family: var(--font-mono); outline: none;
-  }
-  .br-address:focus { border-color: var(--panel-accent); }
-  #browser-content {
-    flex: 1; overflow: auto;
-    background: var(--page-bg); color: var(--page-fg);
-    font-size: var(--text-sm); line-height: 1.6;
-    padding: 16px;
-    word-wrap: break-word;
-  }
-  #browser-content img { max-width: 100%; height: auto; }
-  #browser-content a { color: var(--panel-accent); }
-  #browser-content .browser-bar {
-    font-family: var(--font-mono); font-size: 11px;
-    color: var(--panel-muted); padding: 4px 0;
-    border-bottom: 1px solid var(--panel-border); margin-bottom: 12px;
-    display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
-  }
-  #browser-content .browser-bar .err { color: #ef4444; }
-  .browser-state {
-    display: flex; flex-direction: column; align-items: center; justify-content: center;
-    gap: 12px; height: 100%; color: var(--panel-muted); text-align: center;
-    padding: 24px; font-size: var(--text-sm); line-height: 1.6;
-  }
-  .browser-state .big { font-size: 40px; color: var(--panel-accent); opacity: 0.5; }
-  .browser-state .hint { font-family: var(--font-mono); font-size: 11px; }
-
   /* ── Process panel (RAM click) ── */
   #process-panel {
     position: fixed; top: 52px; right: 12px; z-index: 300;
@@ -752,7 +661,6 @@ export function renderShell(cfg: ShellConfig): string {
     <div class="sidebar-footer">
       <button class="mode-btn active" id="mode-sessions" title="Sessions">${icon('sessions', 'width="20" height="20"')}</button>
       <button class="mode-btn" id="mode-files" title="Files">${icon('folder', 'width="20" height="20"')}</button>
-      <button class="mode-btn" id="mode-browser" title="Browser">${icon('browser', 'width="20" height="20"')}</button>
       <button class="mode-btn" id="mode-settings" title="Settings">${icon('settings', 'width="20" height="20"')}</button>
     </div>
   </aside>
@@ -785,16 +693,6 @@ export function renderShell(cfg: ShellConfig): string {
         <button class="btn" id="gd-back">← Back</button>
       </div>
       <div class="gd-content" id="gd-content"></div>
-    </div>
-    <div id="browser-view" style="display:none;flex:1;flex-direction:column">
-      <div class="browser-toolbar">
-        <button class="bbtn" id="br-back" title="Back" aria-label="Back" disabled>${icon('back')}</button>
-        <button class="bbtn" id="br-fwd" title="Forward" aria-label="Forward" disabled>${icon('forward')}</button>
-        <button class="bbtn" id="br-reload" title="Reload" aria-label="Reload">${icon('refresh')}</button>
-        <input type="text" id="br-address" class="br-address" placeholder="Enter URL or search terms…" spellcheck="false" autocomplete="off" autocapitalize="off" autocorrect="off" />
-        <button class="bbtn" id="br-new" title="New tab" aria-label="New tab">${icon('add')}</button>
-      </div>
-      <div id="browser-content"></div>
     </div>
     <div class="mobile-keys" id="mobile-keys">
       <div class="mk-input">

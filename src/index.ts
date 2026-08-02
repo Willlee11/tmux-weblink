@@ -63,7 +63,6 @@ import {
 } from "./lib/tmux-capture.js";
 import { readTerminalBufferConfig } from "./lib/terminal-config.js";
 import { ImageUploadError, saveUploadedImage } from "./lib/image-upload.js";
-import { browsePage, browseAsset, browseSubmit, BrowseError } from "./lib/web-browse.js";
 import { getSystemStatus, getTopProcesses, killProcess } from "./lib/system-monitor.js";
 import {
 	listSessionWindows,
@@ -1117,71 +1116,6 @@ app.post("/api/file/touch", requireAuth(), async (c) => {
 		if ((err as Error).message === "FS_ROOTS_NOT_CONFIGURED") return c.json({ error: "file access not configured" }, 403);
 		if ((err as Error).message === "PATH_NOT_ALLOWED") return c.json({ error: "path not allowed" }, 403);
 		return c.json({ error: "touch failed" }, 500);
-	}
-});
-
-// ── Browser API (server-side page proxy) ────────────────────────────────────
-
-function browseTabId(raw: string | undefined): string {
-	return typeof raw === "string" && raw.length <= 64 ? raw : "default";
-}
-
-app.get("/api/browse", requireAuth(), async (c) => {
-	const rawUrl = c.req.query("url");
-	if (!rawUrl) return c.json({ error: "url is required" }, 400);
-	const tab = browseTabId(c.req.query("tab"));
-	try {
-		const result = await browsePage(rawUrl, tab);
-		return c.json(result);
-	} catch (err) {
-		if (err instanceof BrowseError) return c.json({ error: err.message }, err.status);
-		console.error("[browse]", err);
-		return c.json({ error: "browse failed" }, 500);
-	}
-});
-
-app.get("/api/browse/asset", requireAuth(), async (c) => {
-	const rawUrl = c.req.query("url");
-	if (!rawUrl) return c.json({ error: "url is required" }, 400);
-	const tab = browseTabId(c.req.query("tab"));
-	try {
-		const { buf, contentType } = await browseAsset(rawUrl, tab);
-		return c.body(buf as unknown as Uint8Array<ArrayBuffer>, 200, {
-			"Content-Type": contentType,
-			"Cache-Control": "no-cache",
-		});
-	} catch (err) {
-		if (err instanceof BrowseError) return c.json({ error: err.message }, err.status);
-		console.error("[browse/asset]", err);
-		return c.json({ error: "asset fetch failed" }, 500);
-	}
-});
-
-app.post("/api/browse/submit", requireAuth(), async (c) => {
-	const tab = browseTabId(c.req.query("tab"));
-	let body: Record<string, unknown>;
-	try {
-		body = await c.req.parseBody();
-	} catch {
-		return c.json({ error: "invalid form body" }, 400);
-	}
-	const action = typeof body.__browse_action === "string" ? body.__browse_action : "";
-	const method = typeof body.__browse_method === "string" && body.__browse_method.toLowerCase() === "get" ? "get" : "post";
-	if (!action) return c.json({ error: "missing form action" }, 400);
-
-	const fields: [string, string][] = [];
-	for (const [k, v] of Object.entries(body)) {
-		if (k === "__browse_action" || k === "__browse_method") continue;
-		fields.push([k, String(v)]);
-	}
-
-	try {
-		const result = await browseSubmit(action, fields, method, tab);
-		return c.json(result);
-	} catch (err) {
-		if (err instanceof BrowseError) return c.json({ error: err.message }, err.status);
-		console.error("[browse/submit]", err);
-		return c.json({ error: "form submit failed" }, 500);
 	}
 });
 
