@@ -1132,9 +1132,6 @@ app.get("/api/browse", requireAuth(), async (c) => {
 	const tab = browseTabId(c.req.query("tab"));
 	try {
 		const result = await browsePage(rawUrl, tab);
-		const hasForm = /<form[\s>]/i.test(result.html);
-		const hasInjected = result.html.includes("__browse_action");
-		console.error(`[browse] ok tab=${tab} url=${rawUrl} title=${result.title} html=${result.html.length} form=${hasForm} injected=${hasInjected}`);
 		return c.json(result);
 	} catch (err) {
 		if (err instanceof BrowseError) {
@@ -1176,15 +1173,11 @@ app.post("/api/browse/submit", requireAuth(), async (c) => {
 	}
 	const action = typeof body.__browse_action === "string" ? body.__browse_action : "";
 	const method = typeof body.__browse_method === "string" && body.__browse_method.toLowerCase() === "get" ? "get" : "post";
-	if (!action) {
-		const diag = typeof body.__diag === "string" ? body.__diag : "";
-		console.error(`[browse/submit] missing form action; tab=${tab} ct=${c.req.header("content-type")} body=${JSON.stringify(body).slice(0, 400)} diag=${diag}`);
-		return c.json({ error: "missing form action" }, 400);
-	}
+	if (!action) return c.json({ error: "missing form action" }, 400);
 
 	const fields: [string, string][] = [];
 	for (const [k, v] of Object.entries(body)) {
-		if (k === "__browse_action" || k === "__browse_method" || k.startsWith("__diag")) continue;
+		if (k === "__browse_action" || k === "__browse_method") continue;
 		fields.push([k, String(v)]);
 	}
 
