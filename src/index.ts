@@ -1134,10 +1134,7 @@ app.get("/api/browse", requireAuth(), async (c) => {
 		const result = await browsePage(rawUrl, tab);
 		return c.json(result);
 	} catch (err) {
-		if (err instanceof BrowseError) {
-			console.error(`[browse] ${err.status} url=${rawUrl} -> ${err.message}`);
-			return c.json({ error: err.message }, err.status);
-		}
+		if (err instanceof BrowseError) return c.json({ error: err.message }, err.status);
 		console.error("[browse]", err);
 		return c.json({ error: "browse failed" }, 500);
 	}
@@ -1154,10 +1151,7 @@ app.get("/api/browse/asset", requireAuth(), async (c) => {
 			"Cache-Control": "no-cache",
 		});
 	} catch (err) {
-		if (err instanceof BrowseError) {
-			console.error(`[browse/asset] ${err.status} url=${rawUrl} -> ${err.message}`);
-			return c.json({ error: err.message }, err.status);
-		}
+		if (err instanceof BrowseError) return c.json({ error: err.message }, err.status);
 		console.error("[browse/asset]", err);
 		return c.json({ error: "asset fetch failed" }, 500);
 	}
@@ -1185,10 +1179,7 @@ app.post("/api/browse/submit", requireAuth(), async (c) => {
 		const result = await browseSubmit(action, fields, method, tab);
 		return c.json(result);
 	} catch (err) {
-		if (err instanceof BrowseError) {
-			console.error(`[browse/submit] ${err.status} url=${action} -> ${err.message}`);
-			return c.json({ error: err.message }, err.status);
-		}
+		if (err instanceof BrowseError) return c.json({ error: err.message }, err.status);
 		console.error("[browse/submit]", err);
 		return c.json({ error: "form submit failed" }, 500);
 	}

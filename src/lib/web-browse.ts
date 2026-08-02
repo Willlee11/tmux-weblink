@@ -159,13 +159,7 @@ async function fetchBounded(url: string, init: RequestInit, maxBytes: number): P
 		if (err instanceof Error && err.name === 'AbortError') {
 			throw new BrowseError('timed out after ' + BROWSE_TIMEOUT_MS + 'ms', 504);
 		}
-		// undici collapses most network failures to a generic "fetch failed";
-		// the real reason lives in err.cause (ECONNRESET, ENOTFOUND, TLS, …).
-		let cause: string | undefined;
-		const c = (err as { cause?: unknown }).cause;
-		if (c) cause = typeof c === 'string' ? c : ((c as { code?: string; message?: string }).code || (c as { message?: string }).message || String(c));
-		const message = (err as Error).message || 'request failed';
-		throw new BrowseError(cause && message !== cause ? `${message} (${cause})` : message, 502);
+		throw new BrowseError((err as Error).message || 'request failed', 502);
 	} finally {
 		clearTimeout(timer);
 	}
@@ -232,16 +226,6 @@ function rewriteHref(attr: string, base: string, tabId: string, kind: 'nav' | 'a
 		return attr;
 	}
 	if (!/^https?:/i.test(abs)) return attr;
-	// DuckDuckGo search results go through /l/ redirect stubs that only
-	// redirect via JS / noscript meta-refresh (both stripped by the proxy).
-	// Follow the encoded target directly instead of dead-ending there.
-	try {
-		const u = new URL(abs);
-		if (/(^|\.)duckduckgo\.com$/i.test(u.hostname) && u.pathname === '/l/' && kind === 'nav') {
-			const uddg = u.searchParams.get('uddg');
-			if (uddg && /^https?:/i.test(uddg)) abs = uddg;
-		}
-	} catch {}
 	return proxyUrl(abs, tabId, kind);
 }
 

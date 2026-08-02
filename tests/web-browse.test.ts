@@ -33,24 +33,6 @@ describe('rewriteHtml', () => {
 		expect(html).toContain('href="tel:+123"');
 	});
 
-	it('rewrites DuckDuckGo /l/ result links to the encoded target', () => {
-		// path-relative link (resolves to html.duckduckgo.com/l/)
-		const a = rewriteHtml(
-			'<a class="result__a" href="/l/?uddg=https%3A%2F%2Fbaike.baidu.com%2F&rut=abc">百度百科</a>',
-			'https://html.duckduckgo.com/html/?q=baidu',
-			TAB,
-		);
-		expect(a.html).toContain(`href="/api/browse?url=${encodeURIComponent('https://baike.baidu.com/')}&amp;tab=${TAB}"`);
-		// protocol-relative link (resolves to duckduckgo.com/l/ — real DDG output)
-		const b = rewriteHtml(
-			'<a class="result__a" href="//duckduckgo.com/l/?uddg=https%3A%2F%2Fwww.baidu.com%2F&amp;rut=abc">百度</a>',
-			'https://html.duckduckgo.com/html/?q=baidu',
-			TAB,
-		);
-		expect(b.html).toContain(`href="/api/browse?url=${encodeURIComponent('https://www.baidu.com/')}&amp;tab=${TAB}"`);
-		expect(b.html).not.toContain('duckduckgo.com/l/');
-	});
-
 	it('rewrites subresource URLs to the asset proxy', () => {
 		const { html } = rewriteHtml(
 			'<img src="img.png" srcset="a.png 1x, b.png 2x"><link rel="stylesheet" href="s.css"><video src="v.mp4"></video>',
