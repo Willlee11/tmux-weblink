@@ -1049,8 +1049,7 @@ async function submitForm(tabId: string, params: URLSearchParams) {
 	if (!tab) return;
 	const mySeq = ++tab.seq;
 	const action = params.get('__browse_action') || '';
-	params.delete('__browse_action');
-	params.delete('__browse_method');
+	// Keep __browse_action/__browse_method in the POST body — the server reads them from there.
 	if (activeTabId === tabId) showLoading();
 	try {
 		const res = await fetch('/api/browse/submit?tab=' + encodeURIComponent(tabId), {
