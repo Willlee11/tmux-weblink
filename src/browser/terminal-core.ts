@@ -82,6 +82,9 @@ export interface TerminalInstance {
 	destroy(): void;
 	focus(): void;
 	sendInput(data: string): void;
+	/** Toggle copy mode, which lets the user select and copy text even while a
+	 *  TUI app is running in the alternate screen with mouse reporting enabled. */
+	toggleCopyMode(): void;
 }
 
 interface TerminalAdapter {
@@ -103,6 +106,13 @@ interface TerminalAdapter {
 	onScroll(callback: () => void): void;
 	attachCustomKeyEventHandler(callback: (event: KeyboardEvent) => boolean): void;
 	isFocused(): boolean;
+	// Copy-mode support. Text is read from the terminal's active buffer, so
+	// copy works even when a TUI app is in the alternate screen (the content
+	// is in the buffer regardless of mouse-reporting/scrollback state).
+	getScreenText(): string;
+	selectRows(startRow: number, endRow: number): void;
+	getSelectionText(): string;
+	hasSelectionSupport(): boolean;
 }
 
 class XtermAdapter implements TerminalAdapter {
@@ -161,6 +171,28 @@ class XtermAdapter implements TerminalAdapter {
 	isFocused(): boolean {
 		const active = document.activeElement;
 		return !!active && (active === this.container || this.container.contains(active));
+	}
+	getScreenText(): string {
+		const buf = this.terminal.buffer.active;
+		const start = buf.viewportY;
+		const count = Math.min(this.terminal.rows, Math.max(0, buf.length - start));
+		const out: string[] = [];
+		for (let i = 0; i < count; i++) {
+			const line = buf.getLine(start + i);
+			out.push(line ? line.translateToString(true) : '');
+		}
+		return out.join('\n');
+	}
+	selectRows(startRow: number, endRow: number): void {
+		const buf = this.terminal.buffer.active;
+		const [a, b] = startRow <= endRow ? [startRow, endRow] : [endRow, startRow];
+		this.terminal.selectLines(buf.viewportY + a, buf.viewportY + b);
+	}
+	getSelectionText(): string {
+		return this.terminal.getSelection();
+	}
+	hasSelectionSupport(): boolean {
+		return true;
 	}
 }
 
@@ -231,6 +263,40 @@ class GhosttyAdapter implements TerminalAdapter {
 	isFocused(): boolean {
 		const active = document.activeElement;
 		return !!active && (active === this.container || active === this.terminal.textarea || this.container.contains(active));
+	}
+	getScreenText(): string {
+		try {
+			const buf = this.terminal.buffer?.active;
+			if (!buf || typeof buf.getLine !== 'function') return '';
+			const start = typeof buf.viewportY === 'number' ? buf.viewportY : 0;
+			const out: string[] = [];
+			for (let i = 0; i < this.rowsValue; i++) {
+				const line = buf.getLine(start + i);
+				out.push(typeof line?.translateToString === 'function' ? line.translateToString(true) : '');
+			}
+			return out.join('\n');
+		} catch {
+			return '';
+		}
+	}
+	selectRows(startRow: number, endRow: number): void {
+		try {
+			if (typeof this.terminal?.selectLines !== 'function') return;
+			const buf = this.terminal.buffer?.active;
+			const base = typeof buf?.viewportY === 'number' ? buf.viewportY : 0;
+			const [a, b] = startRow <= endRow ? [startRow, endRow] : [endRow, startRow];
+			this.terminal.selectLines(base + a, base + b);
+		} catch {}
+	}
+	getSelectionText(): string {
+		try {
+			return typeof this.terminal?.getSelection === 'function' ? this.terminal.getSelection() : '';
+		} catch {
+			return '';
+		}
+	}
+	hasSelectionSupport(): boolean {
+		return typeof this.terminal?.selectLines === 'function' && typeof this.terminal?.getSelection === 'function';
 	}
 	private updateCellMetrics(force = false) {
 		const canvas = this.container.querySelector('canvas');
@@ -502,8 +568,112 @@ export function initTerminal(
 			sendJSON({ type: 'load_history', before: serverHistoryLoaded });
 		});
 
+		// ── Copy mode ──
+		// Fullscreen TUI apps (vim/htop/less) switch to the alternate screen and
+		// usually enable mouse reporting, so the browser's native text selection
+		// is unavailable. The content is still in the terminal's active buffer,
+		// so while copy mode is active we intercept mouse events and drive a
+		// selection on the buffer ourselves, then copy it to the clipboard.
+		let copyMode = false;
+		let copyStartRow: number | null = null;
+
+		const copyBanner = document.createElement('div');
+		copyBanner.className = 'terminal-copy-banner';
+		copyBanner.innerHTML = '<strong>Copy mode</strong><span class="hint">drag to select · Enter copies · Esc exits</span>';
+		copyBanner.hidden = true;
+		container.appendChild(copyBanner);
+
+		function copyRowFromClientY(clientY: number): number {
+			const rect = container.getBoundingClientRect();
+			const h = rect.height > 0 && term.rows > 0 ? rect.height / term.rows : 18;
+			return Math.max(0, Math.min(term.rows - 1, Math.floor((clientY - rect.top) / h)));
+		}
+
+		async function copyToClipboard(text: string) {
+			if (!text) return;
+			try {
+				if (navigator.clipboard?.writeText) {
+					await navigator.clipboard.writeText(text);
+					return;
+				}
+			} catch {}
+			const ta = document.createElement('textarea');
+			ta.value = text;
+			ta.style.position = 'fixed';
+			ta.style.opacity = '0';
+			ta.style.pointerEvents = 'none';
+			document.body.appendChild(ta);
+			ta.focus();
+			ta.select();
+			try { document.execCommand('copy'); } catch {}
+			ta.remove();
+		}
+
+		function handleCopyMouseDown(e: MouseEvent) {
+			if (!copyMode || destroyed || e.button !== 0) return;
+			e.preventDefault();
+			e.stopPropagation();
+			copyStartRow = copyRowFromClientY(e.clientY);
+			term.selectRows(copyStartRow, copyStartRow);
+		}
+		function handleCopyMouseMove(e: MouseEvent) {
+			if (!copyMode || destroyed || copyStartRow === null) return;
+			e.preventDefault();
+			e.stopPropagation();
+			term.selectRows(copyStartRow, copyRowFromClientY(e.clientY));
+		}
+		function handleCopyMouseUp(e: MouseEvent) {
+			if (!copyMode || destroyed || copyStartRow === null) return;
+			e.preventDefault();
+			e.stopPropagation();
+			copyStartRow = null;
+		}
+
+		function setCopyMode(on: boolean) {
+			if (copyMode === on) return;
+			copyMode = on;
+			copyStartRow = null;
+			copyBanner.hidden = !on;
+			container.classList.toggle('terminal-copy-mode-active', on);
+			if (on) {
+				term.focus();
+				document.addEventListener('mousemove', handleCopyMouseMove, true);
+				document.addEventListener('mouseup', handleCopyMouseUp, true);
+			} else {
+				document.removeEventListener('mousemove', handleCopyMouseMove, true);
+				document.removeEventListener('mouseup', handleCopyMouseUp, true);
+			}
+		}
+		function toggleCopyMode() {
+			setCopyMode(!copyMode);
+		}
+
+		container.addEventListener('mousedown', handleCopyMouseDown, true);
+
 		term.attachCustomKeyEventHandler((event) => {
 			if (event.type !== 'keydown') return true;
+
+			if (copyMode) {
+				if (event.key === 'Escape') {
+					event.preventDefault();
+					setCopyMode(false);
+					return false;
+				}
+				if (event.key === 'Enter' || ((event.ctrlKey || event.metaKey) && event.code === 'KeyC')) {
+					event.preventDefault();
+					const text = term.getSelectionText() || term.getScreenText();
+					setCopyMode(false);
+					void copyToClipboard(text);
+					return false;
+				}
+			}
+
+			if (event.altKey && event.code === 'KeyC' && !event.ctrlKey && !event.metaKey) {
+				event.preventDefault();
+				toggleCopyMode();
+				return false;
+			}
+
 			if ((event.ctrlKey || event.metaKey) && event.code === 'KeyV') {
 				event.preventDefault();
 				void (async () => {
@@ -581,6 +751,7 @@ export function initTerminal(
 
 		function handleSafariEscape(event: KeyboardEvent) {
 			if (!isSafari || event.key !== 'Escape') return;
+			if (copyMode) return;
 			if (event.defaultPrevented || event.repeat || event.metaKey || event.ctrlKey || event.altKey) return;
 			if (!term.isFocused()) return;
 			event.preventDefault(); event.stopPropagation();
@@ -672,6 +843,7 @@ export function initTerminal(
 		return {
 			destroy() {
 				destroyed = true;
+				setCopyMode(false);
 				if (ws) {
 					try { ws.close(1000, 'session switch'); } catch {}
 					ws = undefined;
@@ -688,6 +860,9 @@ export function initTerminal(
 			},
 			sendInput(data: string) {
 				sendTerminalInput(data);
+			},
+			toggleCopyMode() {
+				toggleCopyMode();
 			},
 		};
 	})();

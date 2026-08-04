@@ -517,13 +517,25 @@ export function renderShell(cfg: ShellConfig): string {
 
   /* ── Terminal container ── */
   #terminal-container {
-    flex: 1; overflow: hidden;
+    flex: 1; overflow: hidden; position: relative;
   }
   #terminal-container.terminal-pending { visibility: hidden; }
   #terminal-container .terminal-drag-over {
     outline: 2px dashed var(--panel-accent);
     outline-offset: -2px;
   }
+  #terminal-container .terminal-copy-banner {
+    position: absolute; bottom: 6px; right: 6px; z-index: 20;
+    display: flex; align-items: center; gap: 8px;
+    padding: 4px 10px; border-radius: 6px;
+    background: rgba(0,0,0,0.72); color: #fff;
+    font-size: 11px; font-family: var(--font-mono);
+    pointer-events: none; box-shadow: 0 2px 8px rgba(0,0,0,0.35);
+    white-space: nowrap;
+  }
+  #terminal-container .terminal-copy-banner[hidden] { display: none; }
+  #terminal-container .terminal-copy-banner .hint { opacity: 0.7; }
+  #terminal-container.terminal-copy-mode-active { cursor: text; }
 
   /* ── Mobile key toolbar ── */
   .mobile-keys {
@@ -649,6 +661,7 @@ export function renderShell(cfg: ShellConfig): string {
 <header class="fixed-header">
   <div class="brand" id="brand-toggle">tmux<span>-weblink</span></div>
   <div class="header-actions">
+    <button class="header-btn" id="copy-mode-btn" title="Copy mode (Alt+C) — select text even in fullscreen TUI apps" aria-label="Toggle copy mode">${icon('copy', 'width="18" height="18"')}</button>
     ${commandbarEnabled ? `<button class="header-btn" id="cmdbar-btn" title="Search" aria-label="Search">${icon('search')}</button>` : ''}
   </div>
   <div id="header-git" title="Click to browse repository"></div>

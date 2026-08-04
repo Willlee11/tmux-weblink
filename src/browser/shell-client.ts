@@ -55,6 +55,10 @@ function expandSidebar() {
 document.getElementById('mode-sessions')!.addEventListener('click', () => { expandSidebar(); setMode('sessions'); });
 document.getElementById('mode-files')!.addEventListener('click', () => { expandSidebar(); setMode('files'); });
 
+document.getElementById('copy-mode-btn')!.addEventListener('click', () => {
+	currentTerminal?.toggleCopyMode();
+});
+
 function setMode(mode: 'sessions' | 'files') {
 	currentMode = mode;
 	document.querySelectorAll('.mode-btn').forEach((btn) => btn.classList.remove('active'));
