@@ -535,16 +535,11 @@ export function renderShell(cfg: ShellConfig): string {
   }
   #terminal-container .terminal-copy-banner[hidden] { display: none; }
   #terminal-container .terminal-copy-banner .hint { opacity: 0.7; }
-  #terminal-container .terminal-copy-chip {
-    position: absolute; bottom: 6px; right: 6px; z-index: 21;
-    padding: 4px 14px; border: none; border-radius: 6px;
-    background: var(--panel-accent, #2563eb); color: #fff;
-    font-size: 12px; font-weight: 600; font-family: var(--font-mono);
-    cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,0.35);
+  #terminal-container .terminal-copy-toast {
+    right: 6px; left: auto;
+    background: rgba(22,163,74,0.92);
+    font-weight: 600;
   }
-  #terminal-container .terminal-copy-chip[hidden] { display: none; }
-  #terminal-container .terminal-copy-chip:hover { filter: brightness(1.15); }
-  #terminal-container .terminal-copy-chip:focus-visible { outline: 2px solid #fff; outline-offset: 1px; }
   #terminal-container.terminal-copy-mode-active { cursor: text; }
 
   /* ── Mobile key toolbar ── */
@@ -671,7 +666,6 @@ export function renderShell(cfg: ShellConfig): string {
 <header class="fixed-header">
   <div class="brand" id="brand-toggle">tmux<span>-weblink</span></div>
   <div class="header-actions">
-    <button class="header-btn" id="copy-mode-btn" title="Select text for copying: Shift+drag, or Alt+C for copy mode" aria-label="Toggle copy mode">${icon('copy', 'width="18" height="18"')}</button>
     ${commandbarEnabled ? `<button class="header-btn" id="cmdbar-btn" title="Search" aria-label="Search">${icon('search')}</button>` : ''}
   </div>
   <div id="header-git" title="Click to browse repository"></div>
