@@ -565,21 +565,32 @@ export function initTerminal(
 			sendJSON({ type: 'load_history', before: serverHistoryLoaded });
 		});
 
-		// ── Copy mode ──
+		// ── Text selection / copy ──
 		// Fullscreen TUI apps (vim/htop/less) switch to the alternate screen and
 		// usually enable mouse reporting, so the browser's native text selection
 		// is unavailable. The content is still in the terminal's active buffer,
-		// so while copy mode is active we intercept mouse events and drive a
-		// selection on the buffer ourselves, then copy it to the clipboard.
+		// so we support Shift+drag (or Alt+C copy mode, where plain drag selects
+		// too) to pick a row range and copy it to the clipboard. The selection is
+		// released (cleared) on copy, Esc, click-away or typing.
 		let copyMode = false;
+		let selecting = false;
+		let selectionActive = false;
 		let copyStartRow: number | null = null;
 		let copyEndRow: number | null = null;
 
 		const copyBanner = document.createElement('div');
 		copyBanner.className = 'terminal-copy-banner';
-		copyBanner.innerHTML = '<strong>Copy mode</strong><span class="hint">drag to select · Enter copies · Esc exits</span>';
+		copyBanner.innerHTML = '<strong>Copy mode</strong><span class="hint">drag to select · Esc exits</span>';
 		copyBanner.hidden = true;
 		container.appendChild(copyBanner);
+
+		const copyChip = document.createElement('button');
+		copyChip.className = 'terminal-copy-chip';
+		copyChip.type = 'button';
+		copyChip.textContent = 'Copy';
+		copyChip.title = 'Copy selected text to clipboard';
+		copyChip.hidden = true;
+		container.appendChild(copyChip);
 
 		function copyRowFromClientY(clientY: number): number {
 			const rect = container.getBoundingClientRect();
@@ -607,66 +618,100 @@ export function initTerminal(
 			ta.remove();
 		}
 
+		function clearSelectionUI() {
+			selecting = false;
+			selectionActive = false;
+			copyStartRow = null;
+			copyEndRow = null;
+			copyChip.hidden = true;
+			document.removeEventListener('mousemove', handleCopyMouseMove, true);
+			document.removeEventListener('mouseup', handleCopyMouseUp, true);
+		}
+		function setCopyMode(on: boolean) {
+			copyMode = on;
+			copyBanner.hidden = !on;
+			container.classList.toggle('terminal-copy-mode-active', on);
+			if (on) term.focus();
+		}
+		function resetCopyState() {
+			clearSelectionUI();
+			setCopyMode(false);
+		}
+		function toggleCopyMode() {
+			if (copyMode) resetCopyState();
+			else { clearSelectionUI(); setCopyMode(true); }
+		}
+		function selectedRange(): [number, number] | null {
+			if (copyStartRow === null || copyEndRow === null) return null;
+			return copyStartRow <= copyEndRow ? [copyStartRow, copyEndRow] : [copyEndRow, copyStartRow];
+		}
+		function copySelectionOrScreen() {
+			const range = selectedRange();
+			const text = range ? term.getRowsText(range[0], range[1]) : term.getScreenText();
+			resetCopyState();
+			void copyToClipboard(text);
+			term.focus();
+		}
+
 		function handleCopyMouseDown(e: MouseEvent) {
-			if (!copyMode || destroyed || e.button !== 0) return;
-			e.preventDefault();
-			e.stopPropagation();
-			copyStartRow = copyRowFromClientY(e.clientY);
-			copyEndRow = copyStartRow;
-			term.selectRows(copyStartRow, copyStartRow);
+			if (destroyed || e.button !== 0 || selecting) return;
+			if (e.target === copyChip || copyChip.contains(e.target as Node)) return;
+			if (copyMode || e.shiftKey) {
+				e.preventDefault();
+				e.stopPropagation();
+				selecting = true;
+				selectionActive = true;
+				copyStartRow = copyRowFromClientY(e.clientY);
+				copyEndRow = copyStartRow;
+				term.selectRows(copyStartRow, copyStartRow);
+				document.addEventListener('mousemove', handleCopyMouseMove, true);
+				document.addEventListener('mouseup', handleCopyMouseUp, true);
+				return;
+			}
+			// Plain click while a selection exists releases it.
+			if (selectionActive) {
+				e.preventDefault();
+				e.stopPropagation();
+				resetCopyState();
+			}
 		}
 		function handleCopyMouseMove(e: MouseEvent) {
-			if (!copyMode || destroyed || copyStartRow === null) return;
+			if (destroyed || !selecting || copyStartRow === null) return;
 			e.preventDefault();
 			e.stopPropagation();
 			copyEndRow = copyRowFromClientY(e.clientY);
 			term.selectRows(copyStartRow, copyEndRow);
 		}
 		function handleCopyMouseUp(e: MouseEvent) {
-			if (!copyMode || destroyed || copyStartRow === null) return;
-			// Keep the selection so Enter/Ctrl+C can copy it.
+			if (destroyed || !selecting || copyStartRow === null) return;
 			e.preventDefault();
 			e.stopPropagation();
-		}
-
-		function setCopyMode(on: boolean) {
-			if (copyMode === on) return;
-			copyMode = on;
-			copyStartRow = null;
-			copyEndRow = null;
-			copyBanner.hidden = !on;
-			container.classList.toggle('terminal-copy-mode-active', on);
-			if (on) {
-				term.focus();
-				document.addEventListener('mousemove', handleCopyMouseMove, true);
-				document.addEventListener('mouseup', handleCopyMouseUp, true);
-			} else {
-				document.removeEventListener('mousemove', handleCopyMouseMove, true);
-				document.removeEventListener('mouseup', handleCopyMouseUp, true);
-			}
-		}
-		function toggleCopyMode() {
-			setCopyMode(!copyMode);
+			selecting = false;
+			document.removeEventListener('mousemove', handleCopyMouseMove, true);
+			document.removeEventListener('mouseup', handleCopyMouseUp, true);
+			// Selection stays until copied or released; show the copy chip.
+			copyChip.hidden = false;
 		}
 
 		container.addEventListener('mousedown', handleCopyMouseDown, true);
+		copyChip.addEventListener('click', (e) => {
+			e.preventDefault();
+			e.stopPropagation();
+			copySelectionOrScreen();
+		});
 
 		term.attachCustomKeyEventHandler((event) => {
 			if (event.type !== 'keydown') return true;
 
-			if (copyMode) {
+			if (selectionActive || copyMode) {
 				if (event.key === 'Escape') {
 					event.preventDefault();
-					setCopyMode(false);
+					resetCopyState();
 					return false;
 				}
 				if (event.key === 'Enter' || ((event.ctrlKey || event.metaKey) && event.code === 'KeyC')) {
 					event.preventDefault();
-					const text = copyStartRow !== null && copyEndRow !== null
-						? term.getRowsText(copyStartRow, copyEndRow)
-						: term.getScreenText();
-					setCopyMode(false);
-					void copyToClipboard(text);
+					copySelectionOrScreen();
 					return false;
 				}
 			}
@@ -675,6 +720,11 @@ export function initTerminal(
 				event.preventDefault();
 				toggleCopyMode();
 				return false;
+			}
+
+			// Any other key releases the selection but still goes to the app.
+			if (selectionActive) {
+				resetCopyState();
 			}
 
 			if ((event.ctrlKey || event.metaKey) && event.code === 'KeyV') {
@@ -754,7 +804,7 @@ export function initTerminal(
 
 		function handleSafariEscape(event: KeyboardEvent) {
 			if (!isSafari || event.key !== 'Escape') return;
-			if (copyMode) return;
+			if (copyMode || selectionActive) return;
 			if (event.defaultPrevented || event.repeat || event.metaKey || event.ctrlKey || event.altKey) return;
 			if (!term.isFocused()) return;
 			event.preventDefault(); event.stopPropagation();
@@ -846,7 +896,7 @@ export function initTerminal(
 		return {
 			destroy() {
 				destroyed = true;
-				setCopyMode(false);
+				resetCopyState();
 				if (ws) {
 					try { ws.close(1000, 'session switch'); } catch {}
 					ws = undefined;
