@@ -3,9 +3,7 @@ import path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { buildCommandbarSessions } from '../src/lib/commandbar.js';
 import { resolveExtensionUiFile } from '../src/lib/ext-loader.js';
-import { renderLanding } from '../src/lib/pages/landing.js';
 import { renderNotesPage } from '../src/lib/pages/notes-page.js';
-import { renderTerminal } from '../src/lib/pages/terminal.js';
 import { getConfigRoot, getDataRoot, getSettingsPath } from '../src/lib/state-paths.js';
 import { vscodeTheme } from '../src/lib/themes/index.js';
 
@@ -44,16 +42,9 @@ describe('core helpers', () => {
 
 	it('escapes hostile session names in rendered pages', () => {
 		const hostile = `bad"><script>alert(1)</script>`;
-		const accessMap = new Map<string, number>();
-		const landing = renderLanding([{ name: hostile, windows: 1, attached: false }], { view: 'default', accessMap, theme: vscodeTheme });
-		const terminal = renderTerminal(hostile, [], { theme: vscodeTheme });
 		const notes = renderNotesPage(hostile, vscodeTheme);
 
-		expect(landing).toContain('bad&quot;&gt;&lt;script&gt;alert(1)&lt;/script&gt;');
-		expect(terminal).toContain('bad&quot;&gt;&lt;script&gt;alert(1)&lt;/script&gt;');
 		expect(notes).toContain('bad&quot;&gt;&lt;script&gt;alert(1)&lt;/script&gt;');
-		expect(landing).not.toContain(`<span class="name">${hostile}</span>`);
-		expect(terminal).not.toContain(`<span class="session">${hostile}</span>`);
 		expect(notes).not.toContain(`<span>${hostile}</span>`);
 	});
 

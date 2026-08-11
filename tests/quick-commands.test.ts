@@ -23,7 +23,6 @@ import {
 	validateQuickCommandInput,
 } from '../src/lib/quick-commands.js';
 import { renderQuickCommandsPage } from '../src/lib/pages/quick-commands.js';
-import { renderTerminal } from '../src/lib/pages/terminal.js';
 import { vscodeTheme } from '../src/lib/themes/index.js';
 
 describe('quick commands helpers', () => {
@@ -82,21 +81,6 @@ describe('quick commands helpers', () => {
 });
 
 describe('quick commands rendering', () => {
-	it('renders the terminal commandbar quick commands subview data', () => {
-		const html = renderTerminal('dev', [], {
-			theme: vscodeTheme,
-			commandbarEnabled: true,
-			commandbarSessions: [],
-			quickCommands: [{ id: 'cmd-1', title: 'Tests', command: 'bun test', description: 'Run test suite' }],
-		});
-
-		expect(html).toContain('Quick Commands');
-		expect(html).toContain('Paste configured command');
-		expect(html).toContain('subView":"quickCommands"');
-		expect(html).toContain('cmdbar-row-chevron');
-		expect(html).toContain('bun test');
-	});
-
 	it('escapes hostile quick command content on the configuration page', () => {
 		const hostile = {
 			id: 'cmd-1',

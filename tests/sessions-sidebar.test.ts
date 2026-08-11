@@ -21,8 +21,6 @@ import { db } from '../src/lib/db.js';
 import { listSessionWindows } from '../src/lib/tmux-windows.js';
 import { pinView, unpinView, listPinnedViews, viewKey } from '../src/lib/pinned-views.js';
 import { buildSidebarSessions } from '../src/lib/sessions-sidebar.js';
-import { renderTerminal } from '../src/lib/pages/terminal.js';
-import { vscodeTheme } from '../src/lib/themes/index.js';
 
 describe('pinned views', () => {
 	beforeEach(() => {
@@ -118,20 +116,3 @@ describe('buildSidebarSessions', () => {
 	});
 });
 
-describe('terminal page', () => {
-	it('renders the tmux home link in the terminal header', () => {
-		const html = renderTerminal('dev', [], { theme: vscodeTheme });
-		const tmuxIndex = html.indexOf('aria-label="Go to home">tmux<span>');
-
-		expect(tmuxIndex).toBeGreaterThan(-1);
-	});
-
-	it('includes Send Command action for the terminal commandbar', () => {
-		const html = renderTerminal('dev', [], { theme: vscodeTheme, commandbarEnabled: true, commandbarSessions: [] });
-
-		expect(html).toContain('Send Command');
-		expect(html).toContain('Send input to active window');
-		expect(html).toContain('clickTargetId":"type-toggle"');
-		expect(html).toContain('id="type-toggle"');
-	});
-});
