@@ -239,10 +239,10 @@ export function buildApp(deps: BuildAppDeps): Hono {
 		c.header('Content-Security-Policy', [
 			'default-src \'self\'',
 			'script-src \'self\' \'unsafe-inline\'',
-			'style-src \'self\' \'unsafe-inline\'',
+			'style-src \'self\' \'unsafe-inline\' https://fonts.googleapis.com',
 			'connect-src \'self\' ws: wss: http: https:',
 			'img-src \'self\' data:',
-			'font-src \'self\'',
+			'font-src \'self\' https://fonts.gstatic.com',
 			'worker-src \'self\' blob:',
 		].join('; '));
 		c.header('Referrer-Policy', 'strict-origin-when-cross-origin');
@@ -275,7 +275,12 @@ export function buildApp(deps: BuildAppDeps): Hono {
 	registerExtensionRoutes(app, extsDir, extensions);
 
 	const moduleDir = path.dirname(fileURLToPath(import.meta.url));
+	// Compiled client bundles live in <pkg>/dist/assets. build-app.js itself
+	// sits in dist/lib/, so resolve assets relative to the module's parent
+	// directory first (works for npm-global installs), then fall back to the
+	// repo layout (cwd/dist/assets) and an in-place dist/lib/assets.
 	const assetDirs = [
+		path.join(moduleDir, '..', 'assets'),
 		path.join(moduleDir, 'assets'),
 		path.join(process.cwd(), 'dist', 'assets'),
 	];
