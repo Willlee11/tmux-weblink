@@ -34,6 +34,10 @@ export function getThemePath(): string {
   return path.join(getConfigRoot(), 'tmux-web', 'theme.json');
 }
 
+export function getFederationPath(): string {
+  return path.join(getConfigRoot(), 'tmux-web', 'federation.json');
+}
+
 export function getPluginDir(): string {
   return path.join(getDataRoot(), 'node_modules');
 }

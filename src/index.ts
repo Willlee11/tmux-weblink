@@ -1,6 +1,10 @@
 #!/usr/bin/env node
 import { chmodSync, existsSync, mkdirSync, readdirSync, statSync } from "node:fs";
 import { createRequire } from "node:module";
+import { hostname } from "node:os";
+
+const require = createRequire(import.meta.url);
+const { version } = require("../package.json") as { version: string };
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { Hono } from "hono";
@@ -31,6 +35,7 @@ import { loadExtensions, spawnExtensionBackend } from "./lib/ext-loader.js";
 import { SchedulerService } from "./lib/scheduler.js";
 import { handleClientMessage } from "./lib/ws-message.js";
 import { loadDotEnv } from "./lib/load-env.js";
+import { listSessions } from "./sessions.js";
 import { cmdAdd, cmdRemove, cmdList, cmdSetup, cmdTheme, printUsage, printVersion } from "./lib/cli.js";
 import { readSettings } from "./lib/settings.js";
 import { readActiveTheme } from "./lib/theme-store.js";
@@ -41,8 +46,10 @@ import { getSessionPaneTarget, capturePaneTail, capturePaneHistoryChunk, toCrlf 
 import { readTerminalBufferConfig } from "./lib/terminal-config.js";
 import { AgentRegistry } from "./lib/agent-registry.js";
 import { AgentChannel, MAX_RELAY_CONNS_PER_AGENT } from "./lib/agent-relay.js";
-import { findAgentTokenByPlaintext, listAgentTokens } from "./lib/agent-tokens.js";
+import { findAgentTokenByPlaintext, listAgentTokens, createAgentToken, removeAgentToken } from "./lib/agent-tokens.js";
 import { saveSecurityConfig } from "./lib/security-config.js";
+import { readFederationConfig, writeFederationConfig, type FederationConfig } from "./lib/federation-config.js";
+import { startAgentClient, type AgentClientHandle, type AgentClientStatus } from "./lib/agent-client.js";
 loadDotEnv();
 
 const terminalBufferConfig = readTerminalBufferConfig();
@@ -247,8 +254,77 @@ const app = buildApp({
 	extensions,
 	terminalBufferConfig,
 	state: appState,
+	federation: {
+		getConfig: () => federationConfig,
+		setConfig: async (cfg) => {
+			federationConfig = cfg;
+			await writeFederationConfig(cfg);
+			startAgentClientFromConfig(cfg);
+		},
+		status: federationStatus,
+		hostname: hostname(),
+	},
 	hub: { agents, getChannel },
 });
+
+// ── Federation: run this machine as an agent of a hub (in-process) ────────
+// Every machine starts the same way (`tmux-web`); the settings page saves a
+// hub URL + token and the agent client runs in-process alongside the local UI.
+
+const tunnelApp = buildApp({
+	mode: "agent",
+	securityConfig,
+	tokenStore,
+	rateLimiter,
+	scheduler,
+	settings,
+	commandbarEnabled,
+	terminalRenderer: resolveTerminalRenderer(startupArgs, settings.terminalRenderer),
+	scheduleHistoryDays,
+	extsDir,
+	extensions,
+	terminalBufferConfig,
+	state: appState,
+});
+
+let federationConfig: FederationConfig = await readFederationConfig();
+let agentClient: AgentClientHandle | null = null;
+
+function stopAgentClient(): void {
+	if (agentClient) {
+		agentClient.stop();
+		agentClient = null;
+	}
+}
+
+function startAgentClientFromConfig(cfg: FederationConfig): void {
+	stopAgentClient();
+	if (!cfg.enabled || !cfg.hub || !cfg.token) return;
+	agentClient = startAgentClient({
+		hub: cfg.hub,
+		token: cfg.token,
+		name: cfg.name?.trim() || hostname(),
+		version,
+		app: tunnelApp,
+		listSessions,
+		terminalBufferConfig,
+		getSessionPaneTarget,
+		capturePaneTail,
+		capturePaneHistoryChunk,
+		toCrlf,
+		handleClientMessage,
+		acquireControlClient,
+	});
+}
+
+function federationStatus(): AgentClientStatus {
+	if (!federationConfig.enabled) {
+		return { state: "idle", agentId: null, hub: federationConfig.hub ?? "", name: federationConfig.name ?? hostname() };
+	}
+	return agentClient ? agentClient.status() : { state: "idle", agentId: null, hub: federationConfig.hub ?? "", name: federationConfig.name ?? hostname() };
+}
+
+startAgentClientFromConfig(federationConfig);
 
 // ── WebSocket server ──────────────────────────────────────────────────────
 
@@ -748,6 +824,7 @@ setInterval(() => {
 
 function cleanup() {
 	scheduler.cleanup();
+	stopAgentClient();
 	killAllControlClients();
 	killAllAttachedPtys();
 	for (const ch of agentChannels.values()) ch.dispose();

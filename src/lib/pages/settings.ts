@@ -205,6 +205,12 @@ export function renderSettings(opts: {
     <p class="desc">Shell chrome + terminal colors.</p>
     <a href="/settings/theme" class="btn" style="display:inline-block;text-decoration:none">Customize theme →</a>
   </div>
+
+  <div class="section">
+    <h2>Federation</h2>
+    <p class="desc">Join another tmux-web as an agent (same start command), or manage tokens so other machines can join this one.</p>
+    <a href="/settings/federation" class="btn" style="display:inline-block;text-decoration:none">Federation settings →</a>
+  </div>
 </div>
 </body>
 </html>`;

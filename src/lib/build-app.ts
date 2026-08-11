@@ -6,6 +6,10 @@ import { fileURLToPath } from 'node:url';
 import { Hono } from 'hono';
 import { listSessions } from '../sessions.js';
 import { renderLoginPage, renderNotesIndex, renderNotesPage, renderSettings, renderThemeSettings, renderScheduleIndex, renderHistoryIndex, renderQuickCommandsPage, renderFilesIndex, renderShell } from '../frontend.js';
+import { renderFederationPage } from './pages/federation.js';
+import { createAgentToken, removeAgentToken, listAgentTokens } from './agent-tokens.js';
+import type { AgentClientStatus } from './agent-client.js';
+import type { FederationConfig } from './federation-config.js';
 import type { TmuxWebSecurityConfig } from './security-config.js';
 import { hashPassword, verifyPassword, validatePassword, type TokenStore, type StoredToken } from './auth.js';
 import type { RateLimiter } from './rateLimiter.js';
@@ -76,6 +80,13 @@ export interface BuildAppDeps {
 	/** Hub-assigned agent id (agent mode only; used to build the WS relay base). */
 	getAgentId?: () => string | null;
 	state: BuildAppState;
+	/** Federation controls (hub mode): read/save the agent-join config and expose agent-token management. */
+	federation?: {
+		getConfig: () => FederationConfig;
+		setConfig: (cfg: FederationConfig) => Promise<void>;
+		status: () => AgentClientStatus;
+		hostname: string;
+	};
 	hub?: {
 		agents: AgentRegistry;
 		getChannel: (agentId: string) => AgentChannel | null;
@@ -104,6 +115,7 @@ export function buildApp(deps: BuildAppDeps): Hono {
 		terminalBufferConfig,
 		getAgentId,
 		state,
+		federation,
 		hub,
 	} = deps;
 
@@ -667,6 +679,68 @@ self.addEventListener("fetch", (e) => {
 	app.get('/api/system/processes', requireAuth(), (c) => {
 		return c.json(getTopProcesses());
 	});
+
+	// ── Federation (settings page + agent-token management) ───────────────
+
+	if (federation) {
+		app.get('/settings/federation', requireAuthOrRedirect(), async (c) => {
+			return c.html(renderFederationPage({
+				config: federation.getConfig(),
+				status: federation.status(),
+				tokens: listAgentTokens().map((t) => ({ id: t.id, name: t.name, createdAt: t.createdAt })),
+				hostname: federation.hostname,
+			}, state.activeTheme));
+		});
+
+		app.get('/api/federation', requireAuth(), (c) => {
+			return c.json({ config: federation.getConfig(), status: federation.status() });
+		});
+
+		app.post('/api/federation', requireAuth(), async (c) => {
+			let body: { hub?: unknown; token?: unknown; name?: unknown; enabled?: unknown };
+			try {
+				body = await c.req.json();
+			} catch {
+				return c.json({ error: 'invalid json' }, 400);
+			}
+			const hub = typeof body.hub === 'string' ? body.hub.trim() : '';
+			const token = typeof body.token === 'string' ? body.token.trim() : '';
+			const name = typeof body.name === 'string' ? body.name.trim().slice(0, 64) : '';
+			const enabled = body.enabled === true;
+			if (enabled) {
+				if (!hub) return c.json({ error: 'hub URL is required' }, 400);
+				if (!/^wss?:\/\//i.test(hub)) return c.json({ error: 'hub URL must start with ws:// or wss://' }, 400);
+				if (!token) return c.json({ error: 'registration token is required' }, 400);
+			}
+			const cfg: FederationConfig = { hub: hub || undefined, token: token || undefined, name: name || undefined, enabled };
+			await federation.setConfig(cfg);
+			return c.json({ ok: true, status: federation.status() });
+		});
+
+		app.get('/api/agent-tokens', requireAuth(), (c) => {
+			return c.json(listAgentTokens().map((t) => ({ id: t.id, name: t.name, createdAt: t.createdAt })));
+		});
+
+		app.post('/api/agent-tokens', requireAuth(), async (c) => {
+			let body: { name?: unknown };
+			try {
+				body = await c.req.json();
+			} catch {
+				return c.json({ error: 'invalid json' }, 400);
+			}
+			const name = typeof body.name === 'string' ? body.name.trim().slice(0, 64) : '';
+			if (!name) return c.json({ error: 'name is required' }, 400);
+			const { id, token } = createAgentToken(name);
+			return c.json({ ok: true, id, name, token });
+		});
+
+		app.delete('/api/agent-tokens/:id', requireAuth(), (c) => {
+			const id = c.req.param('id');
+			const removed = removeAgentToken(id);
+			if (!removed) return c.json({ error: 'no such token' }, 404);
+			return c.json({ ok: true });
+		});
+	}
 
 	app.post('/api/system/kill', requireAuth(), async (c) => {
 		const { pid } = await c.req.json();

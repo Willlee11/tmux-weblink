@@ -31,11 +31,13 @@ tmux-weblink can federate several machines into one browser view:
 ## Setting up the hub
 
 1. Run the hub normally and set a password (first visit, or `tmux-web setup`).
-2. Create a token for each machine you want to join:
+2. Create a token for each machine you want to join — from the CLI:
 
 ```bash
 tmux-web agent-token add --name laptop
 ```
+
+or from the browser: **Settings → Federation → Create token**.
 
 The token is printed **once** — store it somewhere safe:
 
@@ -55,7 +57,14 @@ tmux-web agent-token remove <id>   # revoke (disconnects that agent)
 
 ## Running an agent
 
-On the remote machine (same binary, no ports opened):
+**Preferred — same start command everywhere.** Every machine runs the same
+`tmux-web` server. On the machine you want to attach to the hub, open
+`/settings/federation`, enter the hub URL + token + a name, and press
+**Save & Connect**. The agent client runs in-process (no extra process, no
+ports opened), reconnects automatically with backoff, and persists across
+restarts of the server.
+
+For headless/container setups the standalone mode still works:
 
 ```bash
 tmux-web agent --hub wss://hub.example.com --token oQhF2mT8R3... --name laptop

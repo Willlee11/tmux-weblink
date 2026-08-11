@@ -204,6 +204,9 @@ Usage:
   tmux-web agent-token remove <id>      Revoke an agent token
   tmux-web agent --hub <url> --token <t> [--name <n>]   Run as a remote agent
 
+  Prefer the web UI: every machine runs the same "tmux-web" command; use
+  /settings/federation to join a hub or to create/revoke agent tokens.
+
 Files:
   ${CONFIG_DISPLAY}   settings (plugins, commandbar)
   ${getThemePath()}   active theme (shell + terminal colors)
