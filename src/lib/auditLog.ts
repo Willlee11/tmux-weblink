@@ -36,7 +36,16 @@ export type AuditEvent =
 	| 'setup_rejected_remote'
 	| 'ws_rejected_origin'
 	| 'ws_rejected_per_ip_cap'
-	| 'http_unauthorized';
+	| 'http_unauthorized'
+	| 'agent_connected'
+	| 'agent_disconnected'
+	| 'agent_bad_token'
+	| 'agent_rate_limited'
+	| 'agent_hello_timeout'
+	| 'agent_cap_reached'
+	| 'agent_rejected_origin'
+	| 'ws_rejected_remote_auth'
+	| 'ws_rejected_remote_offline';
 
 interface AuditFields {
 	ip?: string;
@@ -57,6 +66,7 @@ interface AuditFields {
 	plugin?: string;
 	name?: string;
 	token?: string;
+	agentId?: string;
 }
 
 const WARN_EVENTS: Set<AuditEvent> = new Set([

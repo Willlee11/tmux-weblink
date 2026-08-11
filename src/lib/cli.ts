@@ -199,6 +199,10 @@ Usage:
   tmux-web theme list            List available themes
   tmux-web theme set <name>      Set active theme (vscode, ghostty)
   tmux-web theme show            Show active theme
+  tmux-web agent-token add --name <n>   Create an agent registration token
+  tmux-web agent-token list      List agent tokens
+  tmux-web agent-token remove <id>      Revoke an agent token
+  tmux-web agent --hub <url> --token <t> [--name <n>]   Run as a remote agent
 
 Files:
   ${CONFIG_DISPLAY}   settings (plugins, commandbar)
@@ -210,5 +214,7 @@ Most of these are also editable from the browser at /settings and /settings/them
 
 Env:
   TMUX_WEB_TERMINAL_RENDERER=xterm|ghostty   (also persistable via /settings)
+  TMUX_WEB_AGENT_HUB / TMUX_WEB_AGENT_TOKEN / TMUX_WEB_AGENT_NAME   (agent mode)
+  TMUX_WEB_MAX_AGENTS / TMUX_WEB_MAX_AGENT_CONNS / TMUX_WEB_AGENT_OFFLINE_MS
 `);
 }

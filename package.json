@@ -4,7 +4,8 @@
   "description": "Access your tmux sessions from the browser. A continuation of tmux-web and persalink.",
   "type": "module",
   "bin": {
-    "tmux-weblink": "dist/index.js"
+    "tmux-weblink": "dist/index.js",
+    "tmux-web-agent": "dist/agent.js"
   },
   "files": [
     "dist",
