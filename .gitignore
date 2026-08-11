@@ -31,3 +31,4 @@ bun.lockb
 .idea/
 .vscode/
 .local
+~/.pi/

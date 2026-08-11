@@ -14,7 +14,13 @@ const shellCfg = window.__TMUX_WEB_SHELL__!;
 
 let currentTerminal: TerminalInstance | null = null;
 let currentSession: string | null = null;
-let currentAgentId: string | null = null;
+// Initialize from the injected scope: inside an agent page space
+// (/a/:agentId/...) this is that agent's id, so machine-relative URLs,
+// session-scoped APIs and the sidebar's "back to hub" entry work.
+const scopeAgentId =
+	typeof (window as any).__TMUX_WEB_SCOPE__?.agentId === 'string' ? (window as any).__TMUX_WEB_SCOPE__.agentId : null;
+let currentAgentId: string | null = scopeAgentId;
+(window as any).__tmuxWebScopeAgent = scopeAgentId;
 let currentMode: 'sessions' | 'files' = 'sessions';
 let currentFileDir = '';
 let currentFilePath = '';
@@ -77,13 +83,44 @@ function setMode(mode: 'sessions' | 'files') {
 
 // ── Sessions mode ──
 
-async function renderSessionList() {
-	sidebarContent.innerHTML = '<div class="sidebar-section-label">Sessions</div><button class="new-session-sidebar-btn" id="ns-btn">+ New Session</button>';
+let lastSidebarPayload = '';
 
+async function renderSessionList() {
 	try {
 		const res = await fetch('/api/sidebar/sessions');
 		const data = await res.json();
-		const sessions = data.recent || [];
+		// The sidebar is polled every 10s; rebuilding the whole list on every
+		// poll causes a visible flicker, so skip re-rendering when nothing changed.
+		const payload = JSON.stringify({ recent: data.recent, agents: data.agents });
+		if (payload === lastSidebarPayload) return;
+		lastSidebarPayload = payload;
+		renderSidebarPayload(data);
+	} catch {
+		sidebarContent.innerHTML += '<div class="file-tree-empty">Failed to load sessions</div>';
+	}
+
+	// Wire up new session button
+	const nsBtn = document.getElementById('ns-btn');
+	if (nsBtn) nsBtn.addEventListener('click', () => document.getElementById('new-session-modal')?.classList.add('open'));
+}
+
+function renderSidebarPayload(data: { recent?: { name: string; attached?: boolean }[]; agents?: { agentId: string; agentName: string; online: boolean; sessions: { name: string; attached?: boolean }[] }[] }) {
+	sidebarContent.innerHTML = '<button class="new-session-sidebar-btn" id="ns-btn">+ New Session</button>';
+
+	const sessions = data.recent || [];
+
+		// Local machine group header. On a hub page it is the current machine;
+		// inside an agent page space it links back to the hub root.
+		const localGroup = document.createElement('div');
+		localGroup.className = 'sidebar-section-label' + (currentAgentId ? ' clickable' : '');
+		localGroup.textContent = currentAgentId ? '← 返回本机' : '本机';
+		if (currentAgentId) {
+			localGroup.title = 'Back to hub';
+			localGroup.addEventListener('click', () => {
+				window.location.href = '/';
+			});
+		}
+		sidebarContent.appendChild(localGroup);
 
 		// Local sessions (hub).
 		for (const s of sessions) {
@@ -111,9 +148,16 @@ async function renderSessionList() {
 		const agents = data.agents || [];
 		for (const a of agents) {
 			if (!a.sessions || a.sessions.length === 0) continue;
+			const isCurrent = a.agentId === currentAgentId;
 			const group = document.createElement('div');
-			group.className = 'sidebar-section-label' + (a.online ? '' : ' agent-offline-label');
+			group.className = 'sidebar-section-label machine-label' + (a.online ? '' : ' agent-offline-label') + (!isCurrent && a.online ? ' clickable' : '');
 			group.textContent = a.agentName + (a.online ? '' : ' (offline)');
+			if (!isCurrent && a.online) {
+				group.title = '打开 ' + a.agentName;
+				group.addEventListener('click', () => {
+					window.location.href = '/a/' + encodeURIComponent(a.agentId) + '/';
+				});
+			}
 			sidebarContent.appendChild(group);
 			for (const s of a.sessions) {
 				const el = document.createElement('div');
@@ -131,13 +175,6 @@ async function renderSessionList() {
 				sidebarContent.appendChild(el);
 			}
 		}
-	} catch {
-		sidebarContent.innerHTML += '<div class="file-tree-empty">Failed to load sessions</div>';
-	}
-
-	// Wire up new session button
-	const nsBtn = document.getElementById('ns-btn');
-	if (nsBtn) nsBtn.addEventListener('click', () => document.getElementById('new-session-modal')?.classList.add('open'));
 }
 
 function escHtml(s: string): string {

@@ -305,11 +305,15 @@ export function startAgentClient(opts: AgentClientOptions): AgentClientHandle {
 
 	function connect(): void {
 		if (stopped || ws) return;
-		const wsUrl = opts.hub.replace(/\/+$/, '') + '/agent/ws';
+		// Normalize the hub URL: users often type http(s)://; the agent channel
+		// is a WebSocket, so map http→ws and https→wss.
+		const wsUrl =
+			opts.hub.replace(/\/+$/, '').replace(/^http:/, 'ws:').replace(/^https:/, 'wss:') + '/agent/ws';
 		let socket: WebSocket;
 		try {
 			socket = new WebSocket(wsUrl);
 		} catch (err) {
+			logErr(`bad hub URL: ${(err as Error).message} (${wsUrl})`);
 			setState('error', `bad hub URL: ${(err as Error).message}`);
 			return;
 		}
