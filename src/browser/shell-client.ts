@@ -1056,3 +1056,9 @@ procBackdrop.addEventListener('click', closeProcessPanel);
 (window as any).__refreshSidebar = renderSessionList;
 renderSessionList();
 collapseSidebar();
+
+// Live sidebar refresh: agents come/go and their sessions change asynchronously
+// (agent heartbeat ~15s, hub sweep ~10s). Re-render while the page is visible.
+setInterval(() => {
+	if (document.visibilityState === 'visible') renderSessionList();
+}, 10_000);
