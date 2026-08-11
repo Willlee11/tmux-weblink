@@ -68,6 +68,23 @@ export function startAgentClient(opts: AgentClientOptions): AgentClientHandle {
 	let stopped = false;
 	const attachments = new Map<number, AttachedTerminal>();
 	const pendingHttpBodies = new Map<number, Buffer[]>();
+	const bodyEndWaiters = new Map<number, () => void>();
+	const bodyEnded = new Set<number>();
+
+	// The hub streams the request body as binary frames AFTER the http_req
+	// control frame; wait until http_body_end arrives before dispatching so
+	// the local app sees the complete body.
+	function waitForBodyEnd(id: number): Promise<void> {
+		if (bodyEnded.has(id)) return Promise.resolve();
+		return new Promise((resolve) => {
+			bodyEndWaiters.set(id, resolve);
+			// Safety: if the stream never finishes (hub died mid-request), don't
+			// hang the tunnel request forever.
+			setTimeout(() => {
+				if (bodyEndWaiters.delete(id)) resolve();
+			}, 30_000);
+		});
+	}
 	let sessionsPollTimer: ReturnType<typeof setInterval> | null = null;
 	let heartbeatTimer: ReturnType<typeof setInterval> | null = null;
 	let lastSessionsJson = '';
@@ -122,6 +139,8 @@ export function startAgentClient(opts: AgentClientOptions): AgentClientHandle {
 	async function handleHttpRequest(msg: Extract<HubToAgent, { type: 'http_req' }>): Promise<void> {
 		let body: Buffer | undefined;
 		if (msg.hasBody) {
+			await waitForBodyEnd(msg.id);
+			bodyEnded.delete(msg.id);
 			const chunks = pendingHttpBodies.get(msg.id);
 			pendingHttpBodies.delete(msg.id);
 			body = chunks && chunks.length ? Buffer.concat(chunks) : Buffer.alloc(0);
@@ -240,9 +259,16 @@ export function startAgentClient(opts: AgentClientOptions): AgentClientHandle {
 				void handleHttpRequest(msg);
 				break;
 
-			case 'http_body_end':
-				// Request body finished; handleHttpRequest reads accumulated chunks.
+			case 'http_body_end': {
+				// Request body finished; wake any handleHttpRequest waiting for it.
+				bodyEnded.add(msg.id);
+				const w = bodyEndWaiters.get(msg.id);
+				if (w) {
+					bodyEndWaiters.delete(msg.id);
+					w();
+				}
 				break;
+			}
 
 			case 'attach':
 				handleAttach(msg);
@@ -289,6 +315,8 @@ export function startAgentClient(opts: AgentClientOptions): AgentClientHandle {
 		}
 		attachments.clear();
 		pendingHttpBodies.clear();
+		bodyEndWaiters.clear();
+		bodyEnded.clear();
 		lastSessionsJson = '';
 	}
 

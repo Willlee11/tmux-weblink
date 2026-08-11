@@ -815,9 +815,9 @@ window.__TMUX_WEB_SHELL__ = ${shellConfigJson};
 await import('/assets/shell-client.js');
 ${commandbarEnabled ? commandbarScript(commandbarSessions, []) : ''}
 // Wrapper: refresh sidebar list, then open session
-window.__onSessionCreated = async function(name) {
+window.__onSessionCreated = async function(name, agentId) {
   await window.__refreshSidebar();
-  window.__openSession(name);
+  window.__openSession(name, agentId || undefined);
 };
 ${newSessionModalScript('__onSessionCreated')}
 </script>

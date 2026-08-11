@@ -437,6 +437,20 @@ export function newSessionModalScript(onCreatedExpr?: string): string {
   const errorEl = document.getElementById('ns-error');
   const onCreated = '${onCreatedExpr ?? ''}';
 
+  // The new session is created on the machine of the currently selected
+  // session (window.__tmuxWebScopeAgent is set by the shell client; agent
+  // page spaces also set it via the injected scope). Falls back to this
+  // machine when nothing is selected.
+  function selectedAgentId() {
+    var a = window.__tmuxWebScopeAgent;
+    return (typeof a === 'string' && a) ? a : '';
+  }
+
+  function selectedBase() {
+    var id = selectedAgentId();
+    return id ? '/a/' + encodeURIComponent(id) : '';
+  }
+
   function openModal() {
     modal.classList.add('open');
     nameInput.value = '';
@@ -500,7 +514,7 @@ export function newSessionModalScript(onCreatedExpr?: string): string {
     if (!val) { closeDropdown(); return; }
     debounceTimer = setTimeout(async () => {
       try {
-        const res = await fetch('/api/fs/list?path=' + encodeURIComponent(val));
+        const res = await fetch(selectedBase() + '/api/fs/list?path=' + encodeURIComponent(val));
         const data = await res.json();
         renderDropdown(data.dirs || []);
       } catch { closeDropdown(); }
@@ -517,7 +531,8 @@ export function newSessionModalScript(onCreatedExpr?: string): string {
     submitBtn.textContent = 'Creating…';
     errorEl.style.display = 'none';
     try {
-      const res = await fetch('/api/sessions/new', {
+      const base = selectedBase();
+      const res = await fetch(base + '/api/sessions/new', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name, dir: dir || undefined }),
@@ -525,8 +540,9 @@ export function newSessionModalScript(onCreatedExpr?: string): string {
       const data = await res.json();
       if (!res.ok) { showError(data.error || 'Failed to create session.'); return; }
       closeModal();
-      if (onCreated && typeof window[onCreated] === 'function') { window[onCreated](name); return; }
-      window.location.href = '/s/' + encodeURIComponent(name);
+      const agentId = selectedAgentId() || null;
+      if (onCreated && typeof window[onCreated] === 'function') { window[onCreated](name, agentId); return; }
+      window.location.href = base + '/s/' + encodeURIComponent(name);
     } catch { showError('Network error. Please try again.'); }
     finally { submitBtn.disabled = false; submitBtn.textContent = 'Create'; }
   }
