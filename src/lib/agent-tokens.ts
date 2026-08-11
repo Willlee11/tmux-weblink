@@ -44,6 +44,11 @@ export function createAgentToken(name: string): { id: string; token: string } {
 
 export function findAgentTokenByPlaintext(token: string): AgentTokenRecord | null {
 	const hash = hashAgentToken(token);
+	return findAgentTokenByHash(hash);
+}
+
+/** Look up a token record by its stored sha256 hash (used to detect revocations). */
+export function findAgentTokenByHash(hash: string): AgentTokenRecord | null {
 	const cfg = loadSecurityConfig() as AgentTokenEntry;
 	return (cfg.agentTokens ?? []).find((t) => t.tokenHash === hash) ?? null;
 }

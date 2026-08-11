@@ -44,6 +44,7 @@ export type AuditEvent =
 	| 'agent_hello_timeout'
 	| 'agent_cap_reached'
 	| 'agent_rejected_origin'
+	| 'agent_token_revoked'
 	| 'ws_rejected_remote_auth'
 	| 'ws_rejected_remote_offline';
 

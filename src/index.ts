@@ -41,7 +41,7 @@ import { getSessionPaneTarget, capturePaneTail, capturePaneHistoryChunk, toCrlf 
 import { readTerminalBufferConfig } from "./lib/terminal-config.js";
 import { AgentRegistry } from "./lib/agent-registry.js";
 import { AgentChannel, MAX_RELAY_CONNS_PER_AGENT } from "./lib/agent-relay.js";
-import { findAgentTokenByPlaintext } from "./lib/agent-tokens.js";
+import { findAgentTokenByPlaintext, listAgentTokens } from "./lib/agent-tokens.js";
 import { saveSecurityConfig } from "./lib/security-config.js";
 loadDotEnv();
 
@@ -732,8 +732,19 @@ setInterval(() => {
 			agentChannels.delete(agentId);
 		}
 	}
+	// Kick agents whose registration token was revoked (agent-token remove).
+	const validHashes = new Set(listAgentTokens().map((t) => t.tokenHash));
+	for (const [agentId, channel] of agentChannels) {
+		const rec = agents.peek(agentId);
+		if (!rec || validHashes.has(rec.tokenHash)) continue;
+		audit("agent_token_revoked", { agentId });
+		channel.dispose();
+		agentChannels.delete(agentId);
+		agents.unregister(agentId);
+		try { rec.ws.close(4003, "token revoked"); } catch {}
+	}
 	tokenStore.purgeExpired();
-}, 60 * 1000).unref();
+}, 10 * 1000).unref();
 
 function cleanup() {
 	scheduler.cleanup();
