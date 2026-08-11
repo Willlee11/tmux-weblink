@@ -172,6 +172,7 @@ export function attachTerminal(sessionName: string, io: AttachIO, deps: AttachDe
 
 		syncMaxTimer = setTimeout(finishSync, syncMaxMs);
 		deps.onAttached?.(sessionName);
+		io.onMessage(onMessage);
 
 		ptyProcess.onData((data: string) => {
 			if (disposed) return;
