@@ -37,6 +37,9 @@ TMUX_WEB_TERMINAL_RENDERER=ghostty tmux-weblink
 
 # Optional: tail-first buffer loading (see docs/architecture.md)
 TMUX_WEB_INITIAL_LINES=1000 TMUX_WEB_HISTORY_CHUNK=500 tmux-weblink
+
+# Federation: join this machine to a hub (no ports opened)
+tmux-weblink agent --hub wss://hub.example.com --token <agent-token> --name laptop
 ```
 
 Then open `http://localhost:21000` in your browser. You'll see a list of active tmux sessions — click one to attach.
@@ -48,6 +51,7 @@ Then open `http://localhost:21000` in your browser. You'll see a list of active 
 - [Scheduler](docs/scheduler.md) — delayed `send-keys` tasks
 - **Windows drawer** — switch tmux windows from the terminal header (mobile-friendly tab picker)
 - [Extensions](docs/extensions.md) — install, configure, and build sidebar plugins
+- [Federation / Agents](docs/agents.md) — join NAT'd machines to a public hub
 - [Architecture](docs/architecture.md) — how the server, terminal, and extensions connect
 
 ## Prerequisites
