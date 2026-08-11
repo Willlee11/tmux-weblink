@@ -37,6 +37,9 @@ jobs:
         run: npm run build
 
       - name: Verify tag matches package version
+        # Only tag pushes carry a version tag; workflow_dispatch runs on a
+        # branch ref where the check would always fail.
+        if: github.event_name == 'push'
         run: |
           V="$(node -p "require('./package.json').version")"
           T="${GITHUB_REF_NAME#v}"
