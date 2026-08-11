@@ -1,0 +1,57 @@
+name: Publish to npm
+
+# Mirrors my-open-cc's publish flow: pushing a v* tag (or manually running
+# the workflow) builds, tests, verifies the CLI and publishes to npm.
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      id-token: write # for npm provenance
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: 'https://registry.npmjs.org'
+          always-auth: true
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Test
+        run: npm test
+
+      - name: Build
+        run: npm run build
+
+      - name: Verify tag matches package version
+        run: |
+          V="$(node -p "require('./package.json').version")"
+          T="${GITHUB_REF_NAME#v}"
+          if [ "$V" != "$T" ]; then
+            echo "::error::package.json version $V does not match tag $T"
+            exit 1
+          fi
+          echo "Publishing tmux-weblink v$V"
+
+      - name: Verify CLI works
+        run: |
+          node dist/index.js --version
+          node dist/index.js --help > /dev/null
+
+      - name: Publish to npm
+        run: npm publish --provenance
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
