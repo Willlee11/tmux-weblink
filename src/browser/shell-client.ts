@@ -14,11 +14,18 @@ const shellCfg = window.__TMUX_WEB_SHELL__!;
 
 let currentTerminal: TerminalInstance | null = null;
 let currentSession: string | null = null;
+let currentAgentId: string | null = null;
 let currentMode: 'sessions' | 'files' = 'sessions';
 let currentFileDir = '';
 let currentFilePath = '';
 let currentFileContent = '';
 let currentFileOriginal = '';
+
+// Scope: when a remote (agent) session is open, session-scoped APIs (fs, git,
+// processes) must target the agent's machine through the tunnel.
+function apiPath(p: string): string {
+	return currentAgentId ? '/a/' + encodeURIComponent(currentAgentId) + p : p;
+}
 
 // ── DOM refs ──
 
@@ -78,9 +85,10 @@ async function renderSessionList() {
 		const data = await res.json();
 		const sessions = data.recent || [];
 
+		// Local sessions (hub).
 		for (const s of sessions) {
 			const el = document.createElement('div');
-			el.className = 'session-item' + (s.name === currentSession ? ' active' : '');
+			el.className = 'session-item' + (s.name === currentSession && !currentAgentId ? ' active' : '');
 			el.setAttribute('data-session', s.name);
 			el.innerHTML = `<svg viewBox="0 0 24 24" fill="currentColor"><path d="${s.attached ? 'M19 4H5a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2zm0 14H5V6h14v12z' : 'M4 6h16v2H4V6zm0 5h16v2H4v-2zm0 5h16v2H4v-2z'}"></svg>
 			<span>${escHtml(s.name)}</span>
@@ -98,6 +106,31 @@ async function renderSessionList() {
 					showSessionPopover(s.name, editBtn as HTMLElement);
 				});
 		}
+
+		// Remote (agent) sessions, grouped by machine.
+		const agents = data.agents || [];
+		for (const a of agents) {
+			if (!a.sessions || a.sessions.length === 0) continue;
+			const group = document.createElement('div');
+			group.className = 'sidebar-section-label' + (a.online ? '' : ' agent-offline-label');
+			group.textContent = a.agentName + (a.online ? '' : ' (offline)');
+			sidebarContent.appendChild(group);
+			for (const s of a.sessions) {
+				const el = document.createElement('div');
+				el.className = 'session-item' + (s.name === currentSession && currentAgentId === a.agentId ? ' active' : '') + (a.online ? '' : ' session-offline');
+				el.setAttribute('data-session', s.name);
+				el.setAttribute('data-agent', a.agentId);
+				el.innerHTML = `<svg viewBox="0 0 24 24" fill="currentColor"><path d="${s.attached ? 'M19 4H5a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2zm0 14H5V6h14v12z' : 'M4 6h16v2H4V6zm0 5h16v2H4v-2zm0 5h16v2H4v-2z'}"></svg>
+			<span>${escHtml(s.name)}</span><span class="meta">${a.online ? '' : 'offline'}</span>`;
+				if (a.online) {
+					el.addEventListener('click', (e) => {
+						if ((e.target as HTMLElement).closest('.session-edit-btn')) return;
+						openSession(s.name, a.agentId);
+					});
+				}
+				sidebarContent.appendChild(el);
+			}
+		}
 	} catch {
 		sidebarContent.innerHTML += '<div class="file-tree-empty">Failed to load sessions</div>';
 	}
@@ -111,8 +144,8 @@ function escHtml(s: string): string {
 	return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
-	async function openSession(name: string) {
-		if (currentSession === name && currentTerminal) return; // already open
+	async function openSession(name: string, agentId?: string) {
+		if (currentSession === name && currentTerminal && currentAgentId === (agentId || null)) return; // already open
 
 		// Hide file editor, show terminal
 		fileEditor.style.display = 'none';
@@ -128,10 +161,12 @@ function escHtml(s: string): string {
 			currentTerminal = null;
 		}
 		currentSession = name;
+		currentAgentId = agentId || null;
+		(window as any).__tmuxWebScopeAgent = currentAgentId;
 
 		// Update sidebar active indicator
 		for (const el of sidebarContent.querySelectorAll('.session-item')) {
-			el.classList.toggle('active', el.getAttribute('data-session') === name);
+			el.classList.toggle('active', el.getAttribute('data-session') === name && (el.getAttribute('data-agent') || null) === currentAgentId);
 		}
 
 		try {
@@ -140,6 +175,7 @@ function escHtml(s: string): string {
 				scrollback: shellCfg.scrollback,
 				theme: shellCfg.theme,
 				renderer: shellCfg.renderer,
+				wsBase: currentAgentId ? '/ws/a/' + encodeURIComponent(currentAgentId) : (shellCfg.wsBase || '/ws'),
 			});
 			startHeaderGitPolling();
 		} catch (err) {
@@ -179,7 +215,7 @@ function getGitFileStatus(filePath: string): string | null {
 async function loadGitStatus(dirPath: string) {
 	gitLoading = true;
 	try {
-		const res = await fetch('/api/git/status?path=' + encodeURIComponent(dirPath));
+		const res = await fetch(apiPath('/api/git/status?path=' + encodeURIComponent(dirPath)));
 		if (res.ok) {
 			gitStatusCache = await res.json();
 		} else {
@@ -387,7 +423,7 @@ async function showGitDiff(filePath: string) {
 		gdStatus.textContent = 'Loading…';
 		gdContent.innerHTML = '';
 		try {
-			const res = await fetch('/api/git/diff?path=' + encodeURIComponent(repoRoot) + '&file=' + encodeURIComponent(filePath));
+			const res = await fetch(apiPath('/api/git/diff?path=' + encodeURIComponent(repoRoot) + '&file=' + encodeURIComponent(filePath)));
 			if (!res.ok) throw new Error(await res.text());
 			const data = await res.json();
 			renderDiffInMain(filePath, data.diff, data.stagedDiff);
@@ -407,7 +443,7 @@ async function showGitDiff(filePath: string) {
 		gitPopover.classList.add('open');
 		gitBackdrop.classList.add('open');
 		try {
-			const res = await fetch('/api/git/diff?path=' + encodeURIComponent(repoRoot) + '&file=' + encodeURIComponent(filePath));
+			const res = await fetch(apiPath('/api/git/diff?path=' + encodeURIComponent(repoRoot) + '&file=' + encodeURIComponent(filePath)));
 			if (!res.ok) throw new Error(await res.text());
 			const data = await res.json();
 			renderDiffInPopover(filePath, data.diff, data.stagedDiff);
@@ -554,7 +590,7 @@ function renderFileRoots() {
 async function loadFileDirForSession(session: string) {
 	sidebarContent.innerHTML = '<div class="file-tree-empty">Loading...</div>';
 	try {
-		const res = await fetch('/api/fs/session-path?session=' + encodeURIComponent(session));
+		const res = await fetch(apiPath('/api/fs/session-path?session=' + encodeURIComponent(session)));
 		const data = await res.json();
 		if (data.path) {
 			loadFileDir(data.path);
@@ -574,7 +610,7 @@ async function loadFileDir(dirPath: string) {
 	const gitPromise = loadGitStatus(dirPath);
 
 	try {
-		const res = await fetch('/api/fs/list?path=' + encodeURIComponent(dirPath));
+		const res = await fetch(apiPath('/api/fs/list?path=' + encodeURIComponent(dirPath)));
 		const data = await res.json();
 		await gitPromise; // ensure git status is loaded
 		sidebarContent.innerHTML = '';
@@ -664,7 +700,7 @@ async function openFileEditor(filePath: string) {
 	feSave.style.display = 'none';
 
 	try {
-		const res = await fetch('/api/file?path=' + encodeURIComponent(filePath));
+		const res = await fetch(apiPath('/api/file?path=' + encodeURIComponent(filePath)));
 		if (!res.ok) {
 			const err = await res.json();
 			feStatus.textContent = err.error || 'Failed to load';
@@ -693,7 +729,7 @@ feSave.addEventListener('click', async () => {
 	feSave.textContent = 'Saving...';
 	(feSave as HTMLButtonElement).disabled = true;
 	try {
-		const res = await fetch('/api/file', {
+		const res = await fetch(apiPath('/api/file'), {
 			method: 'PUT',
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify({ path: currentFilePath, content: currentFileContent }),
@@ -716,7 +752,7 @@ feSave.addEventListener('click', async () => {
 feDelete.addEventListener('click', async () => {
 	if (!confirm('Delete ' + currentFilePath + '?')) return;
 	try {
-		const res = await fetch('/api/file/delete', {
+		const res = await fetch(apiPath('/api/file/delete'), {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify({ path: currentFilePath }),
@@ -745,7 +781,7 @@ feNewBtn.addEventListener('click', async () => {
 	if (!name) return;
 	const fullPath = currentFileDir + '/' + name;
 	try {
-		const res = await fetch('/api/file/touch', {
+		const res = await fetch(apiPath('/api/file/touch'), {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify({ path: fullPath }),
@@ -824,7 +860,7 @@ document.getElementById('sp-save')!.addEventListener('click', async () => {
 	const newName = (document.getElementById('sp-name') as HTMLInputElement).value.trim();
 	if (!newName || newName === spSessionName) { closeSessionPopover(); return; }
 	try {
-		const res = await fetch('/api/sessions/rename', {
+		const res = await fetch(apiPath('/api/sessions/rename'), {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify({ oldName: spSessionName, newName }),
@@ -839,7 +875,7 @@ document.getElementById('sp-save')!.addEventListener('click', async () => {
 document.getElementById('sp-delete')!.addEventListener('click', async () => {
 	if (!confirm('Delete session "' + spSessionName + '"?')) return;
 	try {
-		const res = await fetch('/api/sessions/kill', {
+		const res = await fetch(apiPath('/api/sessions/kill'), {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify({ name: spSessionName }),
@@ -952,7 +988,7 @@ const ramEl = document.getElementById('header-ram')!;
 
 function loadProcesses() {
 	procList.innerHTML = '<div class="proc-empty">Loading…</div>';
-	fetch('/api/system/processes').then(r => r.json()).then((procs: any[]) => {
+	fetch(apiPath('/api/system/processes')).then(r => r.json()).then((procs: any[]) => {
 		if (!Array.isArray(procs) || !procs.length) {
 			procList.innerHTML = '<div class="proc-empty">No processes</div>';
 			return;
@@ -976,7 +1012,7 @@ function loadProcesses() {
 			btn.addEventListener('click', (e) => {
 				const r = (e.target as HTMLElement).closest('.proc-row') as HTMLElement;
 				if (!r || !confirm('Kill PID ' + r.dataset.pid + '?')) return;
-				fetch('/api/system/kill', {
+				fetch(apiPath('/api/system/kill'), {
 					method: 'POST',
 					headers: { 'Content-Type': 'application/json' },
 					body: JSON.stringify({ pid: parseInt(r.dataset.pid!, 10) }),

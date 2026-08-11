@@ -63,6 +63,8 @@ export type TerminalInitConfig = {
 	scrollback: number;
 	theme: TerminalTheme;
 	renderer?: 'xterm' | 'ghostty';
+	/** WS path prefix: '' or '/ws' for local sessions, '/ws/a/<agentId>' for remote. */
+	wsBase?: string;
 };
 
 type ServerMessage =
@@ -351,7 +353,8 @@ export function initTerminal(
 		let reconnectDelay = 1000;
 
 		const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
-		const wsUrl = proto + '//' + location.host + '/ws/' + encodeURIComponent(sessionName);
+		const wsBase = cfg.wsBase || '/ws';
+		const wsUrl = proto + '//' + location.host + wsBase + '/' + encodeURIComponent(sessionName);
 		const uploadUrl = '/api/session/' + encodeURIComponent(sessionName) + '/upload';
 		const isSafari = /^((?!chrome|android|crios|fxios|edgios).)*safari/i.test(navigator.userAgent);
 

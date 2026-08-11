@@ -13,6 +13,8 @@ export type ShellConfig = {
 	terminalCfg: TerminalBufferConfig;
 	renderer: 'xterm' | 'ghostty';
 	scrollback: number;
+	/** WS path prefix for terminal attach ('' or '/ws' local; '/ws/a/<agentId>' remote). */
+	wsBase?: string;
 };
 
 function escapeHtml(s: string): string {
@@ -24,7 +26,7 @@ function focusRing(accent = 'var(--panel-accent)'): string {
 }
 
 export function renderShell(cfg: ShellConfig): string {
-	const { theme, commandbarEnabled, commandbarSessions, fsRoots, terminalCfg, renderer, scrollback } = cfg;
+	const { theme, commandbarEnabled, commandbarSessions, fsRoots, terminalCfg, renderer, scrollback, wsBase } = cfg;
 
 	// ram fetched client-side
 
@@ -145,6 +147,24 @@ export function renderShell(cfg: ShellConfig): string {
     font-size: var(--text-xs); text-transform: uppercase; letter-spacing: 0.05em;
     color: var(--panel-muted); padding: 8px 12px 4px; font-weight: 500;
   }
+  .sidebar-section-label.agent-offline-label { color: color-mix(in srgb, var(--panel-muted) 60%, transparent); }
+  .session-item.session-offline { opacity: 0.5; cursor: default; }
+  .session-item .meta { margin-left: auto; }
+  #tw-scope-native {
+    flex-shrink: 0;
+    max-width: 160px;
+    background: color-mix(in srgb, var(--panel-bg) 80%, transparent);
+    color: var(--page-fg);
+    border: 1px solid var(--panel-border);
+    border-radius: 8px;
+    padding: 4px 8px;
+    font-size: 12px;
+    font-family: var(--font-sans);
+    outline: none;
+    cursor: pointer;
+  }
+  #tw-scope-native:focus-visible { ${focusRing()} }
+  #tw-scope-native option { background: var(--panel-bg); color: var(--page-fg); }
   .new-session-sidebar-btn {
     display: flex; align-items: center; gap: 8px;
     width: 100%; padding: 10px 12px; border-radius: 10px; margin-bottom: 6px;
@@ -625,6 +645,7 @@ export function renderShell(cfg: ShellConfig): string {
 		renderer,
 		fsRoots,
 		commandbarEnabled,
+		wsBase: wsBase || '',
 	}).replace(/</g, '\\u003c');
 
 	return /* html */ `<!DOCTYPE html>
@@ -668,6 +689,7 @@ export function renderShell(cfg: ShellConfig): string {
   <div class="header-actions">
     ${commandbarEnabled ? `<button class="header-btn" id="cmdbar-btn" title="Search" aria-label="Search">${icon('search')}</button>` : ''}
   </div>
+  <select id="tw-scope-native" title="Switch machine"><option value="">本机</option></select>
   <div id="header-git" title="Click to browse repository"></div>
   <span id="header-ram"></span>
 </header>
@@ -824,13 +846,40 @@ ${newSessionModalScript('__onSessionCreated')}
 (function(){
   var el = document.getElementById('header-ram');
   if (!el) return;
+  function ramUrl(){
+    var a = window.__tmuxWebScopeAgent;
+    return a ? '/a/' + encodeURIComponent(a) + '/api/system/status' : '/api/system/status';
+  }
   function poll(){
-    fetch('/api/system/status').then(function(r){ return r.json(); }).then(function(s){
+    fetch(ramUrl()).then(function(r){ return r.json(); }).then(function(s){
       el.textContent = 'RAM ' + s.memory.percent + '%';
     }).catch(function(){});
   }
   poll();
   setInterval(poll, 10000);
+})();
+</script>
+<script>
+(function(){
+  var sel = document.getElementById('tw-scope-native');
+  if (!sel) return;
+  function refresh(){
+    fetch('/api/agents').then(function(r){ return r.json(); }).then(function(agents){
+      var cur = window.__tmuxWebScopeAgent || null;
+      var opts = '<option value="/">本机</option>';
+      (agents || []).forEach(function(a){
+        if (!a.online) return;
+        var selAttr = a.agentId === cur ? ' selected' : '';
+        opts += '<option value="/a/' + encodeURIComponent(a.agentId) + '/"' + selAttr + '>' + a.name + '</option>';
+      });
+      sel.innerHTML = opts;
+    }).catch(function(){});
+  }
+  refresh();
+  setInterval(refresh, 15000);
+  sel.addEventListener('change', function(){
+    if (sel.value) window.location.href = sel.value;
+  });
 })();
 </script>
 <script>
