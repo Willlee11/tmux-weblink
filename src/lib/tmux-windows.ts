@@ -1,4 +1,5 @@
 import { execFileSync } from "node:child_process";
+import { tmuxEnv } from "./tmux-env.js";
 
 export type TmuxWindow = { index: number; name: string; active: boolean };
 
@@ -89,7 +90,7 @@ export function isGitWorktree(dir: string): boolean {
 
 function sessionExists(session: string): boolean {
 	try {
-		execFileSync("tmux", ["has-session", "-t", session], { timeout: 3000 });
+		execFileSync("tmux", ["has-session", "-t", session], { timeout: 3000, env: tmuxEnv() });
 		return true;
 	} catch {
 		return false;
@@ -101,7 +102,7 @@ export function newSessionWindow(session: string): void {
 		throw new TmuxWindowsError("session not found", 404);
 	}
 	try {
-		execFileSync("tmux", ["new-window", "-t", session], { timeout: 3000 });
+		execFileSync("tmux", ["new-window", "-t", session], { timeout: 3000, env: tmuxEnv() });
 	} catch (err: unknown) {
 		const message = err instanceof Error ? err.message : "new-window failed";
 		throw new TmuxWindowsError(message, 500);
@@ -112,7 +113,7 @@ export function newTmuxSession(name: string, dir?: string): void {
 	const args = ["new-session", "-d", "-s", name];
 	if (dir) args.push("-c", dir);
 	try {
-		execFileSync("tmux", args, { timeout: 5000 });
+		execFileSync("tmux", args, { timeout: 5000, env: tmuxEnv() });
 	} catch (err: unknown) {
 		const message = err instanceof Error ? err.message : "new-session failed";
 		throw new TmuxWindowsError(message, 500);
@@ -120,11 +121,11 @@ export function newTmuxSession(name: string, dir?: string): void {
 }
 
 export function renameSession(oldName: string, newName: string): void {
-	execFileSync("tmux", ["rename-session", "-t", oldName, newName], { timeout: 5000 });
+	execFileSync("tmux", ["rename-session", "-t", oldName, newName], { timeout: 5000, env: tmuxEnv() });
 }
 
 export function killSession(name: string): void {
-	execFileSync("tmux", ["kill-session", "-t", name], { timeout: 5000 });
+	execFileSync("tmux", ["kill-session", "-t", name], { timeout: 5000, env: tmuxEnv() });
 }
 
 export function selectSessionWindow(session: string, windowIndex: number): void {

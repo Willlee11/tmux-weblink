@@ -1,4 +1,5 @@
 import { execFileSync } from "node:child_process";
+import { tmuxEnv } from "./tmux-env.js";
 
 const TMUX_TIMEOUT_MS = 3000;
 
@@ -17,6 +18,7 @@ function tmux(args: string[]): string {
 	return execFileSync("tmux", args, {
 		encoding: "utf-8",
 		timeout: TMUX_TIMEOUT_MS,
+		env: tmuxEnv(),
 	}).trimEnd();
 }
 

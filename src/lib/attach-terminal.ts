@@ -1,4 +1,5 @@
 import * as pty from 'node-pty';
+import { tmuxEnv } from './tmux-env.js';
 
 // The pty attach lifecycle for one terminal connection, extracted from the
 // WebSocket handler so the exact same logic serves both:
@@ -97,7 +98,7 @@ export function attachTerminal(sessionName: string, io: AttachIO, deps: AttachDe
 				cols: 80,
 				rows: 24,
 				cwd: process.env.HOME || '/',
-				env: process.env as Record<string, string>,
+				env: tmuxEnv(),
 			},
 		) as unknown as AttachPty;
 	});

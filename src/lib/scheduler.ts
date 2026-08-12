@@ -1,4 +1,5 @@
 import { execFileSync } from 'node:child_process';
+import { tmuxEnv } from './tmux-env.js';
 import { randomUUID } from 'node:crypto';
 import type { DbSchema, StoredTask, TriggeredTaskRecord } from './db.js';
 import { ARM_SCAN_INTERVAL_MS, isValidDelayMs, MAX_TIMER_MS } from './schedule-delay.js';
@@ -38,8 +39,8 @@ export interface SchedulerDeps {
 
 export function sendTmuxKeys(sessionName: string, windowIndex: number, text: string): void {
 	const target = `${sessionName}:${windowIndex}`;
-	execFileSync('tmux', ['send-keys', '-t', target, '-l', text], { timeout: 5000 });
-	execFileSync('tmux', ['send-keys', '-t', target, 'Enter'], { timeout: 5000 });
+	execFileSync('tmux', ['send-keys', '-t', target, '-l', text], { timeout: 5000, env: tmuxEnv() });
+	execFileSync('tmux', ['send-keys', '-t', target, 'Enter'], { timeout: 5000, env: tmuxEnv() });
 }
 
 export function isValidRescheduleInput(input: unknown): input is { delayMs: number } {

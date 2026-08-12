@@ -1,4 +1,5 @@
 import { execFileSync } from "node:child_process";
+import { tmuxEnv } from "./tmux-env.js";
 
 const TMUX_TIMEOUT_MS = 3000;
 
@@ -40,7 +41,7 @@ export function listSessionPanes(session: string): PaneInfo[] {
 		const out = execFileSync(
 			"tmux",
 			["list-panes", "-s", "-t", session, "-F", PANE_FORMAT],
-			{ encoding: "utf-8", timeout: TMUX_TIMEOUT_MS },
+			{ encoding: "utf-8", timeout: TMUX_TIMEOUT_MS, env: tmuxEnv() },
 		);
 		return out
 			.trim()

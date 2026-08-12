@@ -1,4 +1,5 @@
 import { execFileSync } from "node:child_process";
+import { tmuxEnv } from "./lib/tmux-env.js";
 
 export interface TmuxSession {
 	name: string;
@@ -19,7 +20,7 @@ export function resolveTmuxSocketPath(): string | null {
 		const out = execFileSync(
 			"tmux",
 			["display-message", "-p", "#{socket_path}"],
-			{ encoding: "utf-8", timeout: 3000 },
+			{ encoding: "utf-8", timeout: 3000, env: tmuxEnv() },
 		);
 		const p = out.trim();
 		return p || null;
@@ -33,7 +34,7 @@ export function listSessions(): TmuxSession[] {
 		const output = execFileSync(
 			"tmux",
 			["list-sessions", "-F", "#{session_name}\t#{session_windows}\t#{session_attached}"],
-			{ encoding: "utf-8", timeout: 3000 },
+			{ encoding: "utf-8", timeout: 3000, env: tmuxEnv() },
 		);
 		return output
 			.trim()

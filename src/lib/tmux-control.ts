@@ -1,4 +1,5 @@
 import * as pty from "node-pty";
+import { tmuxEnv } from "./tmux-env.js";
 import { captureAndStoreWindows } from "./session-windows.js";
 import { recordWindowVisit } from "./window-history.js";
 
@@ -60,7 +61,7 @@ const defaultSpawn: PtySpawner = (session) =>
 			cols: 80,
 			rows: 24,
 			cwd: process.env.HOME || "/",
-			env: process.env as Record<string, string>,
+			env: tmuxEnv(),
 		},
 	) as unknown as ControlPty;
 
