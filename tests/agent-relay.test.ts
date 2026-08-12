@@ -98,17 +98,23 @@ describe('AgentChannel (hub side) over a real socket pair', () => {
 		expect(received.some((s) => JSON.parse(s).type === 'detach')).toBe(true);
 	});
 
-	it('handles attach_err by closing the browser socket', () => {
+	it('handles attach_err by sending attach_failed (keeps socket open, no reconnect loop)', () => {
+		const sent: string[] = [];
 		const closed: { code: number; reason: string }[] = [];
 		const browserWs = {
 			readyState: 1,
-			send: () => {},
+			send: (s: string) => sent.push(s),
 			close: (code: number, reason: string) => closed.push({ code, reason }),
 		} as unknown as WebSocket;
 		channel.registerRelay(11, 'ghost', browserWs);
 		channel.handleMessage(JSON.stringify({ type: 'attach_err', connId: 11, session: 'ghost', message: 'no such session' }));
-		expect(closed.length).toBe(1);
-		expect(closed[0].code).toBe(1000);
+		// The client receives a machine-readable error and decides what to do;
+		// the hub must NOT close the socket (closing makes the client reconnect
+		// in a loop and the page looks blank).
+		expect(closed.length).toBe(0);
+		const msg = JSON.parse(sent[0] ?? '{}') as { type: string; message: string };
+		expect(msg.type).toBe('attach_failed');
+		expect(msg.message).toContain('no such session');
 	});
 
 	it('rejects pending HTTP requests when the agent disconnects', async () => {

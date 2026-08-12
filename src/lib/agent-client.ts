@@ -212,6 +212,7 @@ export function startAgentClient(opts: AgentClientOptions): AgentClientHandle {
 				send({ type: 'ws_close', connId: msg.connId, code: 1000, reason: `tmux exited (${code})` });
 			},
 			onSpawnError: (_s, message) => {
+				logErr(`attach failed for session "${msg.session}": ${message}`);
 				send({ type: 'attach_err', connId: msg.connId, session, message });
 			},
 			onAttached: (_s) => {

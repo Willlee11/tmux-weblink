@@ -198,12 +198,13 @@ export class AgentChannel {
 				const relay = this.relays.get(msg.connId);
 				if (relay && !relay.closed && relay.ws.readyState === WebSocket.OPEN) {
 					relay.ws.send(JSON.stringify({
-						type: 'data',
-						data: `\r\n\x1b[31mAgent "${this.agentId}": cannot attach to session "${msg.session}": ${msg.message}\x1b[0m\r\n`,
+						type: 'attach_failed',
+						message: `Agent "${this.agentId}": cannot attach to session "${msg.session}": ${msg.message}`,
 					}));
-					relay.ws.close(1000, 'attach failed');
+					// Keep the browser socket open; the client shows the error and
+					// closes itself. Closing here would make the client auto-reconnect
+					// in a tight loop (page looks blank while it spins).
 				}
-				this.relays.delete(msg.connId);
 				break;
 			}
 

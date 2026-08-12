@@ -71,6 +71,7 @@ type ServerMessage =
 	| { type: 'auth.required'; setupMode: boolean }
 	| { type: 'auth.ok'; setupMode: boolean; token?: string }
 	| { type: 'auth.failed'; message: string; retryAfterMs?: number; permanentLock?: boolean }
+	| { type: 'attach_failed'; message: string }
 	| { type: 'snapshot'; data: string; lines: number }
 	| { type: 'data'; data: string }
 	| { type: 'history'; data: string; before: number; lines: number }
@@ -344,7 +345,7 @@ export function initTerminal(
 		let fitTimer: ReturnType<typeof setTimeout> | undefined;
 		let touchGesture: { startX: number; startY: number; lastX: number; lastY: number; scrolling: boolean } | null = null;
 		let suppressTouchClickUntil = 0;
-		let phase: 'connecting' | 'live' = 'connecting';
+		let phase: 'connecting' | 'live' | 'dead' = 'connecting';
 		let serverHistoryLoaded = 0;
 		let historyLoading = false;
 		let historyParts: string[] = [];
@@ -399,7 +400,20 @@ export function initTerminal(
 				return;
 			}
 
-			if (msg.type === 'auth.ok') {
+			if (msg.type === 'attach_failed' && typeof msg.message === 'string') {
+			// Agent could not attach (no such session / spawn failure). Show the
+			// reason and stop: reconnecting would loop forever and look blank.
+			reconnectDisabled = true;
+			phase = 'dead';
+			term.reset();
+			void term.write('\r\n\x1b[31m' + stripOscColorSequences(msg.message) + '\x1b[0m\r\n').then(() => {
+				revealTerminal();
+				try { ws?.close(); } catch {}
+			});
+			return;
+		}
+
+		if (msg.type === 'auth.ok') {
 				if (msg.token) localStorage.setItem('tmux-web-token', msg.token);
 				reconnectDelay = 1000;
 				fitTerminal();
@@ -463,7 +477,10 @@ export function initTerminal(
 			}
 		}
 
+		let reconnectDisabled = false;
+
 		function connect() {
+			if (reconnectDisabled) return;
 			let url = wsUrl;
 			const token = localStorage.getItem('tmux-web-token');
 			if (token) url += (url.includes('?') ? '&' : '?') + 'token=' + encodeURIComponent(token);
@@ -481,9 +498,10 @@ export function initTerminal(
 			ws.onclose = () => {
 				if (destroyed) return;
 				phase = 'connecting';
+				if (reconnectDisabled) return;
 				setTimeout(() => {
 					reconnectDelay = Math.min(reconnectDelay * 2, 10000);
-					if (!destroyed) connect();
+					if (!destroyed && !reconnectDisabled) connect();
 				}, reconnectDelay);
 			};
 			ws.onerror = () => ws?.close();
