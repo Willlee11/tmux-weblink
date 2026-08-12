@@ -94,6 +94,8 @@ export function attachTerminal(sessionName: string, io: AttachIO, deps: AttachDe
 	let ptyProcess: AttachPty | null = null;
 	let paneTarget = sessionName;
 	let releaseControl: (() => void) | null = null;
+	let ptySpawnedAt = 0;
+	let preSyncOutput = '';
 
 	let syncing = true;
 	let syncBuffer = '';
@@ -170,12 +172,14 @@ export function attachTerminal(sessionName: string, io: AttachIO, deps: AttachDe
 			}
 		});
 
+		ptySpawnedAt = Date.now();
 		syncMaxTimer = setTimeout(finishSync, syncMaxMs);
 		deps.onAttached?.(sessionName);
 		io.onMessage(onMessage);
 
 		ptyProcess.onData((data: string) => {
 			if (disposed) return;
+			if (Date.now() - ptySpawnedAt < syncMaxMs && preSyncOutput.length < 2048) preSyncOutput += data;
 			if (syncing) {
 				syncBuffer += data;
 				scheduleSyncEnd();
@@ -187,14 +191,28 @@ export function attachTerminal(sessionName: string, io: AttachIO, deps: AttachDe
 		ptyProcess.onExit(({ exitCode }) => {
 			clearSyncTimers();
 			if (ptyProcess) ptyProcess = null;
-			if (!disposed) {
-				deps.onPtyExit?.(sessionName, exitCode);
-				io.send({
-					type: 'data',
-					data: `\r\n\x1b[2m--- tmux exited (code ${exitCode}) ---\x1b[0m\r\n`,
-				});
-				dispose();
+			if (disposed) return;
+			// tmux attach-session prints "can't find session" (exit 1) and dies
+			// quickly when it cannot attach. If it dies before the initial sync
+			// window closes we treat it as an attach failure so the client shows
+			// the reason instead of reconnecting into a blank loop. A successful
+			// attach that ends later (session ended / user exit) is a normal exit.
+			if (exitCode !== 0 && Date.now() - ptySpawnedAt < syncMaxMs) {
+				// Include tmux's own stderr (e.g. "can't find session: x") in the
+				// failure so the user sees the real reason, not a generic message.
+				const stderr = preSyncOutput.trim();
+				deps.onSpawnError?.(
+					sessionName,
+					stderr ? `tmux attach-session failed: ${stderr}` : `tmux attach-session exited with code ${exitCode}`,
+				);
+				return;
 			}
+			deps.onPtyExit?.(sessionName, exitCode);
+			io.send({
+				type: 'data',
+				data: `\r\n\x1b[2m--- tmux exited (code ${exitCode}) ---\x1b[0m\r\n`,
+			});
+			dispose();
 		});
 	}
 
