@@ -3,7 +3,7 @@ import { createRequire } from 'node:module';
 import { hostname } from 'node:os';
 import path from 'node:path';
 import { WebSocket } from 'ws';
-import { listSessions } from './sessions.js';
+import { listSessions, resolveTmuxSocketPath } from './sessions.js';
 import { loadSecurityConfig } from './lib/security-config.js';
 import { TokenStore } from './lib/auth.js';
 import { RateLimiter } from './lib/rateLimiter.js';
@@ -120,6 +120,7 @@ const handle = startAgentClient({
 	toCrlf,
 	handleClientMessage,
 	acquireControlClient,
+	tmuxSocketPath: resolveTmuxSocketPath() ?? undefined,
 });
 
 function cleanup(): void {

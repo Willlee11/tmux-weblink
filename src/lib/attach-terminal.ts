@@ -49,6 +49,13 @@ export interface AttachDeps {
 	acquireControlClient: (session: string, cb: (payload: { activeIndex: number; windows: { index: number; name: string; active: boolean }[] }) => void) => () => void;
 	/** Override pty spawning (tests inject a fake; defaults to node-pty). */
 	spawn?: PtySpawnerLike;
+	/**
+	 * Tmux server socket path (from resolveTmuxSocketPath). Passed to the
+	 * spawned tmux via `-S` so the pty attaches to the same server the agent
+	 * lists sessions from, even if the pty environment resolves a different
+	 * socket (macOS spawn-helper strips TMPDIR).
+	 */
+	tmuxSocketPath?: string;
 	/** Invoked when the pty exits (exit code notification). */
 	onPtyExit?: (session: string, exitCode: number) => void;
 	/** Invoked when the pty could not be spawned. */
@@ -79,17 +86,21 @@ export function _liveAttachmentCount(): number {
 
 export function attachTerminal(sessionName: string, io: AttachIO, deps: AttachDeps): AttachedTerminal {
 	const { initialLines, historyChunk, syncIdleMs, syncMaxMs } = deps.terminalBufferConfig;
-	const spawn = deps.spawn ?? ((session: string) => pty.spawn(
-		'tmux',
-		['attach-session', '-t', session],
-		{
-			name: 'xterm-256color',
-			cols: 80,
-			rows: 24,
-			cwd: process.env.HOME || '/',
-			env: process.env as Record<string, string>,
-		},
-	) as unknown as AttachPty);
+	const spawn = deps.spawn ?? ((session: string) => {
+		const args = deps.tmuxSocketPath ? ['-S', deps.tmuxSocketPath] : [];
+		args.push('attach-session', '-t', session);
+		return pty.spawn(
+			'tmux',
+			args,
+				{
+				name: 'xterm-256color',
+				cols: 80,
+				rows: 24,
+				cwd: process.env.HOME || '/',
+				env: process.env as Record<string, string>,
+			},
+		) as unknown as AttachPty;
+	});
 
 	let ptyProcess: AttachPty | null = null;
 	let paneTarget = sessionName;

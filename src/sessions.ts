@@ -6,6 +6,28 @@ export interface TmuxSession {
 	attached: boolean;
 }
 
+/**
+ * Resolve the tmux server socket this process talks to, so pty-spawned tmux
+ * clients can be forced onto the same server with `tmux -S <path>`. This
+ * matters on macOS, where node-pty's setuid spawn-helper can strip TMPDIR
+ * from the child environment and make tmux resolve a different (empty)
+ * socket — attach then fails with "can't find session". Returns null when no
+ * server is reachable (the caller then uses tmux's default resolution).
+ */
+export function resolveTmuxSocketPath(): string | null {
+	try {
+		const out = execFileSync(
+			"tmux",
+			["display-message", "-p", "#{socket_path}"],
+			{ encoding: "utf-8", timeout: 3000 },
+		);
+		const p = out.trim();
+		return p || null;
+	} catch {
+		return null;
+	}
+}
+
 export function listSessions(): TmuxSession[] {
 	try {
 		const output = execFileSync(

@@ -36,6 +36,8 @@ export interface AgentClientOptions {
 	toCrlf: (s: string) => string;
 	handleClientMessage: (raw: string | Buffer, pty: { write(d: string): void; resize(c: number, r: number): void }) => boolean;
 	acquireControlClient: (session: string, cb: (payload: { activeIndex: number; windows: { index: number; name: string; active: boolean }[] }) => void) => () => void;
+	/** Tmux server socket path forced onto pty attach (see resolveTmuxSocketPath). */
+	tmuxSocketPath?: string;
 	/** Status callback (for the federation settings page). */
 	onStatus?: (status: AgentClientStatus) => void;
 	log?: (msg: string) => void;
@@ -208,6 +210,7 @@ export function startAgentClient(opts: AgentClientOptions): AgentClientHandle {
 			toCrlf: opts.toCrlf,
 			handleClientMessage: opts.handleClientMessage,
 			acquireControlClient: opts.acquireControlClient,
+			tmuxSocketPath: opts.tmuxSocketPath,
 			onPtyExit: (_s, code) => {
 				send({ type: 'ws_close', connId: msg.connId, code: 1000, reason: `tmux exited (${code})` });
 			},

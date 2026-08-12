@@ -35,7 +35,7 @@ import { loadExtensions, spawnExtensionBackend } from "./lib/ext-loader.js";
 import { SchedulerService } from "./lib/scheduler.js";
 import { handleClientMessage } from "./lib/ws-message.js";
 import { loadDotEnv } from "./lib/load-env.js";
-import { listSessions } from "./sessions.js";
+import { listSessions, resolveTmuxSocketPath } from "./sessions.js";
 import { cmdAdd, cmdRemove, cmdList, cmdSetup, cmdTheme, printUsage, printVersion } from "./lib/cli.js";
 import { readSettings } from "./lib/settings.js";
 import { readActiveTheme } from "./lib/theme-store.js";
@@ -438,6 +438,7 @@ wss.on("connection", (ws: WebSocket, _req: import("http").IncomingMessage, sessi
 			toCrlf,
 			handleClientMessage,
 			acquireControlClient,
+			tmuxSocketPath: resolveTmuxSocketPath() ?? undefined,
 			onPtyExit: (_s, _code) => closeWs(ws, 1000, "pty exited"),
 			onSpawnError: (_s, _msg) => closeWs(ws, 1011, "pty spawn failed"),
 		});
