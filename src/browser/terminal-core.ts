@@ -714,7 +714,7 @@ export function initTerminal(
 
 		const copyBanner = document.createElement('div');
 		copyBanner.className = 'terminal-copy-banner';
-		copyBanner.innerHTML = '<strong>Copy mode</strong><span class="hint">drag to select · Alt+C copies · Esc exits</span>';
+		copyBanner.innerHTML = '<strong>Copy mode</strong><span class="hint">drag to copy · Esc exits</span>';
 		copyBanner.hidden = true;
 		container.appendChild(copyBanner);
 
@@ -803,9 +803,18 @@ export function initTerminal(
 			document.removeEventListener('mousemove', handleCopyMouseMove, true);
 			document.removeEventListener('mouseup', handleCopyMouseUp, true);
 			selecting = false;
+			// Shift+drag (or copy-mode drag) copies the cell-accurate selection
+			// immediately on mouseup; Alt+C remains available as a fallback
+			// (e.g. for xterm's native selection).
+			const text = term.getCellsText(copyStart.col, copyStart.row, copyEnd.col, copyEnd.row);
+			copyStart = null;
+			copyEnd = null;
+			term.clearSelection();
 			setCopyMode(false);
-			copyToast.textContent = '已选中 · Alt+C 复制';
-			showCopyToast();
+			if (text) {
+				copyToast.textContent = '已复制';
+				void copyToClipboard(text).then(showCopyToast);
+			}
 			term.focus();
 		}
 
