@@ -75,6 +75,10 @@ function setMode(mode: 'sessions' | 'files') {
 	if (btn) btn.classList.add('active');
 
 	if (mode === 'sessions') {
+		// Switching back from the files tab: the session payload may be
+		// unchanged, but the sidebar currently shows the file tree — reset the
+		// de-dupe fingerprint so the session list is forced to re-render.
+		lastSidebarPayload = '';
 		renderSessionList();
 	} else {
 		renderFileRoots();
