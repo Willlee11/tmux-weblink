@@ -115,6 +115,14 @@ interface TerminalAdapter {
 	getScreenText(): string;
 	getRowsText(startRow: number, endRow: number): string;
 	selectRows(startRow: number, endRow: number): void;
+	/** Select an arbitrary cell range (column-accurate, unlike selectRows). */
+	selectCells(startCol: number, startRow: number, endCol: number, endRow: number): void;
+	/** Text of an arbitrary cell range, column-accurate, trailing padding trimmed. */
+	getCellsText(startCol: number, startRow: number, endCol: number, endRow: number): string;
+	/** The currently selected text (xterm's native selection), if any. */
+	getSelection(): string;
+	/** Clears the current selection. */
+	clearSelection(): void;
 	hasSelectionSupport(): boolean;
 }
 
@@ -173,7 +181,13 @@ class XtermAdapter implements TerminalAdapter {
 	attachCustomKeyEventHandler(callback: (event: KeyboardEvent) => boolean): void { this.terminal.attachCustomKeyEventHandler(callback); }
 	isFocused(): boolean {
 		const active = document.activeElement;
-		return !!active && (active === this.container || this.container.contains(active));
+		if (!active) return false;
+		// xterm keeps its helper textarea on document.body (outside this
+		// container), so also treat focus inside the .xterm element as ours.
+		return active === this.container ||
+			active === this.terminal.textarea ||
+			this.container.contains(active) ||
+			!!(active as Element).closest?.('.xterm');
 	}
 	getScreenText(): string {
 		return this.getRowsText(0, this.terminal.rows - 1);
@@ -193,6 +207,51 @@ class XtermAdapter implements TerminalAdapter {
 		const buf = this.terminal.buffer.active;
 		const [a, b] = startRow <= endRow ? [startRow, endRow] : [endRow, startRow];
 		this.terminal.selectLines(buf.viewportY + a, buf.viewportY + b);
+	}
+	selectCells(startCol: number, startRow: number, endCol: number, endRow: number): void {
+		const buf = this.terminal.buffer.active;
+		const sRow = Math.min(startRow, endRow);
+		const eRow = Math.max(startRow, endRow);
+		if (sRow === eRow) {
+			const c1 = Math.min(startCol, endCol);
+			const c2 = Math.max(startCol, endCol);
+			this.terminal.select(c1, buf.viewportY + sRow, c2 - c1 + 1);
+		} else {
+			// Column-accurate multi-row selection isn't exposed by xterm's public
+			// API; highlight the full row range and trim the copied text instead.
+			this.terminal.selectLines(buf.viewportY + sRow, buf.viewportY + eRow);
+		}
+	}
+	getCellsText(startCol: number, startRow: number, endCol: number, endRow: number): string {
+		const buf = this.terminal.buffer.active;
+		const sRow = Math.min(startRow, endRow);
+		const eRow = Math.max(startRow, endRow);
+		const sCol = startRow < endRow ? startCol : startRow > endRow ? endCol : Math.min(startCol, endCol);
+		const eCol = startRow < endRow ? endCol : startRow > endRow ? startCol : Math.max(startCol, endCol);
+		const base = buf.viewportY;
+		const out: string[] = [];
+		for (let row = sRow; row <= eRow; row++) {
+			const line = buf.getLine(base + row);
+			if (!line) {
+				out.push('');
+				continue;
+			}
+			const from = row === sRow ? sCol : 0;
+			const to = row === eRow ? eCol : this.terminal.cols - 1;
+			let s = '';
+			for (let c = from; c <= to; c++) {
+				const cell = line.getCell(c);
+				if (cell) s += cell.getChars();
+			}
+			out.push(s.replace(/\s+$/, ''));
+		}
+		return out.join('\n');
+	}
+	getSelection(): string {
+		return this.terminal.getSelection();
+	}
+	clearSelection(): void {
+		this.terminal.clearSelection();
 	}
 	hasSelectionSupport(): boolean {
 		return true;
@@ -293,6 +352,62 @@ class GhosttyAdapter implements TerminalAdapter {
 			const base = typeof buf?.viewportY === 'number' ? buf.viewportY : 0;
 			const [a, b] = startRow <= endRow ? [startRow, endRow] : [endRow, startRow];
 			this.terminal.selectLines(base + a, base + b);
+		} catch {}
+	}
+	selectCells(startCol: number, startRow: number, endCol: number, endRow: number): void {
+		try {
+			const buf = this.terminal.buffer?.active;
+			const base = typeof buf?.viewportY === 'number' ? buf.viewportY : 0;
+			const sRow = Math.min(startRow, endRow);
+			const eRow = Math.max(startRow, endRow);
+			if (sRow === eRow) {
+				if (typeof this.terminal?.select !== 'function') { this.selectRows(sRow, eRow); return; }
+				const c1 = Math.min(startCol, endCol);
+				const c2 = Math.max(startCol, endCol);
+				this.terminal.select(c1, base + sRow, c2 - c1 + 1);
+			} else {
+				this.selectRows(sRow, eRow);
+			}
+		} catch { this.selectRows(startRow, endRow); }
+	}
+	getCellsText(startCol: number, startRow: number, endCol: number, endRow: number): string {
+		try {
+			const buf = this.terminal.buffer?.active;
+			if (!buf || typeof buf.getLine !== 'function') return this.getRowsText(startRow, endRow);
+			const base = typeof buf.viewportY === 'number' ? buf.viewportY : 0;
+			const sRow = Math.min(startRow, endRow);
+			const eRow = Math.max(startRow, endRow);
+			const sCol = startRow < endRow ? startCol : startRow > endRow ? endCol : Math.min(startCol, endCol);
+			const eCol = startRow < endRow ? endCol : startRow > endRow ? startCol : Math.max(startCol, endCol);
+			const out: string[] = [];
+			for (let row = sRow; row <= eRow; row++) {
+				const line = buf.getLine(base + row);
+				if (!line) { out.push(''); continue; }
+				const from = row === sRow ? sCol : 0;
+				const to = row === eRow ? eCol : this.colsValue - 1;
+				let s = '';
+				if (typeof line.getCell === 'function') {
+					for (let c = from; c <= to; c++) {
+						const cell = line.getCell(c);
+						if (cell) s += typeof cell.getChars === 'function' ? cell.getChars() : '';
+					}
+				} else {
+					s = typeof line.translateToString === 'function' ? line.translateToString(false) : '';
+				}
+				out.push(s.replace(/\s+$/, ''));
+			}
+			return out.join('\n');
+		} catch { return this.getRowsText(startRow, endRow); }
+	}
+	getSelection(): string {
+		try {
+			if (typeof this.terminal?.getSelection === 'function') return this.terminal.getSelection();
+		} catch {}
+		return '';
+	}
+	clearSelection(): void {
+		try {
+			if (typeof this.terminal?.clearSelection === 'function') this.terminal.clearSelection();
 		} catch {}
 	}
 	hasSelectionSupport(): boolean {
@@ -594,12 +709,12 @@ export function initTerminal(
 		// a row range; on mouseup the selected text is copied to the clipboard.
 		let copyMode = false;
 		let selecting = false;
-		let copyStartRow: number | null = null;
-		let copyEndRow: number | null = null;
+		let copyStart: { col: number; row: number } | null = null;
+		let copyEnd: { col: number; row: number } | null = null;
 
 		const copyBanner = document.createElement('div');
 		copyBanner.className = 'terminal-copy-banner';
-		copyBanner.innerHTML = '<strong>Copy mode</strong><span class="hint">drag to select · Esc exits</span>';
+		copyBanner.innerHTML = '<strong>Copy mode</strong><span class="hint">drag to select · Alt+C copies · Esc exits</span>';
 		copyBanner.hidden = true;
 		container.appendChild(copyBanner);
 
@@ -609,10 +724,19 @@ export function initTerminal(
 		copyToast.hidden = true;
 		container.appendChild(copyToast);
 
-		function copyRowFromClientY(clientY: number): number {
-			const rect = container.getBoundingClientRect();
+		function copyCellFromClientXY(clientX: number, clientY: number): { col: number; row: number } {
+			// xterm renders inside .xterm-screen, which may be narrower than the
+			// outer container (padding). Use the rendered area so column math
+			// matches what the user sees.
+			const screen = container.querySelector<HTMLElement>('.xterm-screen, canvas');
+			const el = screen && screen.getBoundingClientRect().width > 0 ? screen : container;
+			const rect = el.getBoundingClientRect();
 			const h = rect.height > 0 && term.rows > 0 ? rect.height / term.rows : 18;
-			return Math.max(0, Math.min(term.rows - 1, Math.floor((clientY - rect.top) / h)));
+			const w = rect.width > 0 && term.cols > 0 ? rect.width / term.cols : 9;
+			return {
+				row: Math.max(0, Math.min(term.rows - 1, Math.floor((clientY - rect.top) / h))),
+				col: Math.max(0, Math.min(term.cols - 1, Math.floor((clientX - rect.left) / w))),
+			};
 		}
 
 		async function copyToClipboard(text: string) {
@@ -651,10 +775,6 @@ export function initTerminal(
 		function toggleCopyMode() {
 			setCopyMode(!copyMode);
 		}
-		function selectedRange(): [number, number] | null {
-			if (copyStartRow === null || copyEndRow === null) return null;
-			return copyStartRow <= copyEndRow ? [copyStartRow, copyEndRow] : [copyEndRow, copyStartRow];
-		}
 
 		function handleCopyMouseDown(e: MouseEvent) {
 			if (destroyed || e.button !== 0 || selecting) return;
@@ -662,62 +782,98 @@ export function initTerminal(
 				e.preventDefault();
 				e.stopPropagation();
 				selecting = true;
-				copyStartRow = copyRowFromClientY(e.clientY);
-				copyEndRow = copyStartRow;
-				term.selectRows(copyStartRow, copyStartRow);
+				copyStart = copyCellFromClientXY(e.clientX, e.clientY);
+				copyEnd = copyStart;
+				term.selectCells(copyStart.col, copyStart.row, copyEnd.col, copyEnd.row);
 				document.addEventListener('mousemove', handleCopyMouseMove, true);
 				document.addEventListener('mouseup', handleCopyMouseUp, true);
 			}
 		}
 		function handleCopyMouseMove(e: MouseEvent) {
-			if (destroyed || !selecting || copyStartRow === null) return;
+			if (destroyed || !selecting || !copyStart) return;
 			e.preventDefault();
 			e.stopPropagation();
-			copyEndRow = copyRowFromClientY(e.clientY);
-			term.selectRows(copyStartRow, copyEndRow);
+			copyEnd = copyCellFromClientXY(e.clientX, e.clientY);
+			term.selectCells(copyStart.col, copyStart.row, copyEnd.col, copyEnd.row);
 		}
 		function handleCopyMouseUp(e: MouseEvent) {
-			if (destroyed || !selecting || copyStartRow === null) return;
+			if (destroyed || !selecting || !copyStart || !copyEnd) return;
 			e.preventDefault();
 			e.stopPropagation();
-			const range = selectedRange();
 			document.removeEventListener('mousemove', handleCopyMouseMove, true);
 			document.removeEventListener('mouseup', handleCopyMouseUp, true);
 			selecting = false;
 			setCopyMode(false);
-			if (range) {
-				void copyToClipboard(term.getRowsText(range[0], range[1])).then(showCopyToast);
-				term.focus();
-			}
+			copyToast.textContent = '已选中 · Alt+C 复制';
+			showCopyToast();
+			term.focus();
 		}
 
 		container.addEventListener('mousedown', handleCopyMouseDown, true);
 
-		term.attachCustomKeyEventHandler((event) => {
-			if (event.type !== 'keydown') return true;
+		// Key handling runs on the container's own capture listener instead of
+		// xterm's attachCustomKeyEventHandler: the container path fires reliably
+		// regardless of xterm's internal handling of modifier keys (e.g. Alt).
+		// Key handling runs on a document-level capture listener instead of
+		// xterm's attachCustomKeyEventHandler: xterm's helper textarea lives on
+		// document.body (outside this container), so container-scoped listeners
+		// never see keydowns. We gate on term.isFocused() so only keystrokes
+		// aimed at the terminal are handled.
+		document.addEventListener('keydown', handleContainerKeyDown, true);
+
+		function handleContainerKeyDown(event: KeyboardEvent) {
+			if (destroyed || !term.isFocused() || event.defaultPrevented || event.isComposing) return;
 
 			if (copyMode) {
 				if (event.key === 'Escape') {
 					event.preventDefault();
+					event.stopPropagation();
+					copyStart = null;
+					copyEnd = null;
+					term.clearSelection();
 					setCopyMode(false);
-					return false;
+					return;
 				}
 				if (event.key === 'Enter' || ((event.ctrlKey || event.metaKey) && event.code === 'KeyC')) {
 					event.preventDefault();
+					event.stopPropagation();
 					void copyToClipboard(term.getScreenText()).then(showCopyToast);
 					setCopyMode(false);
-					return false;
+					return;
 				}
 			}
 
 			if (event.altKey && event.code === 'KeyC' && !event.ctrlKey && !event.metaKey) {
 				event.preventDefault();
-				toggleCopyMode();
-				return false;
+				event.stopPropagation();
+				if (copyStart && copyEnd) {
+					// Cell-accurate selection from Shift+drag or copy-mode drag.
+					const text = term.getCellsText(copyStart.col, copyStart.row, copyEnd.col, copyEnd.row);
+					copyStart = null;
+					copyEnd = null;
+					term.clearSelection();
+					setCopyMode(false);
+					if (text) {
+						copyToast.textContent = 'Copied';
+						void copyToClipboard(text).then(showCopyToast);
+					}
+				} else {
+					// xterm's native selection (plain drag, e.g. outside mouse-reporting apps).
+					const sel = term.getSelection();
+					if (sel) {
+						term.clearSelection();
+						copyToast.textContent = 'Copied';
+						void copyToClipboard(sel).then(showCopyToast);
+					} else {
+						toggleCopyMode();
+					}
+				}
+				return;
 			}
 
 			if ((event.ctrlKey || event.metaKey) && event.code === 'KeyV') {
 				event.preventDefault();
+				event.stopPropagation();
 				void (async () => {
 					try {
 						if (navigator.clipboard?.read) {
@@ -738,10 +894,9 @@ export function initTerminal(
 						if (text) term.pasteText(normalizePasteText(text));
 					} catch {}
 				})();
-				return false;
+				return;
 			}
-			return true;
-		});
+		}
 
 		let lastPasteAt = 0;
 		function normalizePasteText(text: string): string {
