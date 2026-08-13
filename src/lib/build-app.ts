@@ -1019,7 +1019,7 @@ self.addEventListener("fetch", (e) => {
 			if (!statSync(resolved).isFile()) return c.json({ error: 'not a file' }, 400);
 			const size = statSync(resolved).size;
 			if (size > MAX_FILE_BYTES) return c.json({ error: 'file too large', size, maxBytes: MAX_FILE_BYTES }, 413);
-			const content = readFileSyncLocal(resolved);
+			const content = readFileSyncLocal(resolved, 'utf-8');
 			return c.json({ path: resolved, content, size });
 		} catch (err) {
 			if ((err as Error).message === 'FS_ROOTS_NOT_CONFIGURED') return c.json({ error: 'file access not configured' }, 403);
