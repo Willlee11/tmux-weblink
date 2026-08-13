@@ -90,6 +90,10 @@ function setMode(mode: 'sessions' | 'files') {
 let lastSidebarPayload = '';
 
 async function renderSessionList() {
+	// While the Files tab is active the sidebar shows the file tree; the 10s
+	// poll must not clobber it with the session list (which also made the
+	// view look like it 'exited' the file editor).
+	if (currentMode !== 'sessions') return;
 	try {
 		const res = await fetch('/api/sidebar/sessions');
 		const data = await res.json();
