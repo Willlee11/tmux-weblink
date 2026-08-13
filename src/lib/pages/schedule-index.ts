@@ -1,7 +1,5 @@
 import { cssVarsStyle } from '../theme.js';
 import type { TmuxWebTheme } from '../themes/types.js';
-import { commandbarCSS, commandbarHTML, commandbarScript } from '../commandbar.js';
-import type { CommandbarSession } from '../commandbar.js';
 import { notesDrawerCSS, notesDrawerHTML, notesDrawerScript } from '../notes-drawer.js';
 import {
 	sharedLayoutCSS,
@@ -70,8 +68,6 @@ export function renderScheduleIndex(
 	triggered: TriggeredTaskView[],
 	theme: TmuxWebTheme,
 	retentionDays = 7,
-	commandbarEnabled = false,
-	commandbarSessions: CommandbarSession[] = [],
 ): string {
 	const sorted = [...tasks].sort((a, b) => a.fireAt - b.fireAt);
 
@@ -236,7 +232,7 @@ export function renderScheduleIndex(
     .reschedule-input-row { flex-direction: column; align-items: stretch; }
     .reschedule-input-row button { align-self: flex-start; }
   }
-  ${commandbarEnabled ? commandbarCSS() : ''}
+  
   ${notesDrawerCSS()}`;
 
 	return /* html */ `<!DOCTYPE html>
@@ -253,7 +249,7 @@ export function renderScheduleIndex(
 </head>
 <body>
 
-${sharedHeader({ commandbarEnabled, title: 'Scheduled', themeTemplate: theme.template })}
+${sharedHeader({ title: 'Scheduled', themeTemplate: theme.template })}
 
 <div class="page-wrap">
   <div class="page-layout">
@@ -274,12 +270,10 @@ ${sharedHeader({ commandbarEnabled, title: 'Scheduled', themeTemplate: theme.tem
 </div>
 
 ${newSessionModalHTML()}
-${commandbarEnabled ? commandbarHTML() : ''}
 ${notesDrawerHTML('Notes - Global')}
 
 <script type="module">
 ${notesDrawerScript('__global__')}
-${commandbarEnabled ? commandbarScript(commandbarSessions, []) : ''}
 ${newSessionModalScript()}
 </script>
 

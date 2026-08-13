@@ -71,7 +71,6 @@ db.data.quickCommands ??= [];
 
 const settings = await readSettings();
 const activeTheme = await readActiveTheme();
-const commandbarEnabled = settings.commandbar === true;
 const scheduleHistoryDays = clampHistoryDays(settings.scheduleHistoryDays);
 const extsDir = path.join(process.cwd(), 'extensions');
 const extensions = await loadExtensions(extsDir);
@@ -94,7 +93,6 @@ const app = buildApp({
 	rateLimiter,
 	scheduler,
 	settings,
-	commandbarEnabled,
 	terminalRenderer: settings.terminalRenderer === 'ghostty' ? 'ghostty' : 'xterm',
 	scheduleHistoryDays,
 	extsDir,

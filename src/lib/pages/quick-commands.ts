@@ -1,8 +1,6 @@
 import { cssVarsStyle } from '../theme.js';
 import type { QuickCommandRecord } from '../db.js';
 import type { TmuxWebTheme } from '../themes/types.js';
-import { commandbarCSS, commandbarHTML, commandbarScript } from '../commandbar.js';
-import type { CommandbarSession } from '../commandbar.js';
 import {
 	sharedLayoutCSS,
 	sharedHeader,
@@ -39,14 +37,12 @@ function renderCommandCard(command: QuickCommandRecord): string {
 export function renderQuickCommandsPage(
 	commands: QuickCommandRecord[],
 	theme: TmuxWebTheme,
-	commandbarEnabled = false,
-	commandbarSessions: CommandbarSession[] = [],
 	
 ): string {
 	const commandsJson = JSON.stringify(commands).replace(/</g, '\\u003c');
 	const body = commands.length
 		? commands.map(renderCommandCard).join('\n')
-		: '<p class="empty">No quick commands yet. Add one below, then use it from the terminal commandbar.</p>';
+		: '<p class="empty">No quick commands yet. Add one below.</p>';
 
 	const pageSpecificCSS = `
   .intro {
@@ -188,7 +184,7 @@ export function renderQuickCommandsPage(
     .quick-card-head { flex-wrap: wrap; }
     .quick-icon-actions { width: 100%; justify-content: flex-end; }
   }
-  ${commandbarEnabled ? commandbarCSS() : ''}`;
+  `;
 
 	return /* html */ `<!DOCTYPE html>
 <html lang="en">
@@ -204,13 +200,13 @@ export function renderQuickCommandsPage(
 </head>
 <body>
 
-${sharedHeader({ commandbarEnabled, title: 'Quick Commands', themeTemplate: theme.template })}
+${sharedHeader({ title: 'Quick Commands', themeTemplate: theme.template })}
 
 <div class="page-wrap">
   <div class="page-layout">
     ${sharedSidebar({ activePage: 'quickCommands', refreshHref: '/quick-commands' })}
     <main class="main-panel">
-      <p class="intro">Configure reusable snippets that can be pasted into the active tmux pane from the terminal commandbar.</p>
+      <p class="intro">Configure reusable snippets that can be pasted into the active tmux pane.</p>
       <p class="quick-error" id="quick-error"></p>
 
       <h2 class="quick-section-title">Add Command</h2>
@@ -225,7 +221,7 @@ ${sharedHeader({ commandbarEnabled, title: 'Quick Commands', themeTemplate: them
         </label>
         <label>
           <span>Description</span>
-          <input name="description" type="text" placeholder="Optional context shown in the commandbar" autocomplete="off" />
+          <input name="description" type="text" placeholder="Optional description" autocomplete="off" />
         </label>
         <div class="quick-actions">
           <button class="quick-save" type="submit">Add Command</button>
@@ -244,7 +240,7 @@ ${newSessionModalHTML()}
   <div class="quick-drawer-header">
     <div>
       <h2>Edit Command</h2>
-      <p>Changes apply to the commandbar immediately after save.</p>
+      
     </div>
     <button class="quick-drawer-close" id="quick-edit-close" type="button" aria-label="Close edit drawer">&times;</button>
   </div>
@@ -268,7 +264,6 @@ ${newSessionModalHTML()}
     </div>
   </form>
 </aside>
-${commandbarEnabled ? commandbarHTML() : ''}
 
 <script type="module">
 const commands = ${commandsJson};
@@ -389,7 +384,6 @@ document.addEventListener('keydown', (event) => {
   if (event.key === 'Escape' && editDrawer.classList.contains('open')) closeEditDrawer();
 });
 
-${commandbarEnabled ? commandbarScript(commandbarSessions, []) : ''}
 ${newSessionModalScript()}
 </script>
 </body>

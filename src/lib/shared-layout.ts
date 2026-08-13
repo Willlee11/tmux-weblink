@@ -1,4 +1,3 @@
-import { commandbarButtonHTML } from './commandbar.js';
 import { escapeHtml } from './html.js';
 import { icon, iconPath } from './icons.js';
 
@@ -262,11 +261,10 @@ export function sharedLayoutCSS(extraCSS = ''): string {
 
 /** Fixed header HTML. Title defaults to "TMUX Sessions". */
 export function sharedHeader(opts: {
-	commandbarEnabled: boolean;
 	title?: string;
 	themeTemplate?: string;
 }): string {
-	const { commandbarEnabled, title = 'TMUX Sessions', themeTemplate = 'vscode' } = opts;
+	const { title = 'TMUX Sessions', themeTemplate = 'vscode' } = opts;
 	return `<script>
 (function() {
   const token = localStorage.getItem('tmux-web-token');
@@ -286,7 +284,6 @@ export function sharedHeader(opts: {
 <header class="fixed-header">
   <div class="brand"><a href="/" aria-label="Go to home">tmux<span>-weblink</span></a></div>
   <div class="header-actions">
-    ${commandbarEnabled ? commandbarButtonHTML('Search') : ''}
     <button class="header-btn" id="notes-toggle" title="Global notes" aria-label="Global notes">
       ${icon('notes')}
       <span>Notes</span>

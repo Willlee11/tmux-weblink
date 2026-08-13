@@ -3,10 +3,8 @@ import type { TmuxWebTheme } from '../themes/types.js';
 import { escapeHtml } from '../html.js';
 import { notesDbScript } from '../notes-db.js';
 import { notesUtilsScript } from '../notes-utils.js';
-import { commandbarCSS, commandbarHTML, commandbarScript, commandbarButtonHTML } from '../commandbar.js';
-import type { CommandbarSession } from '../commandbar.js';
 
-export function renderNotesPage(session: string, theme: TmuxWebTheme, commandbarEnabled = false, commandbarSessions: CommandbarSession[] = []): string {
+export function renderNotesPage(session: string, theme: TmuxWebTheme): string {
 	const isGlobal = session === '__global__';
 	const label = isGlobal ? 'Global' : session;
 	const scope = isGlobal ? '__global__' : 'session:' + session;
@@ -71,7 +69,7 @@ export function renderNotesPage(session: string, theme: TmuxWebTheme, commandbar
     .container { margin: 20px auto; padding: 0 16px; }
     #notes-editor { min-height: 300px; padding: 12px; }
   }
-  ${commandbarEnabled ? commandbarCSS() : ''}
+  
 </style>
 </head>
 <body>
@@ -80,7 +78,6 @@ export function renderNotesPage(session: string, theme: TmuxWebTheme, commandbar
     <div class="breadcrumb">
       <a href="${backHref}">Notes</a> <span>/</span> <span>${labelHtml}</span>
     </div>
-    ${commandbarEnabled ? commandbarButtonHTML('Search') : ''}
   </div>
   <div class="toolbar">
     <button id="notes-copy">Copy</button>
@@ -168,9 +165,7 @@ exportBtn.addEventListener('click', () => {
 
 renderNote();
 </script>
-${commandbarEnabled ? commandbarHTML() : ''}
 <script type="module">
-${commandbarEnabled ? commandbarScript(commandbarSessions, []) : ''}
 </script>
 </body>
 </html>`;

@@ -121,7 +121,6 @@ export function renderSettings(opts: {
 	error?: string;
 }): string {
 	const { settings, renderer, rendererOverridden, theme, plugins, saved = false, error } = opts;
-	const commandbarOn = settings.commandbar === true;
 	const savedRenderer = settings.terminalRenderer ?? 'xterm';
 	const defaultView = settings.defaultView ?? 'default';
 	const scheduleHistoryDays = settings.scheduleHistoryDays ?? 7;
@@ -153,12 +152,6 @@ export function renderSettings(opts: {
   ${flashes(saved, error)}
 
   <form method="POST" action="/settings">
-    <div class="section">
-      <h2>Command bar</h2>
-      <p class="desc">⌘K session search + quick actions.</p>
-      <label class="row"><input type="checkbox" name="commandbar" ${commandbarOn ? 'checked' : ''} /> Enable command bar</label>
-    </div>
-
     <div class="section">
       <h2>Terminal library</h2>
       <p class="desc">Rendering engine for the terminal view.</p>

@@ -1,8 +1,6 @@
 import { cssVarsStyle } from '../theme.js';
 import type { NoteRecord } from '../db.js';
 import type { TmuxWebTheme } from '../themes/types.js';
-import { commandbarCSS, commandbarHTML, commandbarScript } from '../commandbar.js';
-import type { CommandbarSession } from '../commandbar.js';
 import { notesDrawerCSS, notesDrawerHTML, notesDrawerScript } from '../notes-drawer.js';
 import {
 	sharedLayoutCSS,
@@ -24,8 +22,6 @@ function formatDate(ts: number): string {
 export function renderNotesIndex(
 	notes: NoteRecord[],
 	theme: TmuxWebTheme,
-	commandbarEnabled = false,
-	commandbarSessions: CommandbarSession[] = [],
 ): string {
 	const sorted = [...notes].sort((a, b) => (b.updatedAt ?? 0) - (a.updatedAt ?? 0));
 
@@ -69,7 +65,7 @@ export function renderNotesIndex(
     display: flex; justify-content: space-between;
   }
   .empty { font-size: var(--text-sm); color: var(--panel-muted); line-height: 1.6; margin-top: 20px; }
-  ${commandbarEnabled ? commandbarCSS() : ''}
+  
   ${notesDrawerCSS()}`;
 
 	return /* html */ `<!DOCTYPE html>
@@ -86,7 +82,7 @@ export function renderNotesIndex(
 </head>
 <body>
 
-${sharedHeader({ commandbarEnabled, title: 'All Notes', themeTemplate: theme.template })}
+${sharedHeader({ title: 'All Notes', themeTemplate: theme.template })}
 
 <div class="page-wrap">
   <div class="page-layout">
@@ -98,12 +94,10 @@ ${sharedHeader({ commandbarEnabled, title: 'All Notes', themeTemplate: theme.tem
 </div>
 
 ${newSessionModalHTML()}
-${commandbarEnabled ? commandbarHTML() : ''}
 ${notesDrawerHTML('Notes - Global')}
 
 <script type="module">
 ${notesDrawerScript('__global__')}
-${commandbarEnabled ? commandbarScript(commandbarSessions, []) : ''}
 ${newSessionModalScript()}
 </script>
 </body>

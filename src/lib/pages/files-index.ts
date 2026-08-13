@@ -2,12 +2,6 @@ import { cssVarsStyle } from '../theme.js';
 import type { TmuxWebTheme } from '../themes/types.js';
 import { escapeHtml } from '../html.js';
 import {
-	commandbarCSS,
-	commandbarHTML,
-	commandbarScript,
-	type CommandbarSession,
-} from '../commandbar.js';
-import {
 	sharedLayoutCSS,
 	sharedHeader,
 	sharedSidebar,
@@ -17,8 +11,6 @@ import {
 
 export function renderFilesIndex(
 	theme: TmuxWebTheme,
-	commandbarEnabled = false,
-	commandbarSessions: CommandbarSession[] = [],
 	
 	roots: string[],
 ): string {
@@ -41,7 +33,7 @@ export function renderFilesIndex(
   .files-roots li:hover { border-color: var(--panel-accent); transform: translateY(-1px); box-shadow: 0 4px 20px color-mix(in srgb, var(--panel-accent) 8%, transparent); }
   .files-roots li svg { width: 20px; height: 20px; flex-shrink: 0; color: var(--panel-accent); }
   .files-info { font-size: var(--text-sm); color: var(--panel-muted); margin-bottom: 16px; line-height: 1.6; }
-  ${commandbarEnabled ? commandbarCSS() : ''}`;
+  `;
 
 	return /* html */ `<!DOCTYPE html>
 <html lang="en">
@@ -57,7 +49,7 @@ export function renderFilesIndex(
 </head>
 <body>
 
-${sharedHeader({ commandbarEnabled, title: 'Files', themeTemplate: theme.template })}
+${sharedHeader({ title: 'Files', themeTemplate: theme.template })}
 
 <div class="page-wrap">
   <div class="page-layout">
@@ -95,7 +87,6 @@ ${sharedHeader({ commandbarEnabled, title: 'Files', themeTemplate: theme.templat
 </div>
 
 ${newSessionModalHTML()}
-${commandbarEnabled ? commandbarHTML() : ''}
 
 <script type="module">
 ${configured ? `const ROOTS = ${JSON.stringify(roots)};
@@ -284,7 +275,6 @@ document.querySelectorAll('.files-roots li').forEach(el => {
   el.addEventListener('click', () => loadDir(el.textContent));
 });
 ` : ''}
-${commandbarEnabled ? commandbarScript(commandbarSessions, []) : ''}
 ${newSessionModalScript()}
 </script>
 </body>

@@ -32,7 +32,6 @@ import { readActiveTheme, setActiveThemeTemplate } from './theme-store.js';
 import { isThemeTemplateId, THEME_TEMPLATE_IDS, type TmuxWebTheme } from './themes/index.js';
 import type { ThemeTemplateId } from './themes/types.js';
 import { installPlugin, uninstallPlugin } from './plugins.js';
-import { buildCommandbarSessions, type CommandbarSession } from './commandbar.js';
 import { pinView, unpinView, listPinnedViews } from './pinned-views.js';
 import { listWindowLabels, setWindowLabel } from './window-labels.js';
 import { captureAndStoreWindows, getStoredWindows } from './session-windows.js';
@@ -71,7 +70,6 @@ export interface BuildAppDeps {
 	rateLimiter: RateLimiter;
 	scheduler: SchedulerService;
 	settings: TmuxWebSettings;
-	commandbarEnabled: boolean;
 	terminalRenderer: 'xterm' | 'ghostty';
 	scheduleHistoryDays: number;
 	extsDir: string;
@@ -107,7 +105,6 @@ export function buildApp(deps: BuildAppDeps): Hono {
 		rateLimiter,
 		scheduler,
 		settings,
-		commandbarEnabled,
 		terminalRenderer,
 		scheduleHistoryDays,
 		extsDir,
@@ -182,20 +179,6 @@ export function buildApp(deps: BuildAppDeps): Hono {
 				};
 
 	// ── Merged sessions (hub only; agent mode returns local only) ─────────
-
-	function getCommandbarSessions(): CommandbarSession[] {
-		const local = buildCommandbarSessions(listSessions(), getSessionAccessMap());
-		if (!hub) return local;
-		for (const a of hub.agents.list()) {
-			if (!a.online) continue;
-			const rec = hub.agents.get(a.agentId);
-			if (!rec) continue;
-			for (const s of rec.sessions) {
-				local.push({ ...s, agentId: a.agentId, agentName: a.name, remote: true } as CommandbarSession);
-			}
-		}
-		return local;
-	}
 
 	function sidebarSessionsPayload(currentSession?: string) {
 		const base = buildSidebarSessions(listSessions(), getSessionAccessMap(), listPinnedViews());
@@ -372,12 +355,9 @@ self.addEventListener("fetch", (e) => {
 	// ── Page routes (require authentication) ────────────────────────────────
 
 	app.get('/', requireAuthOrRedirect(), (c) => {
-		const commandbarSessions = commandbarEnabled ? getCommandbarSessions() : [];
 		const roots = resolveFsRoots();
 		return c.html(renderShell({
 			theme: state.activeTheme,
-			commandbarEnabled,
-			commandbarSessions,
 			fsRoots: roots,
 			terminalCfg: terminalBufferConfig,
 			renderer: terminalRenderer,
@@ -387,37 +367,31 @@ self.addEventListener("fetch", (e) => {
 	});
 
 	app.get('/notes', requireAuthOrRedirect(), (c) => {
-		const commandbarSessions = commandbarEnabled ? getCommandbarSessions() : [];
-		return c.html(renderNotesIndex(db.data.notes, state.activeTheme, commandbarEnabled, commandbarSessions));
+		return c.html(renderNotesIndex(db.data.notes, state.activeTheme));
 	});
 
 	app.get('/notes/:session', requireAuthOrRedirect(), (c) => {
 		const session = decodeURIComponent(c.req.param('session'));
-		const commandbarSessions = commandbarEnabled ? getCommandbarSessions() : [];
-		return c.html(renderNotesPage(session, state.activeTheme, commandbarEnabled, commandbarSessions));
+		return c.html(renderNotesPage(session, state.activeTheme));
 	});
 
 	app.get('/schedule', requireAuthOrRedirect(), (c) => {
-		const commandbarSessions = commandbarEnabled ? getCommandbarSessions() : [];
-		return c.html(renderScheduleIndex(scheduler.list(), scheduler.listTriggered(), state.activeTheme, scheduleHistoryDays, commandbarEnabled, commandbarSessions));
+		return c.html(renderScheduleIndex(scheduler.list(), scheduler.listTriggered(), state.activeTheme, scheduleHistoryDays));
 	});
 
 	app.get('/history', requireAuthOrRedirect(), (c) => {
 		const sessions = listSessions();
-		const commandbarSessions = commandbarEnabled ? buildCommandbarSessions(sessions, getSessionAccessMap()) : [];
 		const liveSessionNames = new Set(sessions.map((s) => s.name));
-		return c.html(renderHistoryIndex(listWindowHistory(), state.activeTheme, commandbarEnabled, commandbarSessions, liveSessionNames));
+		return c.html(renderHistoryIndex(listWindowHistory(), state.activeTheme, liveSessionNames));
 	});
 
 	app.get('/quick-commands', requireAuthOrRedirect(), (c) => {
-		const commandbarSessions = commandbarEnabled ? getCommandbarSessions() : [];
-		return c.html(renderQuickCommandsPage(listQuickCommands(), state.activeTheme, commandbarEnabled, commandbarSessions));
+		return c.html(renderQuickCommandsPage(listQuickCommands(), state.activeTheme));
 	});
 
 	app.get('/files', requireAuthOrRedirect(), (c) => {
-		const commandbarSessions = commandbarEnabled ? getCommandbarSessions() : [];
 		const roots = resolveFsRoots();
-		return c.html(renderFilesIndex(state.activeTheme, commandbarEnabled, commandbarSessions, roots));
+		return c.html(renderFilesIndex(state.activeTheme, roots));
 	});
 
 	app.post('/api/history/clear', requireAuth(), async (c) => {
@@ -600,7 +574,6 @@ self.addEventListener("fetch", (e) => {
 
 		await writeSettings({
 			...current,
-			commandbar: body.commandbar !== undefined,
 			terminalRenderer: renderer,
 			defaultView,
 			scheduleHistoryDays: historyDays,
@@ -762,11 +735,6 @@ self.addEventListener("fetch", (e) => {
 	app.get('/api/agents', requireAuth(), (c) => {
 		if (!hub) return c.json([]);
 		return c.json(hub.agents.list());
-	});
-
-	app.get('/api/sessions', requireAuth(), (c) => {
-		if (!commandbarEnabled) return c.json({ error: 'commandbar disabled' }, 404);
-		return c.json(getCommandbarSessions());
 	});
 
 	app.post('/api/sessions/new', requireAuth(), async (c) => {

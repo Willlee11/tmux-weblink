@@ -4,7 +4,6 @@ import { getSettingsPath } from './state-paths.js';
 
 export interface TmuxWebSettings {
 	plugins?: string[];
-	commandbar?: boolean;
 	terminalRenderer?: 'xterm' | 'ghostty';
 	defaultView?: 'default' | 'recent';
 	/** Enable the /agents page that watches AI agents in recently-viewed panes. */

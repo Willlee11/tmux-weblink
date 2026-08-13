@@ -1,7 +1,6 @@
 import { homedir } from 'node:os';
 import path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
-import { buildCommandbarSessions } from '../src/lib/commandbar.js';
 import { resolveExtensionUiFile } from '../src/lib/ext-loader.js';
 import { renderNotesPage } from '../src/lib/pages/notes-page.js';
 import { getConfigRoot, getDataRoot, getSettingsPath } from '../src/lib/state-paths.js';
@@ -14,17 +13,6 @@ afterEach(() => {
 });
 
 describe('core helpers', () => {
-	it('orders command bar sessions by recency then name', () => {
-		const sessions = [
-			{ name: 'zeta', windows: 1, attached: false },
-			{ name: 'alpha', windows: 2, attached: true },
-			{ name: 'recent', windows: 1, attached: false },
-		];
-		const accessMap = new Map([['recent', 200], ['zeta', 100]]);
-
-		expect(buildCommandbarSessions(sessions, accessMap).map((session) => session.name)).toEqual(['recent', 'zeta', 'alpha']);
-	});
-
 	it('resolves dev and prod state paths', () => {
 		delete process.env.TMUX_WEB_DEV;
 		delete process.env.TMUX_WEB_MODE;

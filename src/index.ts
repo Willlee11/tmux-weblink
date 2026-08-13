@@ -211,7 +211,6 @@ db.data.quickCommands ??= [];
 
 const settings = await readSettings();
 let activeTheme = await readActiveTheme();
-const commandbarEnabled = settings.commandbar === true;
 const scheduleHistoryDays = clampHistoryDays(settings.scheduleHistoryDays);
 const extsDir = path.join(process.cwd(), "extensions");
 const extensions = await loadExtensions(extsDir);
@@ -247,7 +246,6 @@ const app = buildApp({
 	rateLimiter,
 	scheduler,
 	settings,
-	commandbarEnabled,
 	terminalRenderer: resolveTerminalRenderer(startupArgs, settings.terminalRenderer),
 	scheduleHistoryDays,
 	extsDir,
@@ -278,7 +276,6 @@ const tunnelApp = buildApp({
 	rateLimiter,
 	scheduler,
 	settings,
-	commandbarEnabled,
 	terminalRenderer: resolveTerminalRenderer(startupArgs, settings.terminalRenderer),
 	scheduleHistoryDays,
 	extsDir,

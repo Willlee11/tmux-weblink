@@ -1,14 +1,11 @@
 import { cssVarsStyle } from '../theme.js';
 import type { TmuxWebTheme, TerminalTheme } from '../themes/types.js';
 import type { TerminalBufferConfig } from '../terminal-config.js';
-import { commandbarCSS, commandbarHTML, commandbarScript, type CommandbarSession } from '../commandbar.js';
 import { newSessionModalCSS, newSessionModalHTML, newSessionModalScript, reducedMotion } from '../shared-layout.js';
 import { icon } from '../icons.js';
 
 export type ShellConfig = {
 	theme: TmuxWebTheme;
-	commandbarEnabled: boolean;
-	commandbarSessions: CommandbarSession[];
 	fsRoots: string[];
 	terminalCfg: TerminalBufferConfig;
 	renderer: 'xterm' | 'ghostty';
@@ -26,7 +23,7 @@ function focusRing(accent = 'var(--panel-accent)'): string {
 }
 
 export function renderShell(cfg: ShellConfig): string {
-	const { theme, commandbarEnabled, commandbarSessions, fsRoots, terminalCfg, renderer, scrollback, wsBase } = cfg;
+	const { theme, fsRoots, terminalCfg, renderer, scrollback, wsBase } = cfg;
 
 	// ram fetched client-side
 
@@ -612,8 +609,6 @@ export function renderShell(cfg: ShellConfig): string {
   .file-roots-list li:hover { border-color: var(--panel-accent); }
   .file-roots-list li svg { width: 20px; height: 20px; flex-shrink: 0; fill: var(--panel-accent); }
 
-  /* ── Commandbar ── */
-  ${commandbarEnabled ? commandbarCSS() : ''}
   ${reducedMotion()}
   ${newSessionModalCSS()}
   @media (max-width: 640px) {
@@ -635,7 +630,6 @@ export function renderShell(cfg: ShellConfig): string {
 		theme: theme.terminal,
 		renderer,
 		fsRoots,
-		commandbarEnabled,
 		wsBase: wsBase || '',
 	}).replace(/</g, '\\u003c');
 
@@ -678,7 +672,6 @@ export function renderShell(cfg: ShellConfig): string {
 <header class="fixed-header">
   <div class="brand" id="brand-toggle">tmux<span>-weblink</span></div>
   <div class="header-actions">
-    ${commandbarEnabled ? `<button class="header-btn" id="cmdbar-btn" title="Search" aria-label="Search">${icon('search')}</button>` : ''}
   </div>
   <div id="header-git" title="Click to browse repository"></div>
   <span id="header-ram"></span>
@@ -749,13 +742,6 @@ export function renderShell(cfg: ShellConfig): string {
 <div class="popover-backdrop" id="settings-backdrop"></div>
 <div class="settings-popover" id="settings-popover">
   <div class="settings-item">
-    <span>Command bar</span>
-    <button class="toggle${commandbarEnabled ? ' on' : ''}" id="set-commandbar"></button>
-  </div>
-  <div class="settings-item">
-  </div>
-  <hr class="settings-divider" />
-  <div class="settings-item">
     <span>Terminal renderer</span>
     <span style="font-size:var(--text-xs);color:var(--panel-muted)">${renderer === 'ghostty' ? 'Ghostty' : 'xterm.js'}</span>
   </div>
@@ -806,14 +792,12 @@ export function renderShell(cfg: ShellConfig): string {
 </script>
 
 ${newSessionModalHTML()}
-${commandbarEnabled ? commandbarHTML() : ''}
 
 <script>
 window.__TMUX_WEB_SHELL__ = ${shellConfigJson};
 </script>
 <script type="module">
 await import('/assets/shell-client.js');
-${commandbarEnabled ? commandbarScript(commandbarSessions, []) : ''}
 // Wrapper: refresh sidebar list, then open session
 window.__onSessionCreated = async function(name, agentId) {
   await window.__refreshSidebar();

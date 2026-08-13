@@ -1,8 +1,6 @@
 import { cssVarsStyle } from '../theme.js';
 import type { WindowHistoryRecord } from '../db.js';
 import type { TmuxWebTheme } from '../themes/types.js';
-import { commandbarCSS, commandbarHTML, commandbarScript } from '../commandbar.js';
-import type { CommandbarSession } from '../commandbar.js';
 import {
 	sharedLayoutCSS,
 	sharedHeader,
@@ -32,8 +30,6 @@ function relativeTime(ts: number, now: number): string {
 export function renderHistoryIndex(
 	history: WindowHistoryRecord[],
 	theme: TmuxWebTheme,
-	commandbarEnabled = false,
-	commandbarSessions: CommandbarSession[] = [],
 	
 	liveSessionNames: Set<string> = new Set(),
 ): string {
@@ -97,7 +93,7 @@ export function renderHistoryIndex(
     .hist-row { flex-direction: column; align-items: flex-start; gap: 8px; }
     .hist-time { align-self: flex-end; }
   }
-  ${commandbarEnabled ? commandbarCSS() : ''}`;
+  `;
 
 	return /* html */ `<!DOCTYPE html>
 <html lang="en">
@@ -113,7 +109,7 @@ export function renderHistoryIndex(
 </head>
 <body>
 
-${sharedHeader({ commandbarEnabled, title: 'History', themeTemplate: theme.template })}
+${sharedHeader({ title: 'History', themeTemplate: theme.template })}
 
 <div class="page-wrap">
   <div class="page-layout">
@@ -126,7 +122,6 @@ ${sharedHeader({ commandbarEnabled, title: 'History', themeTemplate: theme.templ
 </div>
 
 ${newSessionModalHTML()}
-${commandbarEnabled ? commandbarHTML() : ''}
 
 <script type="module">
 const clearBtn = document.getElementById('hist-clear');
@@ -139,7 +134,6 @@ if (clearBtn) {
     } catch { clearBtn.disabled = false; }
   });
 }
-${commandbarEnabled ? commandbarScript(commandbarSessions, []) : ''}
 ${newSessionModalScript()}
 </script>
 </body>

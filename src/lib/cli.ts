@@ -20,7 +20,6 @@ const { version } = require('../../package.json') as { version: string };
 export { cmdAdd, cmdRemove };
 
 type SetupFlags = {
-  commandbar?: boolean;
   agents?: boolean;
   yes?: boolean;
 };
@@ -32,12 +31,6 @@ function parseSetupArgs(argv: string[]): SetupFlags {
       case '--yes':
       case '-y':
         flags.yes = true;
-        break;
-      case '--commandbar':
-        flags.commandbar = true;
-        break;
-      case '--no-commandbar':
-        flags.commandbar = false;
         break;
       case '--agents':
         flags.agents = true;
@@ -53,14 +46,14 @@ function parseSetupArgs(argv: string[]): SetupFlags {
 function flagKey(id: string): keyof SetupFlags {
   switch (id) {
     case 'agents': return 'agents';
-    default: return 'commandbar';
+    default: return 'agents';
   }
 }
 
 export async function cmdSetup(argv: string[]): Promise<void> {
   const args = argv[0] === 'setup' ? argv.slice(1) : argv;
   const flags = parseSetupArgs(args);
-  const nonInteractive = flags.yes || flags.commandbar !== undefined || flags.agents !== undefined;
+  const nonInteractive = flags.yes || flags.agents !== undefined;
 
   if (!nonInteractive) requireTty();
 
@@ -208,7 +201,7 @@ Usage:
   /settings/federation to join a hub or to create/revoke agent tokens.
 
 Files:
-  ${CONFIG_DISPLAY}   settings (plugins, commandbar)
+  ${CONFIG_DISPLAY}   settings (plugins, agents)
   ${getThemePath()}   active theme (shell + terminal colors)
   ${envDisplay}       secrets (loaded automatically)
   ${dataDirDisplay}/  plugin installs + runtime state
