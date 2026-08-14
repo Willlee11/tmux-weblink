@@ -527,6 +527,16 @@ export function renderShell(cfg: ShellConfig): string {
     flex: 1; overflow: hidden; position: relative;
   }
   #terminal-container.terminal-pending { visibility: hidden; }
+  #terminal-container.terminal-pending::before {
+    content: "Connecting…";
+    visibility: visible;
+    position: absolute; inset: 0; z-index: 5;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--panel-muted); font-size: 13px;
+    background: var(--panel-bg);
+    animation: tw-pulse 1.2s ease-in-out infinite;
+  }
+  @keyframes tw-pulse { 50% { opacity: 0.35; } }
   #terminal-container .terminal-drag-over {
     outline: 2px dashed var(--panel-accent);
     outline-offset: -2px;
