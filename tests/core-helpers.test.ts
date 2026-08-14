@@ -1,7 +1,6 @@
 import { homedir } from 'node:os';
 import path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
-import { resolveExtensionUiFile } from '../src/lib/ext-loader.js';
 import { renderNotesPage } from '../src/lib/pages/notes-page.js';
 import { getConfigRoot, getDataRoot, getSettingsPath } from '../src/lib/state-paths.js';
 import { vscodeTheme } from '../src/lib/themes/index.js';
@@ -36,10 +35,4 @@ describe('core helpers', () => {
 		expect(notes).not.toContain(`<span>${hostile}</span>`);
 	});
 
-	it('keeps extension UI paths inside dist/ui', () => {
-		const uiDir = path.join('/tmp', 'tmux-web-ext', 'dist', 'ui');
-		expect(resolveExtensionUiFile(uiDir, 'index.html')).toBe(path.join(uiDir, 'index.html'));
-		expect(resolveExtensionUiFile(uiDir, '../server.js')).toBeNull();
-		expect(resolveExtensionUiFile(uiDir, '../../secret.txt')).toBeNull();
-	});
 });

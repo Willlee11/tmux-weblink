@@ -1,6 +1,6 @@
 ---
 title: Architecture
-description: How tmux-web connects the browser, tmux, notes, scheduler, and extensions.
+description: How tmux-web connects the browser, tmux, notes, and the sidebar.
 ---
 
 # Architecture
@@ -59,6 +59,4 @@ If tmux-web is exposed beyond localhost, treat uploads as sensitive (paths are r
 - **Themes** — Built-in templates (`vscode`, `ghostty`) define shell CSS variables and xterm palette. The active theme is persisted at `{configRoot}/tmux-web/theme.json` (e.g. `~/.config/tmux-web/theme.json`) and loaded once at server startup. Switch with `tmux-web theme set <name>` and restart the server. If the file is missing, `vscode` is written automatically (matches the previous default look).
 
 - **Notes** — Per-session and global Markdown scratchpads persist to `~/.tmux-web/db.json` via lowdb (or `~/.dev/.tmux-web/db.json` in dev mode). See [Notes](notes.md).
-- **Scheduler** — Queues `tmux send-keys` calls to fire after a delay and re-arms surviving tasks on restart. See [Scheduler](scheduler.md).
 - **Windows drawer** — On the terminal page, a header tab icon opens a drawer listing tmux windows in the current session. Tapping a row runs `tmux select-window` on the host so the attached PTY switches without mobile keybindings. List: `GET /api/session/:session/windows`; switch: `POST /api/session/:session/select-window` with body `{ windowIndex: number }`.
-- **Extensions** — Sidebar plugins run as isolated child processes; the host reverse-proxies `/ext/<id>/api/*` to each extension over a Unix socket. See [Extensions](extensions.md) for install, config, and author guide.

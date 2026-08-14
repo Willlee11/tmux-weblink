@@ -117,7 +117,7 @@ export function renderFederationPage(data: FederationPageData, theme: TmuxWebThe
   <div class="section">
     <h2>Join a hub (run as agent)</h2>
     <p class="desc">This machine keeps serving its own UI and also connects <em>outbound</em> to a hub,
-      so the hub's browser can reach its tmux sessions, files, notes, scheduler and monitor.
+      so the hub's browser can reach its tmux sessions, files, notes and monitor.
       No ports need to be opened. Get a token on the hub with <code>tmux-web agent-token add --name ${escapeHtml(hostname)}</code>.</p>
 
     <div class="status-line">

@@ -61,16 +61,6 @@ function pageHead(title: string, theme: TmuxWebTheme): string {
   .btn:hover { border-color: var(--panel-accent); color: var(--panel-accent); }
   .btn.primary { border-color: var(--panel-success); color: var(--panel-success); }
   .btn.danger:hover { border-color: #e06c75; color: #e06c75; }
-  .plugin-row { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 8px 0; font-size: var(--text-sm); border-top: 1px solid var(--panel-border); }
-  .plugin-row:first-of-type { border-top: none; }
-  .plugin-row .pkg { word-break: break-all; }
-  .plugin-add { display: flex; gap: 10px; margin-top: 14px; }
-  .plugin-add input[type=text] {
-    flex: 1; font-size: var(--text-sm); font-family: inherit; color: var(--page-fg);
-    background: var(--page-bg); border: 1px solid var(--panel-border);
-    border-radius: 12px; padding: 9px 12px; outline: none; transition: border-color 0.15s, box-shadow 0.15s;
-  }
-  .plugin-add input[type=text]:focus { border-color: var(--panel-accent); box-shadow: 0 0 0 4px color-mix(in srgb, var(--panel-accent) 8%, transparent); }
   .num-input {
     width: 100px; font-size: var(--text-sm); font-family: inherit; color: var(--page-fg);
     background: var(--page-bg); border: 1px solid var(--panel-border);
@@ -116,25 +106,12 @@ export function renderSettings(opts: {
 	renderer: TerminalRenderer;
 	rendererOverridden: boolean;
 	theme: TmuxWebTheme;
-	plugins: string[];
 	saved?: boolean;
 	error?: string;
 }): string {
-	const { settings, renderer, rendererOverridden, theme, plugins, saved = false, error } = opts;
+	const { settings, renderer, rendererOverridden, theme, saved = false, error } = opts;
 	const savedRenderer = settings.terminalRenderer ?? 'xterm';
 	const defaultView = settings.defaultView ?? 'default';
-	const scheduleHistoryDays = settings.scheduleHistoryDays ?? 7;
-
-	const pluginRows = plugins.length
-		? plugins.map((p) => `<div class="plugin-row">
-      <span class="pkg">${escapeHtml(p)}</span>
-      <form method="POST" action="/settings/plugins" onsubmit="return confirm('Remove ${escapeHtml(p)}?');">
-        <input type="hidden" name="action" value="remove" />
-        <input type="hidden" name="pkg" value="${escapeHtml(p)}" />
-        <button type="submit" class="btn danger">Remove</button>
-      </form>
-    </div>`).join('\n')
-		: `<p class="desc" style="margin:0">No plugins enabled.</p>`;
 
 	return /* html */ `${pageHead('Settings', theme)}
 <body>
@@ -171,27 +148,10 @@ export function renderSettings(opts: {
       </div>
     </div>
 
-    <div class="section">
-      <h2>Schedule history</h2>
-      <p class="desc">Days to keep the <code>/schedule</code> "Recently Triggered" history (fired &amp; missed tasks). 1–365, default 7.</p>
-      <label class="row"><input type="number" class="num-input" name="scheduleHistoryDays" min="1" max="365" value="${scheduleHistoryDays}" /> days</label>
-    </div>
-
     <div class="form-actions">
       <button type="submit" class="btn primary">Save settings</button>
     </div>
   </form>
-
-  <div class="section" style="margin-top:16px">
-    <h2>Plugins</h2>
-    <p class="desc">Installed via npm into the tmux-web data dir. Add/remove runs npm and may take a few seconds.</p>
-    ${pluginRows}
-    <form method="POST" action="/settings/plugins" class="plugin-add">
-      <input type="hidden" name="action" value="add" />
-      <input type="text" id="pkg-input" name="pkg" placeholder="npm package name" autocomplete="off" />
-      <button type="submit" class="btn">Add</button>
-    </form>
-  </div>
 
   <div class="section">
     <h2>Theme</h2>

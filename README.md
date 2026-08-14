@@ -1,6 +1,6 @@
 # tmux-weblink
 
-Access your tmux sessions from the browser. A lightweight web server that lists running tmux sessions and lets you attach through a full terminal in your browser — with built-in notes, a scheduler, and sidebar extensions.
+Access your tmux sessions from the browser. A lightweight web server that lists running tmux sessions and lets you attach through a full terminal in your browser — with built-in notes and a sidebar.
 
 ## Install
 
@@ -17,7 +17,7 @@ npx tmux-weblink
 ## Usage
 
 ```bash
-# Interactive setup (command bar, agents page)
+# Interactive setup (agents page)
 tmux-weblink setup
 
 # Start on default port 21000
@@ -54,11 +54,9 @@ Then open `http://localhost:21000` in your browser. You'll see a list of active 
 
 - [Documentation hub](docs/index.md)
 - [Notes](docs/notes.md) — per-session Markdown scratchpad
-- [Scheduler](docs/scheduler.md) — delayed `send-keys` tasks
 - **Windows drawer** — switch tmux windows from the terminal header (mobile-friendly tab picker)
-- [Extensions](docs/extensions.md) — install, configure, and build sidebar plugins
 - [Federation / Agents](docs/agents.md) — join NAT'd machines to a public hub
-- [Architecture](docs/architecture.md) — how the server, terminal, and extensions connect
+- [Architecture](docs/architecture.md) — how the server, terminal, and sidebar connect
 
 ## Prerequisites
 

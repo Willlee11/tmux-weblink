@@ -20,7 +20,7 @@ tmux-weblink can federate several machines into one browser view:
 ```
 
 - **Hub** — a machine with a public IP (or a reachable domain). It serves the browser UI and accepts agent connections. All hub features stay exactly as before.
-- **Agent** — any machine without a public IP. It opens a single **outbound** WebSocket to the hub, so no ports need to be opened in NAT/firewalls. The hub then exposes the agent's tmux sessions, files, notes, scheduler, system monitor and git — **exactly like local sessions** — because the agent runs the same application behind the tunnel.
+- **Agent** — any machine without a public IP. It opens a single **outbound** WebSocket to the hub, so no ports need to be opened in NAT/firewalls. The hub then exposes the agent's tmux sessions, files, notes, system monitor and git — **exactly like local sessions** — because the agent runs the same application behind the tunnel.
 
 ## Trust model
 
@@ -105,7 +105,7 @@ The agent only makes an **outbound** connection, so:
 - The shell page gets a **machine switcher** (this hub + every online agent).
 - The session sidebar groups sessions by machine; remote sessions are marked with the agent name.
 - If an agent goes offline its sessions turn grey and attaching shows an "agent offline" message; the agent reconnects automatically with exponential backoff and everything recovers by itself.
-- The settings page can be opened per machine, but **plugin install and auth/token management are hub-only**.
+- The settings page can be opened per machine, but **auth/token management are hub-only**.
 - Under the unified trust model, the system monitor / kill-session actions are available on agents too.
 
 ## Security caps (hub)
@@ -128,7 +128,7 @@ The agent only makes an **outbound** connection, so:
 
 ## Architecture notes
 
-- Agents run the **same route table** as the hub (`buildApp`), minus admin routes (password setup, auth tokens, plugin install).
+- Agents run the **same route table** as the hub (`buildApp`), minus admin routes (password setup, auth tokens).
 - Browser HTTP requests to `/a/:agentId/...` and terminal WebSockets to `/ws/a/:agentId/:session` are tunneled over the agent's single persistent connection.
 - Sessions are keyed as `agentId:sessionName` on the hub, so identical session names on different machines never collide.
 - See [architecture.md](architecture.md) for the base design.

@@ -1,7 +1,7 @@
 import { escapeHtml } from './html.js';
 import { icon, iconPath } from './icons.js';
 
-export type ActivePage = 'home' | 'notes' | 'schedule' | 'history' | 'quickCommands' | 'files';
+export type ActivePage = 'home' | 'notes' | 'history' | 'quickCommands' | 'files';
 
 type ThemeOption = { id: string; name: string; dot: string };
 
@@ -316,7 +316,6 @@ export function sharedSidebar(opts: {
 
 	const sessionsIcon = iconPath('sessions');
 	const notesIcon = iconPath('notes');
-	const scheduleIcon = iconPath('schedule');
 	const historyIcon = iconPath('history');
 	const quickCommandsIcon = iconPath('quick-commands');
 	const filesIcon = iconPath('file');
@@ -331,7 +330,6 @@ export function sharedSidebar(opts: {
       <hr class="sidebar-divider">
       ${btn('home', '/', sessionsIcon, 'Sessions')}
       ${btn('notes', '/notes', notesIcon, 'All Notes')}
-      ${btn('schedule', '/schedule', scheduleIcon, 'Scheduled')}
       ${btn('files', '/files', filesIcon, 'Files')}
       ${btn('history', '/history', historyIcon, 'History')}
       ${btn('quickCommands', '/quick-commands', quickCommandsIcon, 'Quick Commands')}

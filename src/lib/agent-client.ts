@@ -4,7 +4,7 @@
  * This is the same channel logic the standalone `tmux-web agent` entry uses,
  * extracted so a normal server can run it in-process. The machine keeps
  * serving its own local UI while also appearing as a remote machine on the
- * hub (terminal, files, notes, scheduler, monitor and git all tunnel over the
+ * hub (terminal, files, notes, monitor and git all tunnel over the
  * channel — the hub forwards browser requests to the local `app` passed in).
  */
 

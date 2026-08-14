@@ -8,8 +8,6 @@ import { loadSecurityConfig } from './lib/security-config.js';
 import { TokenStore } from './lib/auth.js';
 import { RateLimiter } from './lib/rateLimiter.js';
 import { db } from './lib/db.js';
-import { loadExtensions, spawnExtensionBackend } from './lib/ext-loader.js';
-import { SchedulerService } from './lib/scheduler.js';
 import { handleClientMessage } from './lib/ws-message.js';
 import { loadDotEnv } from './lib/load-env.js';
 import { readSettings } from './lib/settings.js';
@@ -66,37 +64,17 @@ await db.read();
 db.data.sessionAccess ??= [];
 db.data.pinnedViews ??= [];
 db.data.watchedPanes ??= [];
-db.data.triggeredTasks ??= [];
 db.data.quickCommands ??= [];
 
 const settings = await readSettings();
 const activeTheme = await readActiveTheme();
-const scheduleHistoryDays = clampHistoryDays(settings.scheduleHistoryDays);
-const extsDir = path.join(process.cwd(), 'extensions');
-const extensions = await loadExtensions(extsDir);
-for (const ext of extensions) {
-	if (ext.start) spawnExtensionBackend(ext.dir, ext);
-}
-
-const scheduler = new SchedulerService({
-	db,
-	historyRetentionMs: scheduleHistoryDays * 86_400_000,
-	onMissedTask: (task) =>
-		console.warn(`[scheduler] dropped missed task ${task.id} (was due ${new Date(task.fireAt).toISOString()})`),
-});
-await scheduler.restoreFromDb();
-
 const app = buildApp({
 	mode: 'agent',
 	securityConfig,
 	tokenStore,
 	rateLimiter,
-	scheduler,
 	settings,
 	terminalRenderer: settings.terminalRenderer === 'ghostty' ? 'ghostty' : 'xterm',
-	scheduleHistoryDays,
-	extsDir,
-	extensions,
 	terminalBufferConfig,
 	getAgentId: () => null,
 	state: { activeTheme, settingUpPassword: false },
@@ -122,7 +100,6 @@ const handle = startAgentClient({
 });
 
 function cleanup(): void {
-	scheduler.cleanup();
 	handle.stop();
 	process.exit(0);
 }
@@ -130,7 +107,3 @@ function cleanup(): void {
 process.on('SIGINT', cleanup);
 process.on('SIGTERM', cleanup);
 
-function clampHistoryDays(value: number | undefined): number {
-	if (typeof value !== 'number' || !Number.isFinite(value)) return 7;
-	return Math.min(365, Math.max(1, Math.round(value)));
-}

@@ -3,14 +3,12 @@ import path from 'node:path';
 import { getSettingsPath } from './state-paths.js';
 
 export interface TmuxWebSettings {
-	plugins?: string[];
 	terminalRenderer?: 'xterm' | 'ghostty';
 	defaultView?: 'default' | 'recent';
 	/** Enable the /agents page that watches AI agents in recently-viewed panes. */
 	agents?: boolean;
 	/** Probe watched panes on a background interval (even when /agents is closed). */
 	/** Days to retain the /schedule "Recently Triggered" history. Defaults to 7. */
-	scheduleHistoryDays?: number;
 }
 
 const CONFIG_PATH = getSettingsPath();

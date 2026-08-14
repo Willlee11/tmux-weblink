@@ -3,7 +3,6 @@
  * Catches duplicate top-level declarations (e.g. fetchWindows) before runtime.
  */
 import { notesDrawerScript } from '../src/lib/notes-drawer.js';
-import { schedulerDrawerScript } from '../src/lib/scheduler-drawer.js';
 import { windowsDrawerScript } from '../src/lib/windows-drawer.js';
 import { sessionsDrawerScript } from '../src/lib/sessions-drawer.js';
 
@@ -22,7 +21,6 @@ function assertParses(label: string, code: string): void {
 
 const combined = [
 	notesDrawerScript(`session:${SESSION}`),
-	schedulerDrawerScript(SESSION),
 	windowsDrawerScript(SESSION),
 	sessionsDrawerScript(SESSION),
 ].join('\n\n');

@@ -5,19 +5,16 @@ import { getDataRoot, getSettingsPath, getThemePath } from './state-paths.js';
 import { readSettings, writeSettings } from './settings.js';
 import { readActiveTheme, setActiveThemeTemplate } from './theme-store.js';
 import { isThemeTemplateId, THEME_TEMPLATE_IDS } from './themes/index.js';
-import { cmdAdd, cmdRemove, getPluginDir } from './plugins.js';
 import { getEnvFilePath } from './load-env.js';
 import { SETUP_FEATURES } from './setup-features.js';
 import { promptYesNo, promptChoice, requireTty } from './setup-prompts.js';
 
 const DATA_ROOT = getDataRoot();
-const PLUGIN_DIR = getPluginDir();
 const CONFIG_DISPLAY = getSettingsPath();
 
 const require = createRequire(import.meta.url);
 const { version } = require('../../package.json') as { version: string };
 
-export { cmdAdd, cmdRemove };
 
 type SetupFlags = {
   agents?: boolean;
@@ -154,20 +151,6 @@ export async function cmdTheme(argv: string[]): Promise<void> {
   }
 }
 
-export async function cmdList(): Promise<void> {
-  const cfg = await readSettings();
-  const plugins = cfg.plugins ?? [];
-  if (plugins.length === 0) {
-    console.log('No plugins enabled. Add one with:\n  tmux-web add <package>');
-    return;
-  }
-  console.log('Enabled plugins:');
-  for (const p of plugins) {
-    const installed = existsSync(path.join(PLUGIN_DIR, 'node_modules', p));
-    console.log(`  ${installed ? '✓' : '✗'} ${p}${installed ? '' : '  (not installed — run: tmux-web add ' + p + ')'}`);
-  }
-}
-
 export function printVersion(): void {
   console.log(version);
 }
@@ -186,9 +169,6 @@ Usage:
   tmux-web -h, --help            Show this help
   tmux-web setup                 Interactive feature setup
   tmux-web setup --yes           Enable all features without prompts
-  tmux-web add <package>         Install a plugin and enable it
-  tmux-web remove <package>      Uninstall a plugin and disable it
-  tmux-web list                  Show enabled plugins
   tmux-web theme list            List available themes
   tmux-web theme set <name>      Set active theme (vscode, ghostty)
   tmux-web theme show            Show active theme
@@ -201,10 +181,10 @@ Usage:
   /settings/federation to join a hub or to create/revoke agent tokens.
 
 Files:
-  ${CONFIG_DISPLAY}   settings (plugins, agents)
+  ${CONFIG_DISPLAY}   settings (agents)
   ${getThemePath()}   active theme (shell + terminal colors)
   ${envDisplay}       secrets (loaded automatically)
-  ${dataDirDisplay}/  plugin installs + runtime state
+  ${dataDirDisplay}/  runtime state
 
 Most of these are also editable from the browser at /settings and /settings/theme.
 

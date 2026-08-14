@@ -1,6 +1,5 @@
 import type { TmuxWebSettings } from './settings.js';
 import { readSettings, writeSettings } from './settings.js';
-import { cmdAdd, cmdRemove } from './plugins.js';
 
 export type SetupFeature = {
   id: string;

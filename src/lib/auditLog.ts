@@ -30,8 +30,6 @@ export type AuditEvent =
 	| 'schedule_rescheduled'
 	| 'note_updated'
 	| 'settings_changed'
-	| 'plugin_installed'
-	| 'plugin_uninstalled'
 	| 'permanent_lock'
 	| 'setup_rejected_remote'
 	| 'ws_rejected_origin'
@@ -64,7 +62,6 @@ interface AuditFields {
 	permanentLock?: boolean;
 	retryAfterMs?: number;
 	count?: number;
-	plugin?: string;
 	name?: string;
 	token?: string;
 	agentId?: string;

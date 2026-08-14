@@ -753,8 +753,8 @@ export function renderShell(cfg: ShellConfig): string {
     <button class="theme-option" data-theme="dark-cove" title="Dark Cove"><span class="theme-dot" style="background:#7aa2f7"></span>Dark Cove${theme.template === 'dark-cove' ? '<span class="theme-check">✓</span>' : ''}</button>
   </div>
   <hr class="settings-divider" />
-  <a href="/settings" class="settings-item" id="set-plugins-link" style="cursor:pointer;color:inherit;text-decoration:none">
-    <span>Plugins & Settings</span>
+  <a href="/settings" class="settings-item" id="set-settings-link" style="cursor:pointer;color:inherit;text-decoration:none">
+    <span>Settings</span>
     <span style="font-size:var(--text-xs);color:var(--panel-muted)">→</span>
   </a>
 </div>

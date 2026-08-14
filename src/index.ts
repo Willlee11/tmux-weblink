@@ -31,12 +31,10 @@ import { TokenStore, type StoredToken, hashPassword, verifyPassword, validatePas
 import { RateLimiter } from "./lib/rateLimiter.js";
 import { audit } from "./lib/auditLog.js";
 import { db } from "./lib/db.js";
-import { loadExtensions, spawnExtensionBackend } from "./lib/ext-loader.js";
-import { SchedulerService } from "./lib/scheduler.js";
 import { handleClientMessage } from "./lib/ws-message.js";
 import { loadDotEnv } from "./lib/load-env.js";
 import { listSessions, resolveTmuxSocketPath } from "./sessions.js";
-import { cmdAdd, cmdRemove, cmdList, cmdSetup, cmdTheme, printUsage, printVersion } from "./lib/cli.js";
+import { cmdSetup, cmdTheme, printUsage, printVersion } from "./lib/cli.js";
 import { readSettings } from "./lib/settings.js";
 import { readActiveTheme } from "./lib/theme-store.js";
 import { buildApp } from "./lib/build-app.js";
@@ -120,19 +118,6 @@ const startupArgs = process.argv.slice(2);
 	if (args.length > 0) {
 		const [sub, arg] = args;
 		switch (sub) {
-			case "add":
-				if (!arg) { console.error("usage: tmux-web add <package>"); process.exit(1); }
-				await cmdAdd(arg);
-				process.exit(0);
-			case "remove":
-			case "rm":
-				if (!arg) { console.error("usage: tmux-web remove <package>"); process.exit(1); }
-				await cmdRemove(arg);
-				process.exit(0);
-			case "list":
-			case "ls":
-				await cmdList();
-				process.exit(0);
 			case "setup":
 				await cmdSetup(args);
 				process.exit(0);
@@ -193,40 +178,16 @@ function sendServerMessage(ws: WebSocket, msg: ServerMessage) {
 }
 
 const activePtys = new Set<{ kill(): void }>();
-const extChildren: import("node:child_process").ChildProcess[] = [];
-
-const DEFAULT_SCHEDULE_HISTORY_DAYS = 7;
-function clampHistoryDays(value: number | undefined): number {
-	if (typeof value !== "number" || !Number.isFinite(value)) return DEFAULT_SCHEDULE_HISTORY_DAYS;
-	return Math.min(365, Math.max(1, Math.round(value)));
-}
 
 // ── Startup state ─────────────────────────────────────────────────────────
 await db.read();
 db.data.sessionAccess ??= [];
 db.data.pinnedViews ??= [];
 db.data.watchedPanes ??= [];
-db.data.triggeredTasks ??= [];
 db.data.quickCommands ??= [];
 
 const settings = await readSettings();
 let activeTheme = await readActiveTheme();
-const scheduleHistoryDays = clampHistoryDays(settings.scheduleHistoryDays);
-const extsDir = path.join(process.cwd(), "extensions");
-const extensions = await loadExtensions(extsDir);
-for (const ext of extensions) {
-	if (ext.start) extChildren.push(spawnExtensionBackend(ext.dir, ext));
-}
-
-const scheduler = new SchedulerService({
-	db,
-	historyRetentionMs: scheduleHistoryDays * 86_400_000,
-	onMissedTask: (task) =>
-		console.warn(`[scheduler] dropped missed task ${task.id} (was due ${new Date(task.fireAt).toISOString()})`),
-});
-
-await scheduler.restoreFromDb();
-
 // ── Agent registry + channels (hub side) ──────────────────────────────────
 const agents = new AgentRegistry({ onChange: () => {} });
 const agentChannels = new Map<string, AgentChannel>();
@@ -244,12 +205,8 @@ const app = buildApp({
 	securityConfig,
 	tokenStore,
 	rateLimiter,
-	scheduler,
 	settings,
 	terminalRenderer: resolveTerminalRenderer(startupArgs, settings.terminalRenderer),
-	scheduleHistoryDays,
-	extsDir,
-	extensions,
 	terminalBufferConfig,
 	state: appState,
 	federation: {
@@ -274,12 +231,8 @@ const tunnelApp = buildApp({
 	securityConfig,
 	tokenStore,
 	rateLimiter,
-	scheduler,
 	settings,
 	terminalRenderer: resolveTerminalRenderer(startupArgs, settings.terminalRenderer),
-	scheduleHistoryDays,
-	extsDir,
-	extensions,
 	terminalBufferConfig,
 	state: appState,
 });
@@ -821,7 +774,7 @@ setInterval(() => {
 }, 10 * 1000).unref();
 
 function cleanup() {
-	scheduler.cleanup();
+
 	stopAgentClient();
 	killAllControlClients();
 	killAllAttachedPtys();
@@ -836,9 +789,6 @@ function cleanup() {
 		try { p.kill(); } catch {}
 	}
 	activePtys.clear();
-	for (const child of extChildren) {
-		try { child.kill("SIGTERM"); } catch {}
-	}
 	rateLimiter.dispose();
 	process.exit(0);
 }

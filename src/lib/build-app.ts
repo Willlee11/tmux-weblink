@@ -5,7 +5,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Hono } from 'hono';
 import { listSessions } from '../sessions.js';
-import { renderLoginPage, renderNotesIndex, renderNotesPage, renderSettings, renderThemeSettings, renderScheduleIndex, renderHistoryIndex, renderQuickCommandsPage, renderFilesIndex, renderShell } from '../frontend.js';
+import { renderLoginPage, renderNotesIndex, renderNotesPage, renderSettings, renderThemeSettings, renderHistoryIndex, renderQuickCommandsPage, renderFilesIndex, renderShell } from '../frontend.js';
 import { renderFederationPage } from './pages/federation.js';
 import { createAgentToken, removeAgentToken, listAgentTokens } from './agent-tokens.js';
 import type { AgentClientStatus } from './agent-client.js';
@@ -20,18 +20,13 @@ import { audit } from './auditLog.js';
 import { db } from './db.js';
 import { recordSessionAccess, getSessionAccessMap } from './session-access.js';
 import { listWindowHistory, clearWindowHistory } from './window-history.js';
-import { loadExtensions, registerExtensionRoutes, type ExtManifest } from './ext-loader.js';
 import { saveSecurityConfig as saveSecurityConfigLocal } from './security-config.js';
-import { isValidScheduleInput as isValidScheduleInputLocal, isValidRescheduleInput as isValidRescheduleInputLocal } from './scheduler.js';
 import { ImageUploadError, saveUploadedImage } from './image-upload.js';
 import type { TerminalBufferConfig } from './terminal-config.js';
-import type { SchedulerService } from './scheduler.js';
-import { getScheduleDelayError } from './schedule-delay.js';
 import { readSettings, writeSettings, type TmuxWebSettings } from './settings.js';
 import { readActiveTheme, setActiveThemeTemplate } from './theme-store.js';
 import { isThemeTemplateId, THEME_TEMPLATE_IDS, type TmuxWebTheme } from './themes/index.js';
 import type { ThemeTemplateId } from './themes/types.js';
-import { installPlugin, uninstallPlugin } from './plugins.js';
 import { pinView, unpinView, listPinnedViews } from './pinned-views.js';
 import { listWindowLabels, setWindowLabel } from './window-labels.js';
 import { captureAndStoreWindows, getStoredWindows } from './session-windows.js';
@@ -68,12 +63,8 @@ export interface BuildAppDeps {
 	securityConfig: TmuxWebSecurityConfig;
 	tokenStore: TokenStore;
 	rateLimiter: RateLimiter;
-	scheduler: SchedulerService;
 	settings: TmuxWebSettings;
 	terminalRenderer: 'xterm' | 'ghostty';
-	scheduleHistoryDays: number;
-	extsDir: string;
-	extensions: ExtManifest[];
 	terminalBufferConfig: TerminalBufferConfig;
 	/** Hub-assigned agent id (agent mode only; used to build the WS relay base). */
 	getAgentId?: () => string | null;
@@ -103,12 +94,8 @@ export function buildApp(deps: BuildAppDeps): Hono {
 		securityConfig,
 		tokenStore,
 		rateLimiter,
-		scheduler,
 		settings,
 		terminalRenderer,
-		scheduleHistoryDays,
-		extsDir,
-		extensions,
 		terminalBufferConfig,
 		getAgentId,
 		state,
@@ -255,7 +242,6 @@ export function buildApp(deps: BuildAppDeps): Hono {
 		});
 	}
 
-	registerExtensionRoutes(app, extsDir, extensions);
 
 	const moduleDir = path.dirname(fileURLToPath(import.meta.url));
 	// Compiled client bundles live in <pkg>/dist/assets. build-app.js itself
@@ -373,10 +359,6 @@ self.addEventListener("fetch", (e) => {
 	app.get('/notes/:session', requireAuthOrRedirect(), (c) => {
 		const session = decodeURIComponent(c.req.param('session'));
 		return c.html(renderNotesPage(session, state.activeTheme));
-	});
-
-	app.get('/schedule', requireAuthOrRedirect(), (c) => {
-		return c.html(renderScheduleIndex(scheduler.list(), scheduler.listTriggered(), state.activeTheme, scheduleHistoryDays));
 	});
 
 	app.get('/history', requireAuthOrRedirect(), (c) => {
@@ -555,7 +537,6 @@ self.addEventListener("fetch", (e) => {
 			renderer: terminalRenderer,
 			rendererOverridden: terminalRenderer !== savedRenderer,
 			theme: state.activeTheme,
-			plugins: current.plugins ?? [],
 			saved: c.req.query('saved') === '1',
 			error: c.req.query('error') ? decodeURIComponent(c.req.query('error')!) : undefined,
 		}));
@@ -568,37 +549,11 @@ self.addEventListener("fetch", (e) => {
 		const current = await readSettings();
 		const renderer = body.terminalRenderer === 'ghostty' ? 'ghostty' : 'xterm';
 		const defaultView = body.defaultView === 'recent' ? 'recent' : 'default';
-		const historyDays = clampHistoryDays(
-			typeof body.scheduleHistoryDays === 'string' ? Number(body.scheduleHistoryDays) : undefined,
-		);
-
 		await writeSettings({
 			...current,
 			terminalRenderer: renderer,
 			defaultView,
-			scheduleHistoryDays: historyDays,
 		});
-		return c.redirect('/settings?saved=1', 303);
-	});
-
-	app.post('/settings/plugins', requireAuth(), async (c) => {
-		if (isAgent) return c.json({ error: 'plugin management is hub-only' }, 403);
-		let body: Record<string, unknown>;
-		try { body = await c.req.parseBody(); } catch { return c.redirect('/settings?error=' + encodeURIComponent('invalid form body'), 303); }
-
-		const action = body.action;
-		const pkg = typeof body.pkg === 'string' ? body.pkg.trim() : '';
-		if (!pkg) return c.redirect('/settings?error=' + encodeURIComponent('missing package name'), 303);
-
-		const result = action === 'remove'
-			? await uninstallPlugin(pkg)
-			: action === 'add'
-				? await installPlugin(pkg)
-				: { ok: false, output: 'unknown action' };
-
-		if (!result.ok) {
-			return c.redirect('/settings?error=' + encodeURIComponent(result.output.slice(0, 800)), 303);
-		}
 		return c.redirect('/settings?saved=1', 303);
 	});
 
@@ -1110,180 +1065,6 @@ self.addEventListener("fetch", (e) => {
 		return c.json({ ok: true });
 	});
 
-	// ── Scheduler API ──────────────────────────────────────────────────────
-
-	app.post('/api/session/:session/upload', requireAuth(), async (c) => {
-		const session = decodeURIComponent(c.req.param('session'));
-		const sessions = listSessions();
-		if (!sessions.some((s) => s.name === session)) {
-			return c.json({ error: 'session not found' }, 404);
-		}
-
-		let body: Record<string, unknown>;
-		try {
-			body = await c.req.parseBody();
-		} catch {
-			return c.json({ error: 'invalid multipart body' }, 400);
-		}
-
-		const file = body.file;
-		if (!(file instanceof File)) {
-			return c.json({ error: 'missing file field' }, 400);
-		}
-
-		try {
-			const arrayBuffer = await file.arrayBuffer();
-			const buffer = Buffer.from(arrayBuffer);
-			const { path: filePath } = await saveUploadedImage(buffer, file.type || undefined, file.name || undefined);
-			return c.json({ path: filePath });
-		} catch (err) {
-			if (err instanceof ImageUploadError) {
-				return c.json({ error: err.message }, err.status);
-			}
-			console.error('[upload]', err);
-			return c.json({ error: 'upload failed' }, 500);
-		}
-	});
-
-	app.get('/api/session/:session/windows', requireAuth(), (c) => {
-		const session = decodeURIComponent(c.req.param('session'));
-		const labels = new Map(listWindowLabels(session).map((l) => [l.windowIndex, l.label]));
-		const stored = new Map(getStoredWindows(session).map((w) => [w.index, w]));
-		const windows = listSessionWindows(session).map((w) => ({
-			...w,
-			label: labels.get(w.index) ?? null,
-			worktree: stored.get(w.index)?.worktree ?? false,
-		}));
-		return c.json(windows);
-	});
-
-	app.post('/api/session/:session/window-label', requireAuth(), async (c) => {
-		const session = decodeURIComponent(c.req.param('session'));
-		let body: { windowIndex?: unknown; label?: unknown };
-		try {
-			body = await c.req.json();
-		} catch {
-			return c.json({ error: 'invalid json' }, 400);
-		}
-		const { windowIndex } = body;
-		if (typeof windowIndex !== 'number' || !Number.isInteger(windowIndex) || windowIndex < 0) {
-			return c.json({ error: 'windowIndex must be a non-negative integer' }, 400);
-		}
-		const label = typeof body.label === 'string' ? body.label : '';
-		const labels = await setWindowLabel(session, windowIndex, label);
-		return c.json(labels);
-	});
-
-	app.post('/api/session/:session/select-window', requireAuth(), async (c) => {
-		const session = decodeURIComponent(c.req.param('session'));
-		let body: { windowIndex?: unknown };
-		try {
-			body = await c.req.json();
-		} catch {
-			return c.json({ error: 'invalid json' }, 400);
-		}
-
-		const { windowIndex } = body;
-		if (
-			typeof windowIndex !== 'number' ||
-			!Number.isInteger(windowIndex) ||
-			windowIndex < 0
-		) {
-			return c.json({ error: 'windowIndex must be a non-negative integer' }, 400);
-		}
-
-		try {
-			selectSessionWindow(session, windowIndex);
-			return c.json({ ok: true });
-		} catch (err) {
-			if (err instanceof TmuxWindowsError) {
-				return c.json({ error: err.message }, err.status);
-			}
-			console.error('[select-window]', err);
-			return c.json({ error: 'select-window failed' }, 500);
-		}
-	});
-
-	app.post('/api/session/:session/rename-window', requireAuth(), async (c) => {
-		const session = decodeURIComponent(c.req.param('session'));
-		let body: { windowIndex?: unknown; name?: unknown };
-		try {
-			body = await c.req.json();
-		} catch {
-			return c.json({ error: 'invalid json' }, 400);
-		}
-
-		const { windowIndex } = body;
-		if (
-			typeof windowIndex !== 'number' ||
-			!Number.isInteger(windowIndex) ||
-			windowIndex < 0
-		) {
-			return c.json({ error: 'windowIndex must be a non-negative integer' }, 400);
-		}
-		if (typeof body.name !== 'string' || !body.name.trim()) {
-			return c.json({ error: 'name is required' }, 400);
-		}
-
-		try {
-			renameSessionWindow(session, windowIndex, body.name);
-			captureAndStoreWindows(session);
-			return c.json({ ok: true });
-		} catch (err) {
-			if (err instanceof TmuxWindowsError) {
-				return c.json({ error: err.message }, err.status);
-			}
-			console.error('[rename-window]', err);
-			return c.json({ error: 'rename-window failed' }, 500);
-		}
-	});
-
-	app.post('/api/session/:session/new-window', requireAuth(), (c) => {
-		const session = decodeURIComponent(c.req.param('session'));
-		try {
-			newSessionWindow(session);
-			captureAndStoreWindows(session);
-			return c.json({ ok: true });
-		} catch (err) {
-			if (err instanceof TmuxWindowsError) {
-				return c.json({ error: err.message }, err.status);
-			}
-			console.error('[new-window]', err);
-			return c.json({ error: 'new-window failed' }, 500);
-		}
-	});
-
-	app.get('/api/schedule', requireAuth(), (c) => {
-		return c.json(scheduler.list(c.req.query('session')));
-	});
-
-	app.post('/api/schedule', requireAuth(), async (c) => {
-		let body: unknown;
-		try { body = await c.req.json(); } catch { return c.json({ error: 'invalid json' }, 400); }
-		const delayError = getScheduleDelayError(body);
-		if (delayError) return c.json({ error: delayError }, 400);
-		if (!isValidScheduleInputLocal(body)) return c.json({ error: 'invalid body' }, 400);
-		const task = await scheduler.create(body);
-		return c.json({ id: task.id, fireAt: task.fireAt });
-	});
-
-	app.delete('/api/schedule/:id', requireAuth(), async (c) => {
-		const deleted = await scheduler.delete(c.req.param('id'));
-		if (!deleted) return c.json({ error: 'not found' }, 404);
-		return c.json({ ok: true });
-	});
-
-	app.patch('/api/schedule/:id', requireAuth(), async (c) => {
-		let body: unknown;
-		try { body = await c.req.json(); } catch { return c.json({ error: 'invalid json' }, 400); }
-		const delayError = getScheduleDelayError(body);
-		if (delayError) return c.json({ error: delayError }, 400);
-		if (!isValidRescheduleInputLocal(body)) return c.json({ error: 'invalid body' }, 400);
-		const updated = await scheduler.reschedule(c.req.param('id'), (body as { delayMs: number }).delayMs);
-		if (!updated) return c.json({ error: 'not found' }, 404);
-		return c.json({ id: updated.id, fireAt: updated.fireAt });
-	});
-
 	// ── Agent tunnel (hub only) ────────────────────────────────────────────
 
 	if (hub) {
@@ -1296,8 +1077,3 @@ self.addEventListener("fetch", (e) => {
 
 // ── Small local helpers ───────────────────────────────────────────────────
 
-const DEFAULT_SCHEDULE_HISTORY_DAYS = 7;
-function clampHistoryDays(value: number | undefined): number {
-	if (typeof value !== 'number' || !Number.isFinite(value)) return DEFAULT_SCHEDULE_HISTORY_DAYS;
-	return Math.min(365, Math.max(1, Math.round(value)));
-}

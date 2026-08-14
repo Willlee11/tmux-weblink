@@ -9,7 +9,7 @@ Every tmux session has a built-in notes drawer. Click the notepad icon in the se
 
 ## Storage
 
-Notes persist to `~/.tmux-web/db.json` via lowdb (or `~/.dev/.tmux-web/db.json` when running in dev mode). The same file also holds scheduled tasks — see [Scheduler](scheduler.md).
+Notes persist to `~/.tmux-web/db.json` via lowdb (or `~/.dev/.tmux-web/db.json` when running in dev mode).
 
 ## Scopes
 

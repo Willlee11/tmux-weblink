@@ -38,14 +38,6 @@ export function getFederationPath(): string {
   return path.join(getConfigRoot(), 'tmux-web', 'federation.json');
 }
 
-export function getPluginDir(): string {
-  return path.join(getDataRoot(), 'node_modules');
-}
-
-export function getExtensionDataDir(extId: string): string {
-  return path.join(getDataRoot(), 'extensions', extId);
-}
-
 export function getUploadsRoot(): string {
   return path.join(getDataRoot(), 'uploads');
 }
