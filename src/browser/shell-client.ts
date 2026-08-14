@@ -951,6 +951,7 @@ const keyMap: Record<string, string> = {
 	space: ' ',
 	enter: '\r',
 	exit: 'exit\r',
+	'ctrl-c': '\x03\x03',
 	yes: 'yes\r',
 };
 
