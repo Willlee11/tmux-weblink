@@ -376,6 +376,10 @@ export function initTerminal(
 				serverHistoryLoaded = typeof msg.lines === 'number' ? msg.lines : cfg.terminal.initialLines;
 				phase = 'live';
 				term.reset();
+				// Align to the container right after the first frame so a stale
+				// size never lingers (fit is idempotent when nothing changed).
+				fitTerminal();
+				sendJSON({ type: 'resize', cols: term.cols, rows: term.rows });
 				void term.write(data).then(() => term.scrollToBottom());
 				return;
 			}
@@ -422,6 +426,9 @@ export function initTerminal(
 			let url = wsUrl;
 			const token = localStorage.getItem('tmux-web-token');
 			if (token) url += (url.includes('?') ? '&' : '?') + 'token=' + encodeURIComponent(token);
+			// Hand the fitted size to the server so the pty is spawned at the
+			// right ratio immediately — avoids a flash of 80x24 on page reload.
+			url += (url.includes('?') ? '&' : '?') + 'cols=' + term.cols + '&rows=' + term.rows;
 			ws = new WebSocket(url);
 			ws.onopen = () => {
 				phase = 'connecting';
@@ -862,11 +869,25 @@ export function initTerminal(
 		});
 		container.addEventListener('focusin', scheduleKeyboardFit, true);
 
-		// Start
+		// Start: wait for the webfont so the first fit() measures real cell
+		// metrics (avoids a re-fit size jump once fonts load).
+		async function waitForFonts(): Promise<void> {
+			if (!document.fonts?.ready) return;
+			try {
+				await Promise.race([
+					document.fonts.ready,
+					new Promise((resolve) => setTimeout(resolve, 1000)),
+				]);
+			} catch {}
+		}
 		requestAnimationFrame(() => {
 			if (fitTerminal()) revealTerminal();
-			connect();
-			scheduleFit();
+			void (async () => {
+				await waitForFonts();
+				if (fitTerminal()) sendJSON({ type: 'resize', cols: term.cols, rows: term.rows });
+				connect();
+				scheduleFit();
+			})();
 		});
 
 		return {

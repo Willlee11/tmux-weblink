@@ -48,6 +48,9 @@ export interface AttachDeps {
 	handleClientMessage: (raw: string | Buffer, pty: { write(d: string): void; resize(c: number, r: number): void }) => boolean;
 	/** Subscribe to tmux-side window changes; returns a release function. */
 	acquireControlClient: (session: string, cb: (payload: { activeIndex: number; windows: { index: number; name: string; active: boolean }[] }) => void) => () => void;
+	/** Initial pty size (from the browser's fitted terminal). Defaults to 80x24. */
+	initialCols?: number;
+	initialRows?: number;
 	/** Override pty spawning (tests inject a fake; defaults to node-pty). */
 	spawn?: PtySpawnerLike;
 	/**
@@ -95,8 +98,8 @@ export function attachTerminal(sessionName: string, io: AttachIO, deps: AttachDe
 			args,
 				{
 				name: 'xterm-256color',
-				cols: 80,
-				rows: 24,
+				cols: deps.initialCols ?? 80,
+				rows: deps.initialRows ?? 24,
 				cwd: process.env.HOME || '/',
 				env: tmuxEnv(),
 			},

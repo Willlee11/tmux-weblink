@@ -35,7 +35,7 @@ export type HubToAgent =
 	| { type: 'sessions_req' }
 	| { type: 'http_req'; id: number; method: string; path: string; headers: Record<string, string>; hasBody: boolean }
 	| { type: 'http_body_end'; id: number }
-	| { type: 'attach'; connId: number; session: string }
+	| { type: 'attach'; connId: number; session: string; cols?: number; rows?: number }
 	| { type: 'ws_to_agent'; connId: number; msg: Record<string, unknown> }
 	| { type: 'detach'; connId: number }
 	| { type: 'pong'; ts: number };

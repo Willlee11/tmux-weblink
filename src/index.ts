@@ -345,8 +345,19 @@ server.on("upgrade", (req, socket, head) => {
 
 // ── Local session attach (unchanged behavior, attach logic extracted) ─────
 
-wss.on("connection", (ws: WebSocket, _req: import("http").IncomingMessage, sessionName: string, ip: string, preflightToken: StoredToken | null) => {
+wss.on("connection", (ws: WebSocket, req: import("http").IncomingMessage, sessionName: string, ip: string, preflightToken: StoredToken | null) => {
 	const client: WsClient = { ws, ip, authenticated: false, authTimeout: null };
+	const initialSize = (() => {
+		try {
+			const q = new URL(req.url || "/", `http://${req.headers.host}`).searchParams;
+			const cols = Number(q.get("cols"));
+			const rows = Number(q.get("rows"));
+			if (Number.isInteger(cols) && Number.isInteger(rows) && cols > 0 && rows > 0 && cols <= 1000 && rows <= 1000) {
+				return { cols, rows };
+			}
+		} catch {}
+		return undefined;
+	})();
 	wsClients.set(ws, client);
 	audit("ws_connected", { ip });
 
@@ -386,6 +397,8 @@ wss.on("connection", (ws: WebSocket, _req: import("http").IncomingMessage, sessi
 			toCrlf,
 			handleClientMessage,
 			acquireControlClient,
+			initialCols: initialSize?.cols,
+			initialRows: initialSize?.rows,
 			tmuxSocketPath: resolveTmuxSocketPath() ?? undefined,
 			onPtyExit: (_s, _code) => closeWs(ws, 1000, "pty exited"),
 			onSpawnError: (_s, _msg) => closeWs(ws, 1011, "pty spawn failed"),
@@ -593,11 +606,22 @@ function handleRemoteRelayUpgrade(
 	}
 
 	const connId = allocConnId();
+	const initialSize = (() => {
+		try {
+			const q = new URL(req.url || "/", `http://${req.headers.host}`).searchParams;
+			const cols = Number(q.get("cols"));
+			const rows = Number(q.get("rows"));
+			if (Number.isInteger(cols) && Number.isInteger(rows) && cols > 0 && rows > 0 && cols <= 1000 && rows <= 1000) {
+				return { cols, rows };
+			}
+		} catch {}
+		return undefined;
+	})();
 	wss.handleUpgrade(req, socket, head, (ws) => {
 		channel.registerRelay(connId, sessionName, ws);
 		agents.bumpRelayConns(agentId, 1);
 
-		if (!channel.attach(connId, sessionName)) {
+		if (!channel.attach(connId, sessionName, initialSize)) {
 			ws.send(JSON.stringify({ type: "data", data: "\r\n\x1b[31magent offline\x1b[0m\r\n" }));
 			ws.close(1011, "agent offline");
 			channel.relayClosed(connId);

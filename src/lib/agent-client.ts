@@ -210,6 +210,8 @@ export function startAgentClient(opts: AgentClientOptions): AgentClientHandle {
 			toCrlf: opts.toCrlf,
 			handleClientMessage: opts.handleClientMessage,
 			acquireControlClient: opts.acquireControlClient,
+			initialCols: msg.cols,
+			initialRows: msg.rows,
 			tmuxSocketPath: opts.tmuxSocketPath,
 			onPtyExit: (_s, code) => {
 				send({ type: 'ws_close', connId: msg.connId, code: 1000, reason: `tmux exited (${code})` });

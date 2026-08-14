@@ -64,8 +64,8 @@ export class AgentChannel {
 		return true;
 	}
 
-	attach(connId: number, session: string): boolean {
-		return this.send({ type: 'attach', connId, session });
+	attach(connId: number, session: string, size?: { cols?: number; rows?: number }): boolean {
+		return this.send({ type: 'attach', connId, session, cols: size?.cols, rows: size?.rows });
 	}
 
 	detach(connId: number): void {
