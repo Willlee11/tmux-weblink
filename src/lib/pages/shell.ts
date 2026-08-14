@@ -750,9 +750,6 @@ export function renderShell(cfg: ShellConfig): string {
 <!-- Settings popover -->
 <div class="popover-backdrop" id="settings-backdrop"></div>
 <div class="settings-popover" id="settings-popover">
-  <div class="settings-item">
-  </div>
-  <hr class="settings-divider" />
   <div style="padding:4px 0">
     <button class="theme-option" data-theme="vscode" title="VS Code"><span class="theme-dot" style="background:#007acc"></span>VS Code${theme.template === 'vscode' ? '<span class="theme-check">✓</span>' : ''}</button>
     <button class="theme-option" data-theme="ghostty" title="Ghostty"><span class="theme-dot" style="background:#ff5f00"></span>Ghostty${theme.template === 'ghostty' ? '<span class="theme-check">✓</span>' : ''}</button>
