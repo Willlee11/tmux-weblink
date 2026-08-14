@@ -32,15 +32,15 @@ tmux-weblink
 # Optional: tail-first buffer loading (see docs/architecture.md)
 TMUX_WEB_INITIAL_LINES=1000 TMUX_WEB_HISTORY_CHUNK=500 tmux-weblink
 
-# Federation: join this machine to a hub (no ports opened)
+# Machines: join this machine to a hub (no ports opened)
 tmux-weblink agent --hub wss://hub.example.com --token <agent-token> --name laptop
 ```
 
 > **Every machine uses the same start command.** To join a hub, open
-> `http://localhost:21000/settings/federation` on the machine you want to
+> `http://localhost:21000/settings/machines` on the machine you want to
 > attach, paste the hub URL + token, and press **Save & Connect** — the agent
 > client runs in-process next to the normal server. The hub's own
-> `/settings/federation` page creates/revokes tokens.
+> `/settings/machines` page creates/revokes tokens.
 
 Then open `http://localhost:21000` in your browser. You'll see a list of active tmux sessions — click one to attach.
 
@@ -49,7 +49,7 @@ Then open `http://localhost:21000` in your browser. You'll see a list of active 
 - [Documentation hub](docs/index.md)
 - [Notes](docs/notes.md) — per-session Markdown scratchpad
 - **Windows drawer** — switch tmux windows from the terminal header (mobile-friendly tab picker)
-- [Federation / Agents](docs/agents.md) — join NAT'd machines to a public hub
+- [Machines / Agents](docs/agents.md) — join NAT'd machines to a public hub
 - [Architecture](docs/architecture.md) — how the server, terminal, and sidebar connect
 
 ## Prerequisites

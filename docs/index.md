@@ -9,5 +9,5 @@ description: Guides for tmux-weblink features and architecture.
 | --- | --- |
 | [Notes](notes.md) | Per-session Markdown scratchpad |
 | [Files](files.md) | Browse, edit, and manage local files |
-| [Federation / Agents](agents.md) | Join NAT'd machines to a public hub |
+| [Machines / Agents](agents.md) | Join NAT'd machines to a public hub |
 | [Architecture](architecture.md) | How the server, terminal, and sidebar connect |

@@ -1,9 +1,9 @@
 ---
-title: Federation (Hub + Agents)
+title: Machines (Hub + Agents)
 description: Join machines behind NAT to a public hub and access all tmux sessions from one browser.
 ---
 
-# Federation: Hub + Agents
+# Machines: Hub + Agents
 
 tmux-weblink can federate several machines into one browser view:
 
@@ -37,7 +37,7 @@ tmux-weblink can federate several machines into one browser view:
 tmux-web agent-token add --name laptop
 ```
 
-or from the browser: **Settings → Federation → Create token**.
+or from the browser: **Settings → Machines → Create token**.
 
 The token is printed **once** — store it somewhere safe:
 
@@ -59,7 +59,7 @@ tmux-web agent-token remove <id>   # revoke (disconnects that agent)
 
 **Preferred — same start command everywhere.** Every machine runs the same
 `tmux-web` server. On the machine you want to attach to the hub, open
-`/settings/federation`, enter the hub URL + token + a name, and press
+`/settings/machines`, enter the hub URL + token + a name, and press
 **Save & Connect**. The agent client runs in-process (no extra process, no
 ports opened), reconnects automatically with backoff, and persists across
 restarts of the server.

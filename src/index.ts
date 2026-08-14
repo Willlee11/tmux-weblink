@@ -221,7 +221,7 @@ const app = buildApp({
 	hub: { agents, getChannel },
 });
 
-// ── Federation: run this machine as an agent of a hub (in-process) ────────
+// ── Machines: run this machine as an agent of a hub (in-process) ──────────
 // Every machine starts the same way (`tmux-web`); the settings page saves a
 // hub URL + token and the agent client runs in-process alongside the local UI.
 

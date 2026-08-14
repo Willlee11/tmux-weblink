@@ -146,9 +146,9 @@ export function renderSettings(opts: {
   </div>
 
   <div class="section">
-    <h2>Federation</h2>
+    <h2>Machines</h2>
     <p class="desc">Join another tmux-web as an agent (same start command), or manage tokens so other machines can join this one.</p>
-    <a href="/settings/federation" class="btn" style="display:inline-block;text-decoration:none">Federation settings →</a>
+    <a href="/settings/machines" class="btn" style="display:inline-block;text-decoration:none">Machines settings →</a>
   </div>
 </div>
 </body>

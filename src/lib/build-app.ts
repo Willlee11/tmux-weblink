@@ -605,10 +605,11 @@ self.addEventListener("fetch", (e) => {
 		return c.json(getTopProcesses());
 	});
 
-	// ── Federation (settings page + agent-token management) ───────────────
+	// ── Machines (settings page + agent-token management) ───────────────────
 
 	if (federation) {
-		app.get('/settings/federation', requireAuthOrRedirect(), async (c) => {
+		app.get('/settings/federation', requireAuthOrRedirect(), (c) => c.redirect('/settings/machines', 301));
+		app.get('/settings/machines', requireAuthOrRedirect(), async (c) => {
 			return c.html(renderFederationPage({
 				config: federation.getConfig(),
 				status: federation.status(),
@@ -617,11 +618,11 @@ self.addEventListener("fetch", (e) => {
 			}, state.activeTheme));
 		});
 
-		app.get('/api/federation', requireAuth(), (c) => {
+		app.get('/api/machines', requireAuth(), (c) => {
 			return c.json({ config: federation.getConfig(), status: federation.status() });
 		});
 
-		app.post('/api/federation', requireAuth(), async (c) => {
+		app.post('/api/machines', requireAuth(), async (c) => {
 			let body: { hub?: unknown; token?: unknown; name?: unknown; enabled?: unknown };
 			try {
 				body = await c.req.json();

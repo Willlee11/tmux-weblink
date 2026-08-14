@@ -37,7 +37,7 @@ export function renderFederationPage(data: FederationPageData, theme: TmuxWebThe
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-<title>Federation - tmux-web</title>
+<title>Machines - tmux-web</title>
 <style>
   ${cssVarsStyle(theme.shell)}
   html, body { background: var(--page-bg); color: var(--page-fg); min-height: 100%; font-family: var(--font-sans); }
@@ -107,7 +107,7 @@ export function renderFederationPage(data: FederationPageData, theme: TmuxWebThe
 <body>
 <div class="container">
   <div class="page-header">
-    <h1>Federation</h1>
+    <h1>Machines</h1>
     <a href="/settings" class="back-link">Back</a>
   </div>
 
@@ -185,7 +185,7 @@ export function renderFederationPage(data: FederationPageData, theme: TmuxWebThe
     if (body.enabled && !body.hub) return flash('Hub URL is required.');
     if (body.enabled && !body.token) return flash('Registration token is required.');
     try {
-      const res = await fetch('/api/federation', {
+      const res = await fetch('/api/machines', {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
       });
       const data = await res.json();
@@ -198,7 +198,7 @@ export function renderFederationPage(data: FederationPageData, theme: TmuxWebThe
   $('f-disconnect').addEventListener('click', async () => {
     clearFlash();
     try {
-      const res = await fetch('/api/federation', {
+      const res = await fetch('/api/machines', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ hub: $('f-hub').value.trim(), token: $('f-token').value.trim(), name: $('f-name').value.trim(), enabled: false }),
       });
