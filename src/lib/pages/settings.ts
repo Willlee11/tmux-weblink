@@ -7,7 +7,6 @@ function escapeHtml(s: string): string {
 	return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
-type TerminalRenderer = 'xterm' | 'ghostty';
 
 // Shared <head> chrome + base CSS for the settings pages, matching the existing
 // page style (notes-index.ts / landing.ts).
@@ -103,14 +102,11 @@ function flashes(saved: boolean, error?: string): string {
 
 export function renderSettings(opts: {
 	settings: TmuxWebSettings;
-	renderer: TerminalRenderer;
-	rendererOverridden: boolean;
 	theme: TmuxWebTheme;
 	saved?: boolean;
 	error?: string;
 }): string {
-	const { settings, renderer, rendererOverridden, theme, saved = false, error } = opts;
-	const savedRenderer = settings.terminalRenderer ?? 'xterm';
+	const { settings, theme, saved = false, error } = opts;
 	const defaultView = settings.defaultView ?? 'default';
 
 	return /* html */ `${pageHead('Settings', theme)}
@@ -129,16 +125,6 @@ export function renderSettings(opts: {
   ${flashes(saved, error)}
 
   <form method="POST" action="/settings">
-    <div class="section">
-      <h2>Terminal library</h2>
-      <p class="desc">Rendering engine for the terminal view.</p>
-      <div class="radios">
-        <label class="row"><input type="radio" name="terminalRenderer" value="xterm" ${savedRenderer === 'xterm' ? 'checked' : ''} /> xterm.js (default)</label>
-        <label class="row"><input type="radio" name="terminalRenderer" value="ghostty" ${savedRenderer === 'ghostty' ? 'checked' : ''} /> ghostty-web</label>
-      </div>
-      ${rendererOverridden ? `<p class="override-note">⚠ A CLI flag or <code>TMUX_WEB_TERMINAL_RENDERER</code> env var is currently forcing <strong>${renderer}</strong>, overriding this setting for the running process.</p>` : ''}
-    </div>
-
     <div class="section">
       <h2>Default home tab</h2>
       <p class="desc">Which tab the home page opens on.</p>

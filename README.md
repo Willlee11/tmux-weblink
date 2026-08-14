@@ -29,12 +29,6 @@ PORT=8080 tmux-weblink
 # Use the default xterm.js renderer
 tmux-weblink
 
-# Optional: use ghostty-web for terminal rendering
-tmux-weblink --ghostty
-
-# Equivalent environment override
-TMUX_WEB_TERMINAL_RENDERER=ghostty tmux-weblink
-
 # Optional: tail-first buffer loading (see docs/architecture.md)
 TMUX_WEB_INITIAL_LINES=1000 TMUX_WEB_HISTORY_CHUNK=500 tmux-weblink
 

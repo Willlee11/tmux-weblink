@@ -8,7 +8,6 @@ export type ShellConfig = {
 	theme: TmuxWebTheme;
 	fsRoots: string[];
 	terminalCfg: TerminalBufferConfig;
-	renderer: 'xterm' | 'ghostty';
 	scrollback: number;
 	/** WS path prefix for terminal attach ('' or '/ws' local; '/ws/a/<agentId>' remote). */
 	wsBase?: string;
@@ -23,7 +22,7 @@ function focusRing(accent = 'var(--panel-accent)'): string {
 }
 
 export function renderShell(cfg: ShellConfig): string {
-	const { theme, fsRoots, terminalCfg, renderer, scrollback, wsBase } = cfg;
+	const { theme, fsRoots, terminalCfg, scrollback, wsBase } = cfg;
 
 	// ram fetched client-side
 
@@ -628,7 +627,6 @@ export function renderShell(cfg: ShellConfig): string {
 		terminal: terminalCfg,
 		scrollback,
 		theme: theme.terminal,
-		renderer,
 		fsRoots,
 		wsBase: wsBase || '',
 	}).replace(/</g, '\\u003c');
@@ -742,8 +740,6 @@ export function renderShell(cfg: ShellConfig): string {
 <div class="popover-backdrop" id="settings-backdrop"></div>
 <div class="settings-popover" id="settings-popover">
   <div class="settings-item">
-    <span>Terminal renderer</span>
-    <span style="font-size:var(--text-xs);color:var(--panel-muted)">${renderer === 'ghostty' ? 'Ghostty' : 'xterm.js'}</span>
   </div>
   <hr class="settings-divider" />
   <div style="padding:4px 0">

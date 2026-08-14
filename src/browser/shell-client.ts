@@ -219,7 +219,6 @@ function escHtml(s: string): string {
 				terminal: shellCfg.terminal,
 				scrollback: shellCfg.scrollback,
 				theme: shellCfg.theme,
-				renderer: shellCfg.renderer,
 				wsBase: currentAgentId ? '/ws/a/' + encodeURIComponent(currentAgentId) : (shellCfg.wsBase || '/ws'),
 			});
 			startHeaderGitPolling();

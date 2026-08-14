@@ -79,18 +79,6 @@ export async function cmdSetup(argv: string[]): Promise<void> {
     selections.set(feature.id, enabled);
   }
 
-  // Terminal renderer is a choice, not a feature toggle. Ask interactively,
-  // defaulting to the saved renderer (xterm for a fresh install).
-  let rendererChoice: 'xterm' | 'ghostty' | undefined;
-  if (!nonInteractive) {
-    const current = cfg.terminalRenderer === 'ghostty' ? 'ghostty' : 'xterm';
-    rendererChoice = (await promptChoice(
-      'Terminal renderer (xterm.js is the default; ghostty-web is experimental)',
-      ['xterm', 'ghostty'],
-      current,
-    )) as 'xterm' | 'ghostty';
-  }
-
   for (const feature of SETUP_FEATURES) {
     const enabled = selections.get(feature.id)!;
     if (enabled) {
@@ -98,12 +86,6 @@ export async function cmdSetup(argv: string[]): Promise<void> {
     } else {
       await feature.disable();
     }
-  }
-
-  if (rendererChoice) {
-    const latest = await readSettings();
-    await writeSettings({ ...latest, terminalRenderer: rendererChoice });
-    console.log(`✓ terminal renderer set to ${rendererChoice}`);
   }
 
   console.log(`\nDone. Settings: ${CONFIG_DISPLAY}`);
@@ -163,8 +145,6 @@ export function printUsage(): void {
 
 Usage:
   tmux-web                       Start the server (PORT env var, default 3000)
-  tmux-web --ghostty             Start with ghostty-web instead of xterm.js
-  tmux-web --xterm               Start with xterm.js explicitly
   tmux-web -V, --version         Print version and exit
   tmux-web -h, --help            Show this help
   tmux-web setup                 Interactive feature setup
@@ -189,7 +169,6 @@ Files:
 Most of these are also editable from the browser at /settings and /settings/theme.
 
 Env:
-  TMUX_WEB_TERMINAL_RENDERER=xterm|ghostty   (also persistable via /settings)
   TMUX_WEB_AGENT_HUB / TMUX_WEB_AGENT_TOKEN / TMUX_WEB_AGENT_NAME   (agent mode)
   TMUX_WEB_MAX_AGENTS / TMUX_WEB_MAX_AGENT_CONNS / TMUX_WEB_AGENT_OFFLINE_MS
 `);

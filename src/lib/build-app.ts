@@ -64,7 +64,6 @@ export interface BuildAppDeps {
 	tokenStore: TokenStore;
 	rateLimiter: RateLimiter;
 	settings: TmuxWebSettings;
-	terminalRenderer: 'xterm' | 'ghostty';
 	terminalBufferConfig: TerminalBufferConfig;
 	/** Hub-assigned agent id (agent mode only; used to build the WS relay base). */
 	getAgentId?: () => string | null;
@@ -95,7 +94,6 @@ export function buildApp(deps: BuildAppDeps): Hono {
 		tokenStore,
 		rateLimiter,
 		settings,
-		terminalRenderer,
 		terminalBufferConfig,
 		getAgentId,
 		state,
@@ -346,7 +344,6 @@ self.addEventListener("fetch", (e) => {
 			theme: state.activeTheme,
 			fsRoots: roots,
 			terminalCfg: terminalBufferConfig,
-			renderer: terminalRenderer,
 			scrollback: terminalBufferConfig.initialLines + 2 * terminalBufferConfig.historyChunk,
 			wsBase: isAgent && getAgentId?.() ? `/ws/a/${getAgentId()}` : undefined,
 		}));
@@ -531,11 +528,8 @@ self.addEventListener("fetch", (e) => {
 
 	app.get('/settings', requireAuthOrRedirect(), async (c) => {
 		const current = await readSettings();
-		const savedRenderer = current.terminalRenderer ?? 'xterm';
 		return c.html(renderSettings({
 			settings: current,
-			renderer: terminalRenderer,
-			rendererOverridden: terminalRenderer !== savedRenderer,
 			theme: state.activeTheme,
 			saved: c.req.query('saved') === '1',
 			error: c.req.query('error') ? decodeURIComponent(c.req.query('error')!) : undefined,
@@ -547,11 +541,9 @@ self.addEventListener("fetch", (e) => {
 		try { body = await c.req.parseBody(); } catch { return c.redirect('/settings?error=' + encodeURIComponent('invalid form body'), 303); }
 
 		const current = await readSettings();
-		const renderer = body.terminalRenderer === 'ghostty' ? 'ghostty' : 'xterm';
 		const defaultView = body.defaultView === 'recent' ? 'recent' : 'default';
 		await writeSettings({
 			...current,
-			terminalRenderer: renderer,
 			defaultView,
 		});
 		return c.redirect('/settings?saved=1', 303);

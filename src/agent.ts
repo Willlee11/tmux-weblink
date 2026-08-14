@@ -74,7 +74,6 @@ const app = buildApp({
 	tokenStore,
 	rateLimiter,
 	settings,
-	terminalRenderer: settings.terminalRenderer === 'ghostty' ? 'ghostty' : 'xterm',
 	terminalBufferConfig,
 	getAgentId: () => null,
 	state: { activeTheme, settingUpPassword: false },

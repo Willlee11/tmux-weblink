@@ -111,11 +111,11 @@ function sendWsAuth(ws: WebSocket, msg: { type: string; [key: string]: unknown }
 }
 
 const startupArgs = process.argv.slice(2);
+const args = startupArgs;
 
 // ── CLI subcommand dispatch ───────────────────────────────────────────────
 {
-	const args = startupArgs.filter((arg) => arg !== "--ghostty" && arg !== "--xterm");
-	if (args.length > 0) {
+		if (args.length > 0) {
 		const [sub, arg] = args;
 		switch (sub) {
 			case "setup":
@@ -206,7 +206,6 @@ const app = buildApp({
 	tokenStore,
 	rateLimiter,
 	settings,
-	terminalRenderer: resolveTerminalRenderer(startupArgs, settings.terminalRenderer),
 	terminalBufferConfig,
 	state: appState,
 	federation: {
@@ -232,7 +231,6 @@ const tunnelApp = buildApp({
 	tokenStore,
 	rateLimiter,
 	settings,
-	terminalRenderer: resolveTerminalRenderer(startupArgs, settings.terminalRenderer),
 	terminalBufferConfig,
 	state: appState,
 });
@@ -800,22 +798,6 @@ process.on("SIGTERM", cleanup);
 
 function isLocalhostIp(ip: string): boolean {
 	return ip === "127.0.0.1" || ip === "::1" || ip === "::ffff:127.0.0.1";
-}
-
-type TerminalRenderer = "xterm" | "ghostty";
-function resolveTerminalRenderer(
-	args: string[],
-	fromSettings: TerminalRenderer | undefined,
-): TerminalRenderer {
-	let renderer: TerminalRenderer = "xterm";
-	if (fromSettings === "ghostty" || fromSettings === "xterm") renderer = fromSettings;
-	const env = process.env.TMUX_WEB_TERMINAL_RENDERER?.trim().toLowerCase();
-	if (env === "ghostty" || env === "xterm") renderer = env;
-	for (const arg of args) {
-		if (arg === "--ghostty") renderer = "ghostty";
-		if (arg === "--xterm") renderer = "xterm";
-	}
-	return renderer;
 }
 
 async function cmdAgentToken(argv: string[]): Promise<void> {

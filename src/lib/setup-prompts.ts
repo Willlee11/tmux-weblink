@@ -31,7 +31,7 @@ export async function promptChoice(
   choices: string[],
   defaultChoice: string,
 ): Promise<string> {
-  // Default is shown uppercase, e.g. "XTERM/ghostty".
+  // Default is shown uppercase, e.g. "YES/no".
   const hint = choices.map((c) => (c === defaultChoice ? c.toUpperCase() : c)).join('/');
   const rl = readline.createInterface({ input, output });
   try {

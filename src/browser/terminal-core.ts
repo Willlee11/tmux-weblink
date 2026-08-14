@@ -1,7 +1,6 @@
 import type { FitAddon as FitAddonType } from '@xterm/addon-fit';
 import type { Terminal as XTerminalType } from '@xterm/xterm';
 
-const GHOSTTY_WEB_URL = 'https://esm.sh/ghostty-web@0.4.0';
 
 const OSC_COLOR_RE = /\x1b\](?:10|11|110|111|104)(?:;[^\x07\x1b]*)?\x1b?(?:\\|\x07)/g;
 
@@ -62,7 +61,6 @@ export type TerminalInitConfig = {
 	terminal: TerminalBufferConfig;
 	scrollback: number;
 	theme: TerminalTheme;
-	renderer?: 'xterm' | 'ghostty';
 	/** WS path prefix: '' or '/ws' for local sessions, '/ws/a/<agentId>' for remote. */
 	wsBase?: string;
 };
@@ -258,171 +256,6 @@ class XtermAdapter implements TerminalAdapter {
 	}
 }
 
-class GhosttyAdapter implements TerminalAdapter {
-	private readonly terminal: any;
-	private readonly container: HTMLElement;
-	private colsValue = 80;
-	private rowsValue = 24;
-	private charW = 0;
-	private charH = 0;
-	private resizeCallbacks: Array<(size: { cols: number; rows: number }) => void> = [];
-
-	constructor(container: HTMLElement, terminal: any) {
-		this.container = container;
-		this.terminal = terminal;
-		this.terminal.open(container);
-	}
-
-	static async create(container: HTMLElement, scrollback: number, theme: TerminalTheme): Promise<GhosttyAdapter> {
-		const mod = await import(GHOSTTY_WEB_URL);
-		await mod.init();
-		const terminal = new mod.Terminal({
-			fontSize: 14, fontFamily: "'JetBrains Mono', 'SF Mono', 'Menlo', monospace",
-			cursorBlink: true, cursorStyle: 'bar', scrollback, convertEol: false, theme,
-		});
-		return new GhosttyAdapter(container, terminal);
-	}
-
-	get cols(): number { return this.colsValue; }
-	get rows(): number { return this.rowsValue; }
-	write(data: string): Promise<void> { return new Promise((resolve) => this.terminal.write(data, resolve)); }
-	reset(): void { this.terminal.reset(); }
-	scrollToBottom(): void { this.terminal.scrollToBottom?.(); }
-	scrollToLine(line: number): void { this.terminal.scrollToLine?.(Math.max(0, line)); }
-	isNearScrollbackTop(): boolean {
-		const buf = this.terminal.buffer?.active;
-		return buf ? buf.viewportY >= buf.baseY : false;
-	}
-	viewportY(): number { return this.terminal.buffer?.active?.viewportY ?? 0; }
-	baseY(): number { return this.terminal.buffer?.active?.baseY ?? 0; }
-	fit(): boolean {
-		const rect = getTerminalViewportRect(this.container);
-		if (rect.width <= 0 || rect.height <= 0) return false;
-		this.updateCellMetrics(!this.charW || !this.charH);
-		const cols = Math.floor(rect.width / this.charW);
-		const rows = Math.floor(rect.height / this.charH);
-		if (cols < 10 || rows < 5) return false;
-		if (cols !== this.colsValue || rows !== this.rowsValue) {
-			this.colsValue = cols; this.rowsValue = rows;
-			this.terminal.resize(cols, rows);
-			for (const cb of this.resizeCallbacks) cb({ cols, rows });
-		}
-		return true;
-	}
-	focus(): void {
-		const el = this.terminal.textarea || this.container.querySelector('textarea') || this.container;
-		el?.focus?.();
-	}
-	pasteText(text: string): void {
-		const bracketed = this.terminal.getMode?.(2004) ?? false;
-		this.input(bracketed ? '\x1b[200~' + text + '\x1b[201~' : text);
-	}
-	input(data: string): void { this.terminal.input?.(data, false); }
-	onData(callback: (data: string) => void): void { this.terminal.onData((data: string) => callback(data)); }
-	onResize(callback: (size: { cols: number; rows: number }) => void): void { this.resizeCallbacks.push(callback); }
-	onScroll(callback: () => void): void { this.terminal.onScroll(callback); }
-	attachCustomKeyEventHandler(callback: (event: KeyboardEvent) => boolean): void { this.terminal.attachCustomKeyEventHandler(callback); }
-	isFocused(): boolean {
-		const active = document.activeElement;
-		return !!active && (active === this.container || active === this.terminal.textarea || this.container.contains(active));
-	}
-	getScreenText(): string {
-		return this.getRowsText(0, this.rowsValue - 1);
-	}
-	getRowsText(startRow: number, endRow: number): string {
-		try {
-			const buf = this.terminal.buffer?.active;
-			if (!buf || typeof buf.getLine !== 'function') return '';
-			const [a, b] = startRow <= endRow ? [startRow, endRow] : [endRow, startRow];
-			const base = typeof buf.viewportY === 'number' ? buf.viewportY : 0;
-			const out: string[] = [];
-			for (let row = a; row <= b; row++) {
-				const line = buf.getLine(base + row);
-				out.push(typeof line?.translateToString === 'function' ? line.translateToString(true) : '');
-			}
-			return out.join('\n');
-		} catch {
-			return '';
-		}
-	}
-	selectRows(startRow: number, endRow: number): void {
-		try {
-			if (typeof this.terminal?.selectLines !== 'function') return;
-			const buf = this.terminal.buffer?.active;
-			const base = typeof buf?.viewportY === 'number' ? buf.viewportY : 0;
-			const [a, b] = startRow <= endRow ? [startRow, endRow] : [endRow, startRow];
-			this.terminal.selectLines(base + a, base + b);
-		} catch {}
-	}
-	selectCells(startCol: number, startRow: number, endCol: number, endRow: number): void {
-		try {
-			const buf = this.terminal.buffer?.active;
-			const base = typeof buf?.viewportY === 'number' ? buf.viewportY : 0;
-			const sRow = Math.min(startRow, endRow);
-			const eRow = Math.max(startRow, endRow);
-			if (sRow === eRow) {
-				if (typeof this.terminal?.select !== 'function') { this.selectRows(sRow, eRow); return; }
-				const c1 = Math.min(startCol, endCol);
-				const c2 = Math.max(startCol, endCol);
-				this.terminal.select(c1, base + sRow, c2 - c1 + 1);
-			} else {
-				this.selectRows(sRow, eRow);
-			}
-		} catch { this.selectRows(startRow, endRow); }
-	}
-	getCellsText(startCol: number, startRow: number, endCol: number, endRow: number): string {
-		try {
-			const buf = this.terminal.buffer?.active;
-			if (!buf || typeof buf.getLine !== 'function') return this.getRowsText(startRow, endRow);
-			const base = typeof buf.viewportY === 'number' ? buf.viewportY : 0;
-			const sRow = Math.min(startRow, endRow);
-			const eRow = Math.max(startRow, endRow);
-			const sCol = startRow < endRow ? startCol : startRow > endRow ? endCol : Math.min(startCol, endCol);
-			const eCol = startRow < endRow ? endCol : startRow > endRow ? startCol : Math.max(startCol, endCol);
-			const out: string[] = [];
-			for (let row = sRow; row <= eRow; row++) {
-				const line = buf.getLine(base + row);
-				if (!line) { out.push(''); continue; }
-				const from = row === sRow ? sCol : 0;
-				const to = row === eRow ? eCol : this.colsValue - 1;
-				let s = '';
-				if (typeof line.getCell === 'function') {
-					for (let c = from; c <= to; c++) {
-						const cell = line.getCell(c);
-						if (cell) s += typeof cell.getChars === 'function' ? cell.getChars() : '';
-					}
-				} else {
-					s = typeof line.translateToString === 'function' ? line.translateToString(false) : '';
-				}
-				out.push(s.replace(/\s+$/, ''));
-			}
-			return out.join('\n');
-		} catch { return this.getRowsText(startRow, endRow); }
-	}
-	getSelection(): string {
-		try {
-			if (typeof this.terminal?.getSelection === 'function') return this.terminal.getSelection();
-		} catch {}
-		return '';
-	}
-	clearSelection(): void {
-		try {
-			if (typeof this.terminal?.clearSelection === 'function') this.terminal.clearSelection();
-		} catch {}
-	}
-	hasSelectionSupport(): boolean {
-		return typeof this.terminal?.selectLines === 'function';
-	}
-	private updateCellMetrics(force = false) {
-		const canvas = this.container.querySelector('canvas');
-		if (canvas instanceof HTMLElement && canvas.offsetWidth > 0 && canvas.offsetHeight > 0 && this.colsValue > 0 && this.rowsValue > 0) {
-			const nextW = canvas.offsetWidth / this.colsValue;
-			const nextH = canvas.offsetHeight / this.rowsValue;
-			if (force || !this.charW || !this.charH) { this.charW = nextW; this.charH = nextH; }
-		}
-		if (!this.charW || !this.charH) { this.charW = 9; this.charH = 18; }
-	}
-}
 
 function getTerminalViewportRect(el: HTMLElement): { width: number; height: number } {
 	const rect = el.getBoundingClientRect();
@@ -443,17 +276,7 @@ export function initTerminal(
 	container.classList.add('terminal-pending');
 
 	return (async (): Promise<TerminalInstance> => {
-		let term: TerminalAdapter;
-		if (cfg.renderer === 'ghostty') {
-			try {
-				term = await GhosttyAdapter.create(container, cfg.scrollback, cfg.theme);
-			} catch {
-				console.error('[tmux-web] ghostty-web failed; falling back to xterm.js');
-				term = await XtermAdapter.create(container, cfg.scrollback, cfg.theme);
-			}
-		} else {
-			term = await XtermAdapter.create(container, cfg.scrollback, cfg.theme);
-		}
+		const term = await XtermAdapter.create(container, cfg.scrollback, cfg.theme);
 
 		let ws: WebSocket | undefined;
 		let fitRaf = 0;
