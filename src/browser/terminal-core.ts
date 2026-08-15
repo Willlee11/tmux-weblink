@@ -324,7 +324,7 @@ export function initTerminal(
 			const step = () => {
 				if (destroyed) { inertiaRaf = 0; return; }
 				const before = term.viewportY();
-				dispatchTerminalWheel(inertiaVelocity * 16);
+				dispatchTerminalWheel(-inertiaVelocity * 16);
 				const after = term.viewportY();
 				inertiaVelocity *= INERTIA_FRICTION;
 				if (after === before) {
@@ -882,7 +882,10 @@ export function initTerminal(
 			const dy = touch.clientY - touchGesture.lastY;
 			const dt = now - touchGesture.lastT;
 			if (dt > 0) touchGesture.velocity = dy / dt;
-			dispatchTerminalWheel(dy);
+			// Direct-manipulation semantics: finger down = scroll back (history),
+			// finger up = scroll forward. scrollLines() takes the opposite sign
+			// of the finger delta, so negate dy here.
+			dispatchTerminalWheel(-dy);
 			touchGesture.lastX = touch.clientX; touchGesture.lastY = touch.clientY; touchGesture.lastT = now;
 		}
 		function handleTouchEnd(event: TouchEvent) {

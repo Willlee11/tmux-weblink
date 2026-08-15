@@ -525,6 +525,9 @@ export function renderShell(cfg: ShellConfig): string {
   /* ── Terminal container ── */
   #terminal-container {
     flex: 1; overflow: hidden; position: relative;
+    /* Disable the browser's touch -> synthetic-wheel path so the custom
+       touch drag/inertia in terminal-core handles scrolling exclusively. */
+    touch-action: none;
   }
   #terminal-container.terminal-pending { visibility: hidden; }
   #terminal-container.terminal-pending::before {
