@@ -952,6 +952,7 @@ const keyMap: Record<string, string> = {
 	enter: '\r',
 	'ctrl-r': '\x12',
 	'ctrl-c': '\x03\x03',
+	btw: '/btw ', // trailing space so the command can be completed
 	yes: 'yes\r',
 };
 

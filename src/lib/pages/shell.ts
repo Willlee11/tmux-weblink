@@ -741,6 +741,7 @@ export function renderShell(cfg: ShellConfig): string {
         <button data-key="enter">↵ Enter</button>
         <button data-key="ctrl-r">Ctrl+R</button>
         <button data-key="ctrl-c">Ctrl+C</button>
+        <button data-key="btw">/btw</button>
         <button data-key="yes">Yes</button>
       </div>
     </div>
