@@ -176,7 +176,7 @@ class XtermAdapter implements TerminalAdapter {
 		}
 	reset(): void { this.terminal.reset(); }
 	scrollToBottom(): void { this.terminal.scrollToBottom(); }
-	scrollToLine(line: number): void { this.terminal.scrollToLine(Math.max(0, line)); }
+	scrollToLine(line: number, now = false): void { (this.terminal as any).scrollToLine(Math.max(0, line), now); }
 	scrollLines(lines: number): void {
 			const b = (this.terminal.buffer?.active as any);
 			this.terminal.scrollLines(lines);
@@ -305,36 +305,41 @@ export function initTerminal(
 		// Flick inertia: keep scrolling with a decaying velocity after touchend.
 		let inertiaRaf = 0;
 		let inertiaVelocity = 0;
-		let inertiaStillFrames = 0;
 		const INERTIA_KICK_IN = 0.2; // px/ms — finger velocity needed to start a flick
-		const INERTIA_MAX = 5;       // px/ms — cap on the initial velocity (~5 rows/frame)
-		const INERTIA_FRICTION = 0.94; // per-frame velocity decay
+		const INERTIA_MAX = 10;      // px/ms — cap on the initial velocity (~9 rows/frame)
+		const INERTIA_FRICTION = 0.95; // per-frame velocity decay (0.94 -> slower tail)
 		const INERTIA_STOP_V = 0.04; // px/ms — stop when this slow
 
 		function stopInertia(): void {
 			if (inertiaRaf) { cancelAnimationFrame(inertiaRaf); inertiaRaf = 0; }
 			inertiaVelocity = 0;
-			inertiaStillFrames = 0;
 		}
 
 		function startInertia(velocity: number): void {
 			stopInertia();
 			if (Math.abs(velocity) < INERTIA_KICK_IN) return;
 			inertiaVelocity = Math.max(-INERTIA_MAX, Math.min(INERTIA_MAX, velocity));
-			const step = () => {
-				if (destroyed) { inertiaRaf = 0; return; }
-				const before = term.viewportY();
-				dispatchTerminalWheel(-inertiaVelocity * 16);
-				const after = term.viewportY();
-				inertiaVelocity *= INERTIA_FRICTION;
-				if (after === before) {
-					if (++inertiaStillFrames >= 2) { inertiaRaf = 0; return; } // hit top/bottom
-				} else {
-					inertiaStillFrames = 0;
-				}
-				if (Math.abs(inertiaVelocity) < INERTIA_STOP_V) { inertiaRaf = 0; return; }
-				inertiaRaf = requestAnimationFrame(step);
-			};
+		const step = () => {
+			if (destroyed) { inertiaRaf = 0; return; }
+			// xterm's scrollLines() goes through the smooth-scroll layer when a
+			// viewport exists, so ydisp updates asynchronously and reading
+			// viewportY() right after would always see the old value. Use an
+			// absolute scrollToLine(…, now=true) instead, which applies
+			// synchronously, and detect top/bottom by clamping the target.
+			const rowEl = container.querySelector('.xterm-rows > div');
+			const cellH = rowEl ? rowEl.getBoundingClientRect().height : 16;
+			let rows = cellH > 0 ? Math.round((inertiaVelocity * 16) / cellH) : (inertiaVelocity > 0 ? 1 : -1);
+			if (rows === 0) rows = inertiaVelocity > 0 ? 1 : -1;
+			const before = term.viewportY();
+			const target = before - rows;
+			const baseY = term.baseY();
+			const clamped = Math.max(0, Math.min(target, baseY));
+			term.scrollToLine(clamped, true);
+			inertiaVelocity *= INERTIA_FRICTION;
+			if (clamped !== target) { inertiaRaf = 0; return; } // hit top/bottom
+			if (Math.abs(inertiaVelocity) < INERTIA_STOP_V) { inertiaRaf = 0; return; }
+			inertiaRaf = requestAnimationFrame(step);
+		};
 			inertiaRaf = requestAnimationFrame(step);
 		}
 		let suppressTouchClickUntil = 0;
