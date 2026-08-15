@@ -739,7 +739,7 @@ export function renderShell(cfg: ShellConfig): string {
         <button data-key="right">→</button>
         <button data-key="space">␣</button>
         <button data-key="enter">↵ Enter</button>
-        <button data-key="exit">Exit</button>
+        <button data-key="ctrl-r">Ctrl+R</button>
         <button data-key="ctrl-c">Ctrl+C</button>
         <button data-key="yes">Yes</button>
       </div>

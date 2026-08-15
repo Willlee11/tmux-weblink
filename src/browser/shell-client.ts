@@ -950,7 +950,7 @@ const keyMap: Record<string, string> = {
 	right: '\x1b[C',
 	space: ' ',
 	enter: '\r',
-	exit: 'exit\r',
+	'ctrl-r': '\x12',
 	'ctrl-c': '\x03\x03',
 	yes: 'yes\r',
 };
