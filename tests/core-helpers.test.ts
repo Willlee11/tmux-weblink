@@ -36,3 +36,13 @@ describe('core helpers', () => {
 	});
 
 });
+
+describe('alt screen stripping', () => {
+	it('removes DECSET 1049 enter/exit sequences', async () => {
+		const mod = await import('../src/browser/terminal-core.js');
+		const strip = (mod as any).stripAltScreenSequences;
+		expect(strip('\x1b[?1049h\x1b[22;0;0t\x1b[?1h\x1b=\x1b[H\x1b[2Jhello')).toBe('\x1b[22;0;0t\x1b[?1h\x1b=\x1b[H\x1b[2Jhello');
+		expect(strip('a\x1b[?1049lb')).toBe('ab');
+		expect(strip('no alt screen here')).toBe('no alt screen here');
+	});
+});

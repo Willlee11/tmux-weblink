@@ -4,6 +4,17 @@ import type { Terminal as XTerminalType } from '@xterm/xterm';
 
 const OSC_COLOR_RE = /\x1b\](?:10|11|110|111|104)(?:;[^\x07\x1b]*)?\x1b?(?:\\|\x07)/g;
 
+/**
+ * tmux attach clients run inside the alternate screen (DECSET 1049), which
+ * leaves the browser terminal with no scrollback — native wheel/touch
+ * scrolling and our scrollLines() calls would all be no-ops. Strip the
+ * 1049 enter/exit sequences so xterm stays on the normal buffer where
+ * scrollback (and therefore scrolling + flick inertia) actually works.
+ */
+export function stripAltScreenSequences(data: string): string {
+	return data.replace(/\x1b\[\?1049[hl]/g, '');
+}
+
 function stripOscColorSequences(data: string): string {
 	return data.replace(OSC_COLOR_RE, '');
 }
@@ -95,6 +106,8 @@ interface TerminalAdapter {
 	reset(): void;
 	scrollToBottom(): void;
 	scrollToLine(line: number): void;
+	/** Scroll by a signed number of lines (negative = towards older history). */
+	scrollLines(lines: number): void;
 	isNearScrollbackTop(): boolean;
 	viewportY(): number;
 	baseY(): number;
@@ -150,6 +163,7 @@ class XtermAdapter implements TerminalAdapter {
 			cursorStyle: 'bar',
 			scrollback,
 			convertEol: false,
+			smoothScrollDuration: 120,
 			theme,
 		});
 		return new XtermAdapter(container, terminal, new FitAddon());
@@ -157,10 +171,16 @@ class XtermAdapter implements TerminalAdapter {
 
 	get cols(): number { return this.terminal.cols; }
 	get rows(): number { return this.terminal.rows; }
-	write(data: string): Promise<void> { return new Promise((resolve) => this.terminal.write(data, resolve)); }
+	write(data: string): Promise<void> {
+			return new Promise((resolve) => this.terminal.write(data, resolve));
+		}
 	reset(): void { this.terminal.reset(); }
 	scrollToBottom(): void { this.terminal.scrollToBottom(); }
 	scrollToLine(line: number): void { this.terminal.scrollToLine(Math.max(0, line)); }
+	scrollLines(lines: number): void {
+			const b = (this.terminal.buffer?.active as any);
+			this.terminal.scrollLines(lines);
+		}
 	isNearScrollbackTop(): boolean { return this.terminal.buffer.active.viewportY <= 1; }
 	viewportY(): number { return this.terminal.buffer.active.viewportY; }
 	baseY(): number { return this.terminal.buffer.active.baseY; }
@@ -281,7 +301,42 @@ export function initTerminal(
 		let ws: WebSocket | undefined;
 		let fitRaf = 0;
 		let fitTimer: ReturnType<typeof setTimeout> | undefined;
-		let touchGesture: { startX: number; startY: number; lastX: number; lastY: number; scrolling: boolean } | null = null;
+		let touchGesture: { startX: number; startY: number; lastX: number; lastY: number; lastT: number; velocity: number; scrolling: boolean } | null = null;
+		// Flick inertia: keep scrolling with a decaying velocity after touchend.
+		let inertiaRaf = 0;
+		let inertiaVelocity = 0;
+		let inertiaStillFrames = 0;
+		const INERTIA_KICK_IN = 0.2; // px/ms — finger velocity needed to start a flick
+		const INERTIA_MAX = 5;       // px/ms — cap on the initial velocity (~5 rows/frame)
+		const INERTIA_FRICTION = 0.94; // per-frame velocity decay
+		const INERTIA_STOP_V = 0.04; // px/ms — stop when this slow
+
+		function stopInertia(): void {
+			if (inertiaRaf) { cancelAnimationFrame(inertiaRaf); inertiaRaf = 0; }
+			inertiaVelocity = 0;
+			inertiaStillFrames = 0;
+		}
+
+		function startInertia(velocity: number): void {
+			stopInertia();
+			if (Math.abs(velocity) < INERTIA_KICK_IN) return;
+			inertiaVelocity = Math.max(-INERTIA_MAX, Math.min(INERTIA_MAX, velocity));
+			const step = () => {
+				if (destroyed) { inertiaRaf = 0; return; }
+				const before = term.viewportY();
+				dispatchTerminalWheel(inertiaVelocity * 16);
+				const after = term.viewportY();
+				inertiaVelocity *= INERTIA_FRICTION;
+				if (after === before) {
+					if (++inertiaStillFrames >= 2) { inertiaRaf = 0; return; } // hit top/bottom
+				} else {
+					inertiaStillFrames = 0;
+				}
+				if (Math.abs(inertiaVelocity) < INERTIA_STOP_V) { inertiaRaf = 0; return; }
+				inertiaRaf = requestAnimationFrame(step);
+			};
+			inertiaRaf = requestAnimationFrame(step);
+		}
 		let suppressTouchClickUntil = 0;
 		let phase: 'connecting' | 'live' | 'dead' = 'connecting';
 		let serverHistoryLoaded = 0;
@@ -370,12 +425,13 @@ export function initTerminal(
 			}
 
 			if (msg.type === 'snapshot' && typeof msg.data === 'string') {
-				const data = stripOscColorSequences(msg.data);
+				const data = stripAltScreenSequences(stripOscColorSequences(msg.data));
 				historyParts = [data];
 				liveSuffix = '';
 				serverHistoryLoaded = typeof msg.lines === 'number' ? msg.lines : cfg.terminal.initialLines;
 				phase = 'live';
 				term.reset();
+				
 				// Align to the container right after the first frame so a stale
 				// size never lingers (fit is idempotent when nothing changed).
 				fitTerminal();
@@ -397,7 +453,7 @@ export function initTerminal(
 			if (msg.type === 'history' && typeof msg.data === 'string') {
 				historyLoading = false;
 				if (msg.lines > 0 && msg.data) {
-					historyParts.unshift(msg.data);
+					historyParts.unshift(stripAltScreenSequences(msg.data));
 					serverHistoryLoaded += msg.lines;
 					void rewriteTerminal(true, msg.lines);
 				}
@@ -405,7 +461,7 @@ export function initTerminal(
 			}
 
 			if (msg.type === 'data' && typeof msg.data === 'string') {
-				const data = stripOscColorSequences(msg.data);
+				const data = stripAltScreenSequences(stripOscColorSequences(msg.data));
 				if (phase === 'connecting') {
 					phase = 'live';
 					liveSuffix = data;
@@ -806,7 +862,8 @@ export function initTerminal(
 			if (event.touches.length !== 1) { touchGesture = null; return; }
 			const touch = event.touches[0];
 			if (!touch) return;
-			touchGesture = { startX: touch.clientX, startY: touch.clientY, lastX: touch.clientX, lastY: touch.clientY, scrolling: false };
+			stopInertia();
+			touchGesture = { startX: touch.clientX, startY: touch.clientY, lastX: touch.clientX, lastY: touch.clientY, lastT: performance.now(), velocity: 0, scrolling: false };
 			event.stopPropagation();
 		}
 		function handleTouchMove(event: TouchEvent) {
@@ -821,19 +878,27 @@ export function initTerminal(
 				suppressTouchClickUntil = Date.now() + 500;
 			}
 			event.preventDefault(); event.stopPropagation();
-			dispatchTerminalWheel(-(touch.clientY - touchGesture.lastY), touch.clientX, touch.clientY);
-			touchGesture.lastX = touch.clientX; touchGesture.lastY = touch.clientY;
+			const now = performance.now();
+			const dy = touch.clientY - touchGesture.lastY;
+			const dt = now - touchGesture.lastT;
+			if (dt > 0) touchGesture.velocity = dy / dt;
+			dispatchTerminalWheel(dy);
+			touchGesture.lastX = touch.clientX; touchGesture.lastY = touch.clientY; touchGesture.lastT = now;
 		}
 		function handleTouchEnd(event: TouchEvent) {
 			if (!touchGesture) return;
 			const wasScrolling = touchGesture.scrolling;
+			const flickVelocity = touchGesture.velocity;
 			touchGesture = null;
 			event.stopPropagation();
-			if (!wasScrolling) term.focus();
-			else { suppressTouchClickUntil = Date.now() + 500; event.preventDefault(); }
+			if (!wasScrolling) { term.focus(); return; }
+			suppressTouchClickUntil = Date.now() + 500;
+			event.preventDefault();
+			if (flickVelocity) startInertia(flickVelocity);
 		}
 		function handleTouchCancel(event: TouchEvent) {
 			touchGesture = null;
+			stopInertia();
 			event.stopPropagation();
 		}
 		function handlePointerUp(event: PointerEvent) {
@@ -842,12 +907,15 @@ export function initTerminal(
 			}
 		}
 
-		function dispatchTerminalWheel(deltaY: number, clientX: number, clientY: number) {
-			const target: Element = container.querySelector('.xterm-screen') ?? container;
-			target.dispatchEvent(new WheelEvent('wheel', {
-				deltaY, deltaMode: WheelEvent.DOM_DELTA_PIXEL, clientX, clientY,
-				bubbles: true, cancelable: true,
-			}));
+		function dispatchTerminalWheel(deltaY: number): void {
+			// Scroll via the public scrollLines() API: synthesised WheelEvents are
+			// not reliably picked up by xterm's viewport listener, whereas
+			// scrollLines always works (and clamps at the scrollback bounds).
+			const rowEl = container.querySelector('.xterm-rows > div');
+			const cellH = rowEl ? rowEl.getBoundingClientRect().height : 16;
+			let lines = cellH > 0 ? Math.round(deltaY / cellH) : (deltaY > 0 ? 1 : -1);
+			if (lines === 0) lines = deltaY > 0 ? 1 : -1;
+			term.scrollLines(lines);
 		}
 
 		container.addEventListener('touchstart', handleTouchStart, { passive: true, capture: true });
@@ -893,6 +961,7 @@ export function initTerminal(
 		return {
 			destroy() {
 				destroyed = true;
+				stopInertia();
 				setCopyMode(false);
 				if (copyToastTimer) clearTimeout(copyToastTimer);
 				document.removeEventListener('mousemove', handleCopyMouseMove, true);
