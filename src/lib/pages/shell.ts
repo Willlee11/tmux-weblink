@@ -81,7 +81,9 @@ export function renderShell(cfg: ShellConfig): string {
     height: 100dvh;
     overflow: hidden;
     padding-top: calc(48px + env(safe-area-inset-top, 0px));
-    transition: height 0.05s;
+    /* No height transition: on iOS WebKit a 50ms animated height makes
+       ResizeObserver fire with intermediate sizes while load_history
+       rewrites the buffer, corrupting line wrapping (see issue #4). */
   }
 
   /* ── Sidebar ── */

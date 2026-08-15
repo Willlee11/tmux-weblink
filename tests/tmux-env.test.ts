@@ -29,3 +29,19 @@ describe('tmuxEnv', () => {
 		process.env = { ...original };
 	});
 });
+
+describe('tmuxEnv tmux-context stripping', () => {
+	it('removes inherited TMUX / TMUX_PANE so child tmux never thinks it is attached', async () => {
+		const mod = await import('../src/lib/tmux-env.js');
+		const orig = process.env;
+		(process as any).env = { ...orig, TMUX: '/tmp/tmux-0/default,123,0', TMUX_PANE: '%5', LANG: 'en_US.UTF-8' };
+		try {
+			const env = mod.tmuxEnv();
+			expect(env.TMUX).toBeUndefined();
+			expect(env.TMUX_PANE).toBeUndefined();
+			expect(env.LANG).toBe('en_US.UTF-8');
+		} finally {
+			(process as any).env = orig;
+		}
+	});
+});

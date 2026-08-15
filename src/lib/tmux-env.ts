@@ -11,6 +11,12 @@
  */
 export function tmuxEnv(): Record<string, string> {
 	const env: Record<string, string> = { ...(process.env as Record<string, string>) };
+	// Never inherit the parent's tmux context. If the server/agent itself was
+	// started from inside a tmux session, TMUX/TMUX_PANE would make every
+	// child tmux think it is already attached ("open terminal failed: not a
+	// terminal") and point execFileSync calls at the wrong socket.
+	delete env.TMUX;
+	delete env.TMUX_PANE;
 	if (!env.LC_ALL && !env.LANG) {
 		// en_US.UTF-8 ships with macOS; C.UTF-8 is built into glibc >= 2.35
 		// (Ubuntu 22.04+). Prefer the platform's guaranteed UTF-8 locale.

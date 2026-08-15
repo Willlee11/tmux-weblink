@@ -363,7 +363,6 @@ export function initTerminal(
 
 		async function rewriteTerminal(preserveScroll: boolean, addedLines = 0) {
 			const viewportY = preserveScroll ? term.viewportY() : 0;
-			const baseY = preserveScroll ? term.baseY() : 0;
 			const text = stripOscColorSequences(fullLoadedText());
 			term.reset();
 			if (!text) {
@@ -371,8 +370,17 @@ export function initTerminal(
 				return;
 			}
 			await term.write(text);
-			if (preserveScroll) term.scrollToLine(baseY + viewportY + addedLines);
-			else term.scrollToBottom();
+			if (preserveScroll) {
+				// term.reset() rebuilds the buffer, wiping scrollback, so the old
+				// baseY is meaningless afterwards. The row the user was looking at
+				// now sits at addedLines + viewportY in the rewritten buffer (the
+				// freshly prepended history chunk shifted everything down by
+				// addedLines). scrollToLine clamps at the new baseY, so bottom
+				// users stay at the bottom and scrolled-up users keep their row.
+				term.scrollToLine(addedLines + viewportY);
+			} else {
+				term.scrollToBottom();
+			}
 		}
 
 		function sendJSON(obj: unknown) {
@@ -456,11 +464,21 @@ export function initTerminal(
 			}
 
 			if (msg.type === 'history' && typeof msg.data === 'string') {
-				historyLoading = false;
 				if (msg.lines > 0 && msg.data) {
 					historyParts.unshift(stripAltScreenSequences(msg.data));
 					serverHistoryLoaded += msg.lines;
-					void rewriteTerminal(true, msg.lines);
+					// Keep historyLoading locked until the rewrite finishes: reset()
+					// wipes the buffer, and while it is being rebuilt the user can
+					// scroll (or reset itself fires onScroll) with
+					// isNearScrollbackTop() true on the half-built buffer, which
+					// used to trigger a second load_history and a concurrent
+					// rewriteTerminal that clobbered the first one — the
+					// 'history disappears while refreshing' bug.
+					void rewriteTerminal(true, msg.lines).finally(() => {
+						historyLoading = false;
+					});
+				} else {
+					historyLoading = false;
 				}
 				return;
 			}
