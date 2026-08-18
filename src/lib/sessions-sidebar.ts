@@ -24,6 +24,8 @@ export type SidebarPinnedView = {
 export type SidebarPayload = {
 	pinned: SidebarPinnedView[];
 	recent: SidebarSession[];
+	/** Home directory, so the client can abbreviate session paths as ~/…. */
+	home: string;
 };
 
 function isSessionPinned(pinnedKeys: Set<string>, sessionName: string): boolean {
@@ -98,5 +100,5 @@ export function buildSidebarSessions(
 			return a.name.localeCompare(b.name);
 		});
 
-	return { pinned, recent };
+	return { pinned, recent, home: process.env.HOME ?? '/' };
 }

@@ -133,23 +133,29 @@ function saveCollapsedGroups(set: Set<string>) {
 	} catch {}
 }
 
-// Group label: last 2 path segments prefixed with …; grow the tail until it is
-// unique among all session paths so two different parents never share a header.
-function sessionGroupLabel(path: string, allPaths: string[]): string {
+// Group label: abbreviate the home directory as ~, then show the last 2 path
+// segments; grow the tail until it is unique among all session paths so two
+// different parents never share a header.
+function sessionGroupLabel(path: string, allPaths: string[], home?: string): string {
 	if (!path) return '…';
-	const segs = path.split('/').filter(Boolean);
+	const rel = home && (path === home || path.startsWith(home + '/')) ? '~' + path.slice(home.length) : path;
+	const segs = rel.split('/').filter(Boolean);
 	if (segs.length === 0) return path;
 	for (let n = 2; n <= segs.length; n++) {
 		const tail = segs.slice(-n).join('/');
-		const clash = allPaths.some((p) => p && p !== path && p.split('/').filter(Boolean).slice(-n).join('/') === tail);
-		if (!clash) return '…/' + tail;
+		const clash = allPaths.some((p) => {
+			if (!p || p === path) return false;
+			const r2 = home && (p === home || p.startsWith(home + '/')) ? '~' + p.slice(home.length) : p;
+			return r2.split('/').filter(Boolean).slice(-n).join('/') === tail;
+		});
+		if (!clash) return rel.startsWith('~') ? tail : '…/' + tail;
 	}
-	return path;
+	return rel;
 }
 
 // Local sessions clustered by working directory: one header per path (showing
 // only the short tail, full path in the title) with plain session-name rows.
-function renderLocalSessionGroups(sessions: { name: string; attached?: boolean; path?: string }[]) {
+function renderLocalSessionGroups(sessions: { name: string; attached?: boolean; path?: string }[], home?: string) {
 	const groups = new Map<string, { name: string; attached?: boolean }[]>();
 	for (const s of sessions) {
 		const p = s.path || '';
@@ -159,7 +165,7 @@ function renderLocalSessionGroups(sessions: { name: string; attached?: boolean; 
 	const allPaths = [...groups.keys()];
 	const collapsed = loadCollapsedGroups();
 	for (const [path, list] of groups) {
-		const label = sessionGroupLabel(path, allPaths);
+		const label = sessionGroupLabel(path, allPaths, home);
 		const isCollapsed = collapsed.has(path);
 		const header = document.createElement('div');
 		header.className = 'session-group-header' + (isCollapsed ? ' collapsed' : '');
@@ -213,7 +219,7 @@ function makeLocalSessionItem(s: { name: string; attached?: boolean }) {
 	return el;
 }
 
-function renderSidebarPayload(data: { recent?: { name: string; attached?: boolean }[]; agents?: { agentId: string; agentName: string; online: boolean; sessions: { name: string; attached?: boolean }[] }[] }) {
+function renderSidebarPayload(data: { recent?: { name: string; attached?: boolean }[]; agents?: { agentId: string; agentName: string; online: boolean; sessions: { name: string; attached?: boolean }[] }[]; home?: string }) {
 	sidebarContent.innerHTML = '<button class="new-session-sidebar-btn" id="ns-btn">+ New Session</button>';
 
 	const sessions = data.recent || [];
@@ -232,7 +238,7 @@ function renderSidebarPayload(data: { recent?: { name: string; attached?: boolea
 		sidebarContent.appendChild(localGroup);
 
 		// Local sessions (hub), clustered by working directory.
-		renderLocalSessionGroups(sessions);
+		renderLocalSessionGroups(sessions, data.home);
 
 		// Remote (agent) sessions, grouped by machine.
 		const agents = data.agents || [];
