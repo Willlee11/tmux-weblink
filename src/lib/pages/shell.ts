@@ -163,14 +163,8 @@ export function renderShell(cfg: ShellConfig): string {
     flex: 1; overflow: hidden; white-space: nowrap;
     direction: rtl; text-align: left; text-overflow: ellipsis;
   }
-  .sg-count {
-    flex-shrink: 0; font-size: 10px; font-weight: 600;
-    color: color-mix(in srgb, var(--panel-muted) 80%, transparent);
-    background: color-mix(in srgb, var(--panel-border) 55%, transparent);
-    border-radius: 8px; padding: 1px 6px;
-  }
-  .sg-arrow { flex-shrink: 0; font-size: 9px; }
   .session-group-body.collapsed { display: none; }
+  .session-group-body .session-item { padding-left: 30px; }
   .session-item.session-offline { opacity: 0.5; cursor: default; }
   .session-item .meta { margin-left: auto; }
   .new-session-sidebar-btn {

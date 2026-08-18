@@ -133,22 +133,22 @@ function saveCollapsedGroups(set: Set<string>) {
 	} catch {}
 }
 
-// Group label: abbreviate the home directory as ~, then show the last 2 path
-// segments; grow the tail until it is unique among all session paths so two
+// Group label: the last path segment (current folder name); grow the tail
+// until it is unique among all session paths so two same-named projects in
 // different parents never share a header.
 function sessionGroupLabel(path: string, allPaths: string[], home?: string): string {
 	if (!path) return '…';
 	const rel = home && (path === home || path.startsWith(home + '/')) ? '~' + path.slice(home.length) : path;
 	const segs = rel.split('/').filter(Boolean);
 	if (segs.length === 0) return path;
-	for (let n = 2; n <= segs.length; n++) {
+	for (let n = 1; n <= segs.length; n++) {
 		const tail = segs.slice(-n).join('/');
 		const clash = allPaths.some((p) => {
 			if (!p || p === path) return false;
 			const r2 = home && (p === home || p.startsWith(home + '/')) ? '~' + p.slice(home.length) : p;
 			return r2.split('/').filter(Boolean).slice(-n).join('/') === tail;
 		});
-		if (!clash) return rel.startsWith('~') ? tail : '…/' + tail;
+		if (!clash) return tail;
 	}
 	return rel;
 }
@@ -170,9 +170,7 @@ function renderLocalSessionGroups(sessions: { name: string; attached?: boolean; 
 		const header = document.createElement('div');
 		header.className = 'session-group-header' + (isCollapsed ? ' collapsed' : '');
 		header.title = path || 'No working directory';
-		header.innerHTML =
-			`<span class="sg-folder">&#128193;</span><span class="sg-label">${escHtml(label)}</span>`
-			+ `<span class="sg-count">${list.length}</span><span class="sg-arrow">${isCollapsed ? '\u25B8' : '\u25BE'}</span>`;
+		header.innerHTML = `<span class="sg-folder">&#128193;</span><span class="sg-label">${escHtml(label)}</span>`;
 		header.addEventListener('click', () => {
 			const set = loadCollapsedGroups();
 			const body = header.nextElementSibling as HTMLElement | null;
@@ -180,12 +178,10 @@ function renderLocalSessionGroups(sessions: { name: string; attached?: boolean; 
 				set.delete(path);
 				header.classList.remove('collapsed');
 				body?.classList.remove('collapsed');
-				header.querySelector('.sg-arrow')!.textContent = '\u25BE';
 			} else {
 				set.add(path);
 				header.classList.add('collapsed');
 				body?.classList.add('collapsed');
-				header.querySelector('.sg-arrow')!.textContent = '\u25B8';
 			}
 			saveCollapsedGroups(set);
 		});
