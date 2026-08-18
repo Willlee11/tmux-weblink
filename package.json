@@ -1,6 +1,6 @@
 {
   "name": "tmux-weblink",
-  "version": "2.0.28",
+  "version": "2.0.29",
   "description": "Access your tmux sessions from the browser. A continuation of tmux-web and persalink.",
   "type": "module",
   "bin": {
