@@ -1,12 +1,14 @@
 import type { PinnedViewRecord } from './db.js';
 import { viewKey } from './pinned-views.js';
-import { listSessionWindows } from './tmux-windows.js';
+import { captureSessionWindowsWithPath, listSessionWindows } from './tmux-windows.js';
 
 export type SidebarSession = {
 	name: string;
 	windows: number;
 	attached: boolean;
 	lastAccessedAt?: number;
+	/** Working directory of the active window (used to cluster sessions). */
+	path?: string;
 };
 
 export type SidebarPinnedView = {
@@ -26,6 +28,21 @@ export type SidebarPayload = {
 
 function isSessionPinned(pinnedKeys: Set<string>, sessionName: string): boolean {
 	return pinnedKeys.has(viewKey(sessionName));
+}
+
+/**
+ * Working directory of a session's active window. One cheap tmux query per
+ * session; failures (dead session, tmux hiccup) degrade to undefined so the
+ * sidebar still renders.
+ */
+export function sessionWorkingPath(sessionName: string): string | undefined {
+	try {
+		const windows = captureSessionWindowsWithPath(sessionName);
+		const active = windows.find((w) => w.active) ?? windows[0];
+		return active?.path;
+	} catch {
+		return undefined;
+	}
 }
 
 export function buildSidebarSessions(
@@ -70,6 +87,7 @@ export function buildSidebarSessions(
 	const recent = sessions
 		.map((session) => ({
 			...session,
+			path: sessionWorkingPath(session.name),
 			lastAccessedAt: accessMap.get(session.name),
 		}))
 		.filter((session) => !isSessionPinned(pinnedKeys, session.name))

@@ -117,6 +117,102 @@ async function renderSessionList() {
 	});
 }
 
+const SIDEBAR_GROUP_COLLAPSE_KEY = 'tmux-web-sidebar-group-collapsed';
+
+function loadCollapsedGroups(): Set<string> {
+	try {
+		return new Set(JSON.parse(localStorage.getItem(SIDEBAR_GROUP_COLLAPSE_KEY) || '[]'));
+	} catch {
+		return new Set();
+	}
+}
+
+function saveCollapsedGroups(set: Set<string>) {
+	try {
+		localStorage.setItem(SIDEBAR_GROUP_COLLAPSE_KEY, JSON.stringify([...set]));
+	} catch {}
+}
+
+// Group label: last 2 path segments prefixed with …; grow the tail until it is
+// unique among all session paths so two different parents never share a header.
+function sessionGroupLabel(path: string, allPaths: string[]): string {
+	if (!path) return '…';
+	const segs = path.split('/').filter(Boolean);
+	if (segs.length === 0) return path;
+	for (let n = 2; n <= segs.length; n++) {
+		const tail = segs.slice(-n).join('/');
+		const clash = allPaths.some((p) => p && p !== path && p.split('/').filter(Boolean).slice(-n).join('/') === tail);
+		if (!clash) return '…/' + tail;
+	}
+	return path;
+}
+
+// Local sessions clustered by working directory: one header per path (showing
+// only the short tail, full path in the title) with plain session-name rows.
+function renderLocalSessionGroups(sessions: { name: string; attached?: boolean; path?: string }[]) {
+	const groups = new Map<string, { name: string; attached?: boolean }[]>();
+	for (const s of sessions) {
+		const p = s.path || '';
+		if (!groups.has(p)) groups.set(p, []);
+		groups.get(p)!.push(s);
+	}
+	const allPaths = [...groups.keys()];
+	const collapsed = loadCollapsedGroups();
+	for (const [path, list] of groups) {
+		const label = sessionGroupLabel(path, allPaths);
+		const isCollapsed = collapsed.has(path);
+		const header = document.createElement('div');
+		header.className = 'session-group-header' + (isCollapsed ? ' collapsed' : '');
+		header.title = path || 'No working directory';
+		header.innerHTML =
+			`<span class="sg-folder">&#128193;</span><span class="sg-label">${escHtml(label)}</span>`
+			+ `<span class="sg-count">${list.length}</span><span class="sg-arrow">${isCollapsed ? '\u25B8' : '\u25BE'}</span>`;
+		header.addEventListener('click', () => {
+			const set = loadCollapsedGroups();
+			const body = header.nextElementSibling as HTMLElement | null;
+			if (set.has(path)) {
+				set.delete(path);
+				header.classList.remove('collapsed');
+				body?.classList.remove('collapsed');
+				header.querySelector('.sg-arrow')!.textContent = '\u25BE';
+			} else {
+				set.add(path);
+				header.classList.add('collapsed');
+				body?.classList.add('collapsed');
+				header.querySelector('.sg-arrow')!.textContent = '\u25B8';
+			}
+			saveCollapsedGroups(set);
+		});
+		const body = document.createElement('div');
+		body.className = 'session-group-body' + (isCollapsed ? ' collapsed' : '');
+		for (const s of list) {
+			body.appendChild(makeLocalSessionItem(s));
+		}
+		sidebarContent.appendChild(header);
+		sidebarContent.appendChild(body);
+	}
+}
+
+function makeLocalSessionItem(s: { name: string; attached?: boolean }) {
+	const el = document.createElement('div');
+	el.className = 'session-item' + (s.name === currentSession && !currentAgentId ? ' active' : '');
+	el.setAttribute('data-session', s.name);
+	el.innerHTML = `<svg viewBox="0 0 24 24" fill="currentColor"><path d="${s.attached ? 'M19 4H5a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2zm0 14H5V6h14v12z' : 'M4 6h16v2H4V6zm0 5h16v2H4v-2zm0 5h16v2H4v-2z'}"></svg>
+			<span>${escHtml(s.name)}</span>
+			<button class="session-edit-btn" data-session="${escHtml(s.name)}" title="Edit session"><svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 000-1.41l-2.34-2.34a1 1 0 00-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg></button>
+`;
+	el.addEventListener('click', (e) => {
+		if ((e.target as HTMLElement).closest('.session-edit-btn')) return;
+		openSession(s.name);
+	});
+	const editBtn = el.querySelector('.session-edit-btn');
+	if (editBtn) editBtn.addEventListener('click', (e) => {
+		e.stopPropagation();
+		showSessionPopover(s.name, editBtn as HTMLElement);
+	});
+	return el;
+}
+
 function renderSidebarPayload(data: { recent?: { name: string; attached?: boolean }[]; agents?: { agentId: string; agentName: string; online: boolean; sessions: { name: string; attached?: boolean }[] }[] }) {
 	sidebarContent.innerHTML = '<button class="new-session-sidebar-btn" id="ns-btn">+ New Session</button>';
 
@@ -135,27 +231,8 @@ function renderSidebarPayload(data: { recent?: { name: string; attached?: boolea
 		}
 		sidebarContent.appendChild(localGroup);
 
-		// Local sessions (hub).
-		for (const s of sessions) {
-			const el = document.createElement('div');
-			el.className = 'session-item' + (s.name === currentSession && !currentAgentId ? ' active' : '');
-			el.setAttribute('data-session', s.name);
-			el.innerHTML = `<svg viewBox="0 0 24 24" fill="currentColor"><path d="${s.attached ? 'M19 4H5a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2zm0 14H5V6h14v12z' : 'M4 6h16v2H4V6zm0 5h16v2H4v-2zm0 5h16v2H4v-2z'}"></svg>
-			<span>${escHtml(s.name)}</span>
-			<button class="session-edit-btn" data-session="${escHtml(s.name)}" title="Edit session"><svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 000-1.41l-2.34-2.34a1 1 0 00-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg></button>
-`;
-			el.addEventListener('click', (e) => {
-				if ((e.target as HTMLElement).closest('.session-edit-btn')) return;
-				openSession(s.name);
-			});
-			sidebarContent.appendChild(el);
-				// Wire up edit button
-				const editBtn = el.querySelector('.session-edit-btn');
-				if (editBtn) editBtn.addEventListener('click', (e) => {
-					e.stopPropagation();
-					showSessionPopover(s.name, editBtn as HTMLElement);
-				});
-		}
+		// Local sessions (hub), clustered by working directory.
+		renderLocalSessionGroups(sessions);
 
 		// Remote (agent) sessions, grouped by machine.
 		const agents = data.agents || [];

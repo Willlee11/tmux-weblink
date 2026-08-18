@@ -15,6 +15,9 @@ vi.mock('../src/lib/db.js', () => ({
 
 vi.mock('../src/lib/tmux-windows.js', () => ({
 	listSessionWindows: vi.fn(() => []),
+	captureSessionWindowsWithPath: vi.fn((session: string) => [
+		{ index: 0, name: 'bash', active: true, path: '/home/user/' + session },
+	]),
 }));
 
 import { db } from '../src/lib/db.js';
@@ -116,3 +119,20 @@ describe('buildSidebarSessions', () => {
 	});
 });
 
+
+describe('session working paths', () => {
+	it('attaches the active window path to each recent session', () => {
+		const payload = buildSidebarSessions(
+			[
+				{ name: 'alpha', windows: 1, attached: false },
+				{ name: 'beta', windows: 2, attached: true },
+			],
+			new Map([['alpha', 10], ['beta', 20]]),
+			[],
+		);
+		expect(payload.recent).toHaveLength(2);
+		const byName = new Map(payload.recent.map((r) => [r.name, r.path]));
+		expect(byName.get('alpha')).toBe('/home/user/alpha');
+		expect(byName.get('beta')).toBe('/home/user/beta');
+	});
+});
