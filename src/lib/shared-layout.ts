@@ -379,6 +379,43 @@ export function newSessionModalCSS(): string {
   .modal-dropdown-item:hover, .modal-dropdown-item.active, .modal-dropdown-item:focus-visible {
     background: color-mix(in srgb, var(--panel-accent) 8%, transparent); color: var(--panel-accent);
   }
+  .ns-dir-wrap { position: relative; }
+  .ns-dir-wrap input { padding-right: 46px; }
+  .ns-dir-browse {
+    position: absolute; right: 6px; top: 50%; transform: translateY(-50%);
+    width: 34px; height: 34px; border: none; border-radius: 9px;
+    background: transparent; color: var(--panel-muted); font-size: 14px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .ns-dir-browse:hover {
+    background: color-mix(in srgb, var(--panel-accent) 10%, transparent); color: var(--panel-accent);
+  }
+  .ns-dir-tree {
+    display: none; position: absolute; left: 0; right: 0; top: 100%;
+    margin-top: 4px; max-height: 260px; overflow-y: auto; z-index: 10;
+    background: var(--panel-bg); border: 1px solid var(--panel-border);
+    border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+    padding: 6px 0;
+  }
+  .ns-dir-tree.open { display: block; }
+  .ns-tree-row {
+    display: flex; align-items: center; min-height: 36px;
+    padding: 4px 10px 4px 0; font-size: var(--text-sm); color: var(--page-fg);
+    cursor: pointer; white-space: nowrap; user-select: none;
+  }
+  .ns-tree-row:hover, .ns-tree-row.active { background: color-mix(in srgb, var(--panel-accent) 8%, transparent); }
+  .ns-tree-row.current > .ns-tree-label { color: var(--panel-accent); font-weight: 600; }
+  .ns-tree-arrow {
+    width: 20px; height: 20px; flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center;
+    color: var(--panel-muted); font-size: 10px; border-radius: 5px;
+  }
+  .ns-tree-arrow:hover {
+    background: color-mix(in srgb, var(--panel-accent) 14%, transparent); color: var(--panel-accent);
+  }
+  .ns-tree-arrow.leaf { visibility: hidden; }
+  .ns-tree-icon { flex-shrink: 0; margin: 0 6px 0 2px; font-size: 13px; }
+  .ns-tree-label { overflow: hidden; text-overflow: ellipsis; }
+  .ns-tree-empty { color: var(--panel-muted); font-size: var(--text-sm); padding: 8px 12px; }
   .modal-dropdown-item:focus-visible { outline: none; box-shadow: inset 0 0 0 2px var(--panel-accent); }
   .modal-error { font-size: var(--text-sm); color: #b91c1c; margin-bottom: 12px; display: none; }
   .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 8px; }
@@ -407,8 +444,12 @@ export function newSessionModalHTML(): string {
     </div>
     <div class="modal-field">
       <label for="ns-dir">Start directory</label>
-      <input type="text" id="ns-dir" placeholder="~" autocomplete="off" spellcheck="false" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="ns-dir-list" />
+      <div class="ns-dir-wrap">
+        <input type="text" id="ns-dir" placeholder="~" autocomplete="off" spellcheck="false" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="ns-dir-list" />
+        <button type="button" class="ns-dir-browse" id="ns-dir-browse" title="Browse directories" aria-label="Browse directories">&#128193;</button>
+      </div>
       <div class="modal-dropdown" id="ns-dir-list" role="listbox"></div>
+      <div class="ns-dir-tree" id="ns-dir-tree" role="tree" aria-label="Directory tree"></div>
     </div>
     <p class="modal-error" id="ns-error"></p>
     <div class="modal-actions">
@@ -453,10 +494,10 @@ export function newSessionModalScript(onCreatedExpr?: string): string {
     errorEl.style.display = 'none';
     errorEl.textContent = '';
     closeDropdown();
-    setTimeout(() => nameInput.focus(), 50);
+    openTreeForSession().then(() => setTimeout(() => nameInput.focus(), 50));
   }
 
-  function closeModal() { modal.classList.remove('open'); }
+  function closeModal() { modal.classList.remove('open'); closeDropdown(); closeTree(); }
 
   if (openBtn) openBtn.addEventListener('click', openModal);
   cancelBtn.addEventListener('click', closeModal);
@@ -505,6 +546,7 @@ export function newSessionModalScript(onCreatedExpr?: string): string {
 
   dirInput.addEventListener('input', () => {
     clearTimeout(debounceTimer);
+    closeTree();
     const val = dirInput.value.trim();
     if (!val) { closeDropdown(); return; }
     debounceTimer = setTimeout(async () => {
@@ -517,6 +559,181 @@ export function newSessionModalScript(onCreatedExpr?: string): string {
   });
 
   dirInput.addEventListener('blur', () => { setTimeout(closeDropdown, 120); });
+
+  // ── Directory tree (expandable, lazy-loads each level) ──
+  const treePanel = document.getElementById('ns-dir-tree');
+  const browseBtn = document.getElementById('ns-dir-browse');
+  let treeCache = {};          // path -> dirs[] (full paths)
+  let treeRoot = '/';
+  let treeExpanded = new Set(); // paths currently expanded
+  let treeSelected = '';        // path currently selected (highlighted)
+  let treeRows = [];            // visible rows [{path, el}] for keyboard nav
+  let treeActiveIdx = -1;
+  let treeOpen = false;
+
+  function treeEsc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+  function treeBase(p) {
+    if (p === '/' || p === '~') return p;
+    const parts = p.split('/').filter(Boolean);
+    return parts[parts.length - 1] || '/';
+  }
+  async function treeLoadDirs(path) {
+    if (treeCache[path]) return treeCache[path];
+    try {
+      const res = await fetch(selectedBase() + '/api/fs/list?path=' + encodeURIComponent(path));
+      const data = await res.json();
+      const dirs = (data.dirs || []).filter(d => d !== path).sort((a, b) => a.localeCompare(b));
+      treeCache[path] = dirs;
+      return dirs;
+    } catch { treeCache[path] = []; return []; }
+  }
+
+  function treeRowEl(path, depth) {
+    const row = document.createElement('div');
+    row.className = 'ns-tree-row' + (treeSelected === path ? ' current' : '');
+    row.dataset.path = path;
+    row.style.paddingLeft = (12 + depth * 18) + 'px';
+    const arrow = document.createElement('span');
+    arrow.className = 'ns-tree-arrow' + (treeExpanded.has(path) ? '' : ' leaf');
+    arrow.textContent = treeExpanded.has(path) ? '\u25BE' : '\u25B8';
+    const icon = document.createElement('span');
+    icon.className = 'ns-tree-icon';
+    icon.textContent = '\uD83D\uDCC1';
+    const label = document.createElement('span');
+    label.className = 'ns-tree-label';
+    label.textContent = treeBase(path);
+    label.title = path;
+    row.append(arrow, icon, label);
+    // Arrow toggles expansion (lazy-loads that level).
+    arrow.addEventListener('click', (e) => {
+      e.stopPropagation();
+      void treeToggle(path, depth);
+    });
+    // Clicking the row selects the directory.
+    row.addEventListener('click', () => {
+      dirInput.value = path;
+      closeTree();
+      dirInput.focus();
+    });
+    return row;
+  }
+
+  async function treeToggle(path, depth) {
+    if (treeExpanded.has(path)) treeExpanded.delete(path);
+    else treeExpanded.add(path);
+    await treeRender();
+    if (treeExpanded.has(path)) {
+      // After expanding, reveal any newly visible selected row.
+      const el = document.querySelector('.ns-tree-row.current');
+      if (el) el.scrollIntoView({ block: 'nearest' });
+    }
+  }
+
+  async function treeRender() {
+    treePanel.innerHTML = '';
+    treeRows = [];
+    const rootRow = treeRowEl(treeRoot, 0);
+    treePanel.appendChild(rootRow);
+    treeRows.push({ path: treeRoot, el: rootRow });
+    if (treeExpanded.has(treeRoot)) {
+      await treeRenderChildren(treeRoot, 0, rootRow);
+    }
+    treeRefreshActive();
+    if (!treeRows.length) treePanel.innerHTML = '<div class="ns-tree-empty">No directories</div>';
+  }
+
+  async function treeRenderChildren(path, depth, parentRow) {
+    if (!treeExpanded.has(path)) return;
+    const dirs = await treeLoadDirs(path);
+    const frag = document.createDocumentFragment();
+    for (const d of dirs) {
+      const row = treeRowEl(d, depth + 1);
+      frag.appendChild(row);
+      treeRows.push({ path: d, el: row });
+    }
+    parentRow.after(frag);
+    for (const d of dirs) {
+      if (treeExpanded.has(d)) {
+        const row = treePanel.querySelector('.ns-tree-row[data-path="' + CSS.escape(d) + '"]');
+        if (row) await treeRenderChildren(d, depth + 1, row);
+      }
+    }
+  }
+
+  // Expand the tree down to the given path (each level lazy-loads and expands).
+  async function treeExpandTo(path) {
+    treeExpanded.clear();
+    treeExpanded.add(treeRoot);
+    let cur = treeRoot;
+    let acc = '';
+    const segs = String(path).split('/').filter(Boolean);
+    for (const seg of segs) {
+      acc = acc ? acc + '/' + seg : '/' + seg;
+      if (cur === '~') cur = acc;
+      else if (cur === '/') cur = '/' + seg;
+      else cur = cur + '/' + seg;
+      await treeLoadDirs(cur);
+      treeExpanded.add(cur);
+    }
+    treeSelected = cur;
+    await treeRender();
+    const el = treePanel.querySelector('.ns-tree-row.current');
+    if (el) el.scrollIntoView({ block: 'nearest' });
+  }
+
+  function treeRefreshActive() {
+    treeActiveIdx = Math.max(-1, Math.min(treeActiveIdx, treeRows.length - 1));
+    treeRows.forEach((r, i) => r.el.classList.toggle('active', i === treeActiveIdx));
+    if (treeActiveIdx >= 0 && treeRows[treeActiveIdx]) treeRows[treeActiveIdx].el.scrollIntoView({ block: 'nearest' });
+  }
+
+  function closeTree() {
+    treePanel.classList.remove('open');
+    treePanel.innerHTML = '';
+    treeOpen = false;
+    treeExpanded = new Set();
+    treeSelected = '';
+    treeRows = [];
+    treeActiveIdx = -1;
+  }
+
+  async function openTree() {
+    closeDropdown();
+    const v = dirInput.value.trim();
+    const target = (!v || v === '~') ? '/' : (v.startsWith('/') ? v : '/' + v);
+    treeRoot = '/';
+    treePanel.classList.add('open');
+    treeOpen = true;
+    await treeExpandTo(target);
+  }
+
+  // On modal open, expand the tree directly to the currently selected
+  // session's working directory (window.__tmuxWebCurrentSession is set by
+  // the shell client; falls back to / otherwise).
+  async function openTreeForSession() {
+    const session = (typeof window.__tmuxWebCurrentSession === 'string' && window.__tmuxWebCurrentSession)
+      ? window.__tmuxWebCurrentSession : '';
+    let target = '/';
+    if (session) {
+      try {
+        const res = await fetch(selectedBase() + '/api/fs/session-path?session=' + encodeURIComponent(session));
+        const data = await res.json();
+        if (data && typeof data.path === 'string' && data.path) {
+          dirInput.value = data.path;
+          target = data.path.startsWith('/') ? data.path : '/' + data.path;
+        }
+      } catch {}
+    }
+    treeRoot = '/';
+    treePanel.classList.add('open');
+    treeOpen = true;
+    await treeExpandTo(target);
+  }
+
+  if (browseBtn) browseBtn.addEventListener('click', () => {
+    if (treeOpen) { closeTree(); return; }
+    void openTree();
+  });
 
   async function submit() {
     const name = nameInput.value.trim();
@@ -547,6 +764,29 @@ export function newSessionModalScript(onCreatedExpr?: string): string {
   submitBtn.addEventListener('click', submit);
   nameInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') dirInput.focus(); });
   dirInput.addEventListener('keydown', (e) => {
+    if (treeOpen && treeRows.length) {
+      if (e.key === 'ArrowDown') { e.preventDefault(); treeActiveIdx = Math.min(treeActiveIdx + 1, treeRows.length - 1); treeRefreshActive(); return; }
+      if (e.key === 'ArrowUp') { e.preventDefault(); treeActiveIdx = Math.max(treeActiveIdx - 1, 0); treeRefreshActive(); return; }
+      if (e.key === 'ArrowRight') {
+        e.preventDefault();
+        const row = treeRows[Math.max(treeActiveIdx, 0)];
+        if (row && !treeExpanded.has(row.path)) void treeToggle(row.path, row.el.style.paddingLeft ? Math.round((parseInt(row.el.style.paddingLeft) - 12) / 18) : 0);
+        return;
+      }
+      if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        const row = treeRows[Math.max(treeActiveIdx, 0)];
+        if (row && treeExpanded.has(row.path)) void treeToggle(row.path, 0);
+        return;
+      }
+      if (e.key === 'Enter' && treeActiveIdx >= 0) {
+        e.preventDefault();
+        dirInput.value = treeRows[treeActiveIdx].path;
+        closeTree();
+        return;
+      }
+      if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); closeTree(); return; }
+    }
     const open = dirList.classList.contains('open');
     const items = dirList.querySelectorAll('.modal-dropdown-item');
     if (open && items.length) {
@@ -562,5 +802,6 @@ export function newSessionModalScript(onCreatedExpr?: string): string {
     }
     if (e.key === 'Enter') submit();
   });
+  window.__openNewSessionModal = openModal;
 })();`;
 }

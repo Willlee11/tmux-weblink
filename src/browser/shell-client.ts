@@ -107,9 +107,14 @@ async function renderSessionList() {
 		sidebarContent.innerHTML += '<div class="file-tree-empty">Failed to load sessions</div>';
 	}
 
-	// Wire up new session button
+	// Wire up new session button (prefer the shared modal's openModal, which
+	// expands the directory tree to the current session's path).
 	const nsBtn = document.getElementById('ns-btn');
-	if (nsBtn) nsBtn.addEventListener('click', () => document.getElementById('new-session-modal')?.classList.add('open'));
+	if (nsBtn) nsBtn.addEventListener('click', () => {
+		const open = (window as any).__openNewSessionModal;
+		if (typeof open === 'function') open();
+		else document.getElementById('new-session-modal')?.classList.add('open');
+	});
 }
 
 function renderSidebarPayload(data: { recent?: { name: string; attached?: boolean }[]; agents?: { agentId: string; agentName: string; online: boolean; sessions: { name: string; attached?: boolean }[] }[] }) {
@@ -208,6 +213,9 @@ function escHtml(s: string): string {
 		currentSession = name;
 		currentAgentId = agentId || null;
 		(window as any).__tmuxWebScopeAgent = currentAgentId;
+		// Expose the current session to the shared new-session modal so the
+		// directory tree can expand straight to this session's working dir.
+		(window as any).__tmuxWebCurrentSession = currentSession;
 
 		// Update sidebar active indicator
 		for (const el of sidebarContent.querySelectorAll('.session-item')) {
