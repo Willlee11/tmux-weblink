@@ -187,7 +187,28 @@ class XtermAdapter implements TerminalAdapter {
 	fit(): boolean {
 		const rect = getTerminalViewportRect(this.container);
 		if (rect.width <= 0 || rect.height <= 0) return false;
-		this.fitAddon.fit();
+		// Measure the real scrollbar width instead of trusting the fit addon's
+		// hardcoded 15px guess: overlay scrollbars take 0px, while Windows
+		// standard scrollbars can be 17px+ (more under DPI scaling). Guessing
+		// too low leaves the rightmost column clipped; guessing too high wastes
+		// a column of space.
+		const t = this.terminal as any;
+		const dims = t._core?._renderService?.dimensions?.css?.cell as
+			| { width: number; height: number }
+			| undefined;
+		if (!dims?.width || !dims?.height) {
+			this.fitAddon.fit();
+			return true;
+		}
+		const cellW = dims.width;
+		const cellH = dims.height;
+		const viewport = this.terminal.element?.querySelector('.xterm-viewport') as HTMLElement | null | undefined;
+		const sbWidth = viewport ? Math.max(0, viewport.offsetWidth - viewport.clientWidth) : 0;
+		const cols = Math.max(2, Math.floor((rect.width - sbWidth) / cellW));
+		const rows = Math.max(2, Math.floor(rect.height / cellH));
+		if (cols !== this.terminal.cols || rows !== this.terminal.rows) {
+			this.terminal.resize(cols, rows);
+		}
 		return true;
 	}
 	focus(): void { this.terminal.focus(); }
