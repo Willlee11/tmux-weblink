@@ -567,6 +567,7 @@ export function newSessionModalScript(onCreatedExpr?: string): string {
   let treeRoot = '/';
   let treeExpanded = new Set(); // paths currently expanded
   let treeSelected = '';        // path currently selected (highlighted)
+  let treeUserSelected = '';    // path the user actively clicked (closes on second click)
   let treeRows = [];            // visible rows [{path, el}] for keyboard nav
   let treeActiveIdx = -1;
   let treeOpen = false;
@@ -609,11 +610,24 @@ export function newSessionModalScript(onCreatedExpr?: string): string {
       e.stopPropagation();
       void treeToggle(path, depth);
     });
-    // Clicking the row selects the directory.
-    row.addEventListener('click', () => {
+    // Clicking the row selects the directory and expands it so the user can
+    // keep browsing without the tree closing on them. Clicking the already
+    // selected row confirms and closes.
+    row.addEventListener('click', async () => {
       dirInput.value = path;
-      closeTree();
-      dirInput.focus();
+      if (treeUserSelected === path) {
+        closeTree();
+        dirInput.focus();
+        return;
+      }
+      treeUserSelected = path;
+      treeSelected = path;
+      if (!treeExpanded.has(path)) {
+        treeExpanded.add(path);
+        await treeRender();
+      } else {
+        treeRefreshActive();
+      }
     });
     return row;
   }
@@ -693,40 +707,48 @@ export function newSessionModalScript(onCreatedExpr?: string): string {
     treeOpen = false;
     treeExpanded = new Set();
     treeSelected = '';
+    treeUserSelected = '';
     treeRows = [];
     treeActiveIdx = -1;
   }
 
+  // Resolve the path the tree should open at: the current session's working
+  // directory if one is open, otherwise the home directory (both served by
+  // /api/fs/session-path — it returns HOME when no session is given).
+  async function treeOpenTarget() {
+    const session = (typeof window.__tmuxWebCurrentSession === 'string' && window.__tmuxWebCurrentSession)
+      ? window.__tmuxWebCurrentSession : '';
+    try {
+      const url = session
+        ? selectedBase() + '/api/fs/session-path?session=' + encodeURIComponent(session)
+        : selectedBase() + '/api/fs/session-path';
+      const res = await fetch(url);
+      const data = await res.json();
+      if (data && typeof data.path === 'string' && data.path) {
+        if (session) dirInput.value = data.path;
+        return data.path.startsWith('/') ? data.path : '/' + data.path;
+      }
+    } catch {}
+    return '/'
+  }
+
   async function openTree() {
     closeDropdown();
-    const v = dirInput.value.trim();
-    const target = (!v || v === '~') ? '/' : (v.startsWith('/') ? v : '/' + v);
     treeRoot = '/';
     treePanel.classList.add('open');
     treeOpen = true;
+    const target = await treeOpenTarget();
     await treeExpandTo(target);
   }
 
   // On modal open, expand the tree directly to the currently selected
   // session's working directory (window.__tmuxWebCurrentSession is set by
-  // the shell client; falls back to / otherwise).
+  // the shell client; falls back to the home directory otherwise).
   async function openTreeForSession() {
-    const session = (typeof window.__tmuxWebCurrentSession === 'string' && window.__tmuxWebCurrentSession)
-      ? window.__tmuxWebCurrentSession : '';
-    let target = '/';
-    if (session) {
-      try {
-        const res = await fetch(selectedBase() + '/api/fs/session-path?session=' + encodeURIComponent(session));
-        const data = await res.json();
-        if (data && typeof data.path === 'string' && data.path) {
-          dirInput.value = data.path;
-          target = data.path.startsWith('/') ? data.path : '/' + data.path;
-        }
-      } catch {}
-    }
     treeRoot = '/';
     treePanel.classList.add('open');
     treeOpen = true;
+    const target = await treeOpenTarget();
     await treeExpandTo(target);
   }
 

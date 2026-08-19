@@ -724,7 +724,7 @@ self.addEventListener("fetch", (e) => {
 
 	app.get('/api/fs/session-path', requireAuth(), (c) => {
 		const session = c.req.query('session');
-		if (!session) return c.json({ error: 'session is required' }, 400);
+		if (!session) return c.json({ path: process.env.HOME ?? '/' });
 		try {
 			const windows = captureSessionWindowsWithPath(session);
 			const active = windows.find((w) => w.active);
