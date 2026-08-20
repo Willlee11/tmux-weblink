@@ -1280,6 +1280,14 @@ collapseSidebar();
 restoreActivityClasses();
 connectActivityWs();
 
+// Browser timers are throttled while the tab is hidden, so the 2s green
+// 'just-done' timer can stall and leave a stale green icon. When the page
+// becomes visible again, re-apply activity classes from persisted state
+// (doneUntil timestamps), which clears any expired green immediately.
+document.addEventListener('visibilitychange', () => {
+	if (document.visibilityState === 'visible') restoreActivityClasses();
+});
+
 // Live sidebar refresh: agents come/go and their sessions change asynchronously
 // (agent heartbeat ~15s, hub sweep ~10s). Re-render while the page is visible.
 setInterval(() => {
