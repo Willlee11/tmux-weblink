@@ -1,5 +1,7 @@
 # tmux-weblink
 
+**English** | [中文](README.zh-CN.md)
+
 Access your tmux sessions from the browser. A lightweight web server that lists running tmux sessions and lets you attach through a full terminal in your browser — with built-in notes and a sidebar.
 
 ## Install
