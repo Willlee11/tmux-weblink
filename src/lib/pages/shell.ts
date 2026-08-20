@@ -166,6 +166,8 @@ export function renderShell(cfg: ShellConfig): string {
   .session-group-body.collapsed { display: none; }
   .session-group-body .session-item { padding-left: 30px; }
   .session-item.session-offline { opacity: 0.5; cursor: default; }
+  .session-item.working svg { color: #f5a623; }
+  .session-item.just-done svg { color: #3fb950; }
   .session-item .meta { margin-left: auto; }
   .new-session-sidebar-btn {
     display: flex; align-items: center; gap: 8px;

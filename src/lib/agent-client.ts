@@ -11,12 +11,8 @@
 import { WebSocket } from 'ws';
 import type { Hono } from 'hono';
 import { attachTerminal, type AttachedTerminal } from './attach-terminal.js';
-import {
-	encodeBinaryFrame,
-	decodeBinaryFrame,
-	BIN_KIND_HTTP_BODY,
-	type HubToAgent,
-} from './agent-channel.js';
+import { encodeBinaryFrame, decodeBinaryFrame, BIN_KIND_HTTP_BODY, type HubToAgent } from './agent-channel.js';
+import { ActivityProbe } from './activity-probe.js';
 import type { TerminalBufferConfig } from './terminal-config.js';
 
 export type SessionInfo = { name: string; windows: number; attached: boolean };
@@ -89,6 +85,9 @@ export function startAgentClient(opts: AgentClientOptions): AgentClientHandle {
 	}
 	let sessionsPollTimer: ReturnType<typeof setInterval> | null = null;
 	let heartbeatTimer: ReturnType<typeof setInterval> | null = null;
+	let activityTimer: ReturnType<typeof setInterval> | null = null;
+	let activityProbe: ActivityProbe | null = null;
+	let lastActivityStates = new Map<string, 'working' | 'idle'>();
 	let lastSessionsJson = '';
 	let agentId: string | null = null;
 
@@ -131,11 +130,32 @@ export function startAgentClient(opts: AgentClientOptions): AgentClientHandle {
 		if (!heartbeatTimer) {
 			heartbeatTimer = setInterval(() => send({ type: 'ping', ts: Date.now() }), AGENT_HEARTBEAT_MS);
 		}
+		if (!activityTimer) {
+			activityProbe = new ActivityProbe();
+			activityTimer = setInterval(() => void reportActivity(), activityProbe.scanMs);
+		}
 	}
 
 	function stopTimers(): void {
 		if (sessionsPollTimer) { clearInterval(sessionsPollTimer); sessionsPollTimer = null; }
 		if (heartbeatTimer) { clearInterval(heartbeatTimer); heartbeatTimer = null; }
+		if (activityTimer) { clearInterval(activityTimer); activityTimer = null; }
+		activityProbe = null;
+	}
+
+	async function reportActivity(): Promise<void> {
+		if (!ws || ws.readyState !== WebSocket.OPEN || !activityProbe) return;
+		try {
+			const states = await activityProbe.scan();
+			const activities: { session: string; state: 'working' | 'idle' }[] = [];
+			for (const [session, state] of states) {
+				if (lastActivityStates.get(session) !== state) activities.push({ session, state });
+			}
+			lastActivityStates = states;
+			if (activities.length) send({ type: 'activity', activities });
+		} catch {
+			// A failed scan is fine; the next tick retries.
+		}
 	}
 
 	async function handleHttpRequest(msg: Extract<HubToAgent, { type: 'http_req' }>): Promise<void> {

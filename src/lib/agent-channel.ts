@@ -25,6 +25,7 @@ export type AgentToHub =
 	| { type: 'attach_err'; connId: number; session: string; message: string }
 	| { type: 'ws_to_hub'; connId: number; msg: Record<string, unknown> }
 	| { type: 'ws_close'; connId: number; code: number; reason: string }
+	| { type: 'activity'; activities: { session: string; state: 'working' | 'idle' }[] }
 	| { type: 'ping'; ts: number };
 
 // ── Hub → Agent ──────────────────────────────────────────────────────────

@@ -115,6 +115,7 @@ async function renderSessionList() {
 		if (typeof open === 'function') open();
 		else document.getElementById('new-session-modal')?.classList.add('open');
 	});
+	restoreActivityClasses();
 }
 
 const SIDEBAR_GROUP_COLLAPSE_KEY = 'tmux-web-sidebar-group-collapsed';
@@ -1183,12 +1184,101 @@ ramEl.addEventListener('click', (e) => {
 procClose.addEventListener('click', closeProcessPanel);
 procBackdrop.addEventListener('click', closeProcessPanel);
 
+// ── Agent activity (sidebar session-icon coloring) ────────────────────────
+// The hub probes every tmux session's output (even ones not open in the
+// browser) and pushes { type: 'session.activity' } over /ws/activity.
+// working  = orange icon; working → idle flashes green for 2s then clears.
+
+const ACTIVITY_DONE_CLEAR_MS = 2000;
+let activityWs: WebSocket | null = null;
+let activityReconnectTimer: ReturnType<typeof setTimeout> | null = null;
+const activityDoneTimers = new Map<string, ReturnType<typeof setTimeout>>();
+const activityStates = new Map<string, { session: string; agentId?: string; state: 'working' | 'idle'; doneUntil?: number }>();
+
+function activityKey(session: string, agentId?: string): string {
+	return (agentId ? 'a:' + agentId + ':' : 'l:') + session;
+}
+
+function applySessionActivity(session: string, agentId: string | undefined, state: 'working' | 'idle'): void {
+	const key = activityKey(session, agentId);
+	const prev = activityStates.get(key);
+	activityStates.set(key, {
+		session,
+		agentId,
+		state,
+		doneUntil: state === 'idle' && prev?.state === 'working' ? Date.now() + ACTIVITY_DONE_CLEAR_MS : undefined,
+	});
+	const selector = agentId
+		? '.session-item[data-agent="' + CSS.escape(agentId) + '"][data-session="' + CSS.escape(session) + '"]'
+		: '.session-item[data-session="' + CSS.escape(session) + '"]:not([data-agent])';
+	const el = sidebarContent.querySelector(selector) as HTMLElement | null;
+	if (!el) return;
+	applyActivityClass(el, key, activityStates.get(key)!);
+}
+
+function applyActivityClass(el: HTMLElement, key: string, rec: { state: 'working' | 'idle'; doneUntil?: number }): void {
+	const doneTimer = activityDoneTimers.get(key);
+	if (doneTimer) { clearTimeout(doneTimer); activityDoneTimers.delete(key); }
+	el.classList.remove('working', 'just-done');
+	if (rec.state === 'working') {
+		el.classList.add('working');
+	} else if (rec.doneUntil && Date.now() < rec.doneUntil) {
+		// working → idle: flash green briefly, then back to default.
+		el.classList.add('just-done');
+		activityDoneTimers.set(key, setTimeout(() => {
+			el.classList.remove('just-done');
+			activityDoneTimers.delete(key);
+		}, Math.max(0, rec.doneUntil! - Date.now())));
+	}
+}
+
+// Re-apply persisted activity colors after a sidebar re-render (10s poll).
+function restoreActivityClasses(): void {
+	for (const [key, rec] of activityStates) {
+		const selector = rec.agentId
+			? '.session-item[data-agent="' + CSS.escape(rec.agentId) + '"][data-session="' + CSS.escape(rec.session) + '"]'
+			: '.session-item[data-session="' + CSS.escape(rec.session) + '"]:not([data-agent])';
+		const el = sidebarContent.querySelector(selector) as HTMLElement | null;
+		if (el) applyActivityClass(el, key, rec);
+	}
+}
+
+function connectActivityWs(): void {
+	if (activityWs || activityReconnectTimer) return;
+	const token = localStorage.getItem('tmux-web-token');
+	const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+	let url = proto + '//' + location.host + '/ws/activity';
+	if (token) url += '?token=' + encodeURIComponent(token);
+	try {
+		const ws = new WebSocket(url);
+		activityWs = ws;
+		ws.onmessage = (e) => {
+			try {
+				const msg = JSON.parse(String(e.data));
+				if (msg && msg.type === 'session.activity' && typeof msg.session === 'string') {
+					applySessionActivity(msg.session, msg.agentId || undefined, msg.state === 'working' ? 'working' : 'idle');
+				}
+			} catch {}
+		};
+		ws.onclose = () => {
+			if (activityWs !== ws) return;
+			activityWs = null;
+			activityReconnectTimer = setTimeout(() => { activityReconnectTimer = null; connectActivityWs(); }, 5000);
+		};
+		ws.onerror = () => { try { ws.close(); } catch {} };
+	} catch {
+		activityWs = null;
+	}
+}
+
 // ── Init ──
 
 (window as any).__openSession = openSession;
 (window as any).__refreshSidebar = renderSessionList;
 renderSessionList();
 collapseSidebar();
+restoreActivityClasses();
+connectActivityWs();
 
 // Live sidebar refresh: agents come/go and their sessions change asynchronously
 // (agent heartbeat ~15s, hub sweep ~10s). Re-render while the page is visible.

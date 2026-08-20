@@ -48,6 +48,7 @@ import { findAgentTokenByPlaintext, listAgentTokens, createAgentToken, removeAge
 import { saveSecurityConfig } from "./lib/security-config.js";
 import { readFederationConfig, writeFederationConfig, type FederationConfig } from "./lib/federation-config.js";
 import { startAgentClient, type AgentClientHandle, type AgentClientStatus } from "./lib/agent-client.js";
+import { ActivityProbe } from "./lib/activity-probe.js";
 loadDotEnv();
 
 const terminalBufferConfig = readTerminalBufferConfig();
@@ -274,6 +275,32 @@ function federationStatus(): AgentClientStatus {
 
 startAgentClientFromConfig(federationConfig);
 
+// ── Local session activity probe (hub probes its own tmux; agent mode's
+// sessions are reported by the agent client over the channel) ───────────────
+
+const localProbe = new ActivityProbe();
+const localActivityStates = new Map<string, "working" | "idle">();
+setInterval(() => {
+	void (async () => {
+		try {
+			const states = await localProbe.scan();
+			const changes: { session: string; state: "working" | "idle" }[] = [];
+			for (const [session, state] of states) {
+				if (localActivityStates.get(session) !== state) changes.push({ session, state });
+			}
+			// Sessions that disappeared reset to idle so stale colors clear.
+			for (const session of localActivityStates.keys()) {
+				if (!states.has(session)) changes.push({ session, state: "idle" });
+			}
+			localActivityStates.clear();
+			for (const [session, state] of states) localActivityStates.set(session, state);
+			for (const c of changes) broadcastActivity({ type: "session.activity", session: c.session, state: c.state });
+		} catch {
+			// Probe failures are transient (e.g. tmux briefly unavailable).
+		}
+	})();
+}, localProbe.scanMs);
+
 // ── WebSocket server ──────────────────────────────────────────────────────
 
 const port = parseInt(process.env.PORT || "21000", 10);
@@ -284,6 +311,21 @@ const server = serve({ fetch: app.fetch, port, hostname: '0.0.0.0' }, (info) => 
 
 const wss = new WebSocketServer({ noServer: true });
 
+// ── Agent activity broadcast ─────────────────────────────────────────────
+// Browsers subscribe to /ws/activity (token-authenticated) and receive
+// { type: 'session.activity', agentId?, session, state } pushes. Local
+// sessions are probed in this process; remote sessions arrive via the
+// agent channel 'activity' messages.
+
+const activityClients = new Set<WebSocket>();
+
+function broadcastActivity(msg: { type: 'session.activity'; agentId?: string; session: string; state: 'working' | 'idle' }): void {
+	const json = JSON.stringify(msg);
+	for (const ws of activityClients) {
+		if (ws.readyState === WebSocket.OPEN) ws.send(json);
+	}
+}
+
 function rejectUpgrade(socket: import("net").Socket, code: number, message: string): void {
 	socket.write(`HTTP/1.1 ${code} ${message}\r\n\r\n`);
 	socket.destroy();
@@ -292,6 +334,22 @@ function rejectUpgrade(socket: import("net").Socket, code: number, message: stri
 server.on("upgrade", (req, socket, head) => {
 	const url = new URL(req.url || "/", `http://${req.headers.host}`);
 	const pathname = url.pathname;
+
+	// ── Activity monitor (browser, token-authenticated) ──
+	if (pathname === "/ws/activity") {
+		const ip = resolveClientIpFromReq(req);
+		const token = readBearerTokenFromReq(req) || url.searchParams.get("token") || "";
+		const storedToken = token ? tokenStore.validateToken(token) : null;
+		if (!storedToken) {
+			rejectUpgrade(socket, 401, "Unauthorized");
+			return;
+		}
+		wss.handleUpgrade(req, socket, head, (ws) => {
+			ws.on("close", () => activityClients.delete(ws));
+			activityClients.add(ws);
+		});
+		return;
+	}
 
 	// ── Agent channel acceptor (no Origin check; agents are not browsers) ──
 	if (pathname === "/agent/ws") {
@@ -735,6 +793,9 @@ function handleAgentUpgrade(req: import("http").IncomingMessage, socket: import(
 
 			channel = new AgentChannel(ws, agentId, {
 				onSessions: (sessions) => agents.setSessions(agentId, sessions as never),
+				onActivity: (activities) => {
+					for (const a of activities) broadcastActivity({ type: "session.activity", agentId, session: a.session, state: a.state });
+				},
 				onClose: (ch) => {
 					if (agentChannels.get(agentId) === ch) agentChannels.delete(agentId);
 				},

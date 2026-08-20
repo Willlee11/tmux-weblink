@@ -46,13 +46,15 @@ export class AgentChannel {
 	private pending = new Map<number, PendingHttp>();
 	private relays = new Map<number, RelayConn>();
 	private onSessions?: (sessions: unknown[]) => void;
+	private onActivity?: (activities: { session: string; state: 'working' | 'idle' }[]) => void;
 	private onClose?: (channel: AgentChannel) => void;
 	disposed = false;
 
-	constructor(ws: WebSocket, agentId: string, hooks: { onSessions?: (s: unknown[]) => void; onClose?: (c: AgentChannel) => void }) {
+	constructor(ws: WebSocket, agentId: string, hooks: { onSessions?: (s: unknown[]) => void; onActivity?: (a: { session: string; state: 'working' | 'idle' }[]) => void; onClose?: (c: AgentChannel) => void }) {
 		this.ws = ws;
 		this.agentId = agentId;
 		this.onSessions = hooks.onSessions;
+		this.onActivity = hooks.onActivity;
 		this.onClose = hooks.onClose;
 	}
 
@@ -171,6 +173,10 @@ export class AgentChannel {
 		switch (msg.type) {
 			case 'sessions':
 				this.onSessions?.(msg.sessions);
+				break;
+
+			case 'activity':
+				this.onActivity?.(msg.activities);
 				break;
 
 			case 'http_resp': {
