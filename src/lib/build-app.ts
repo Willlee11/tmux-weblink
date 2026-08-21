@@ -31,6 +31,7 @@ import { pinView, unpinView, listPinnedViews } from './pinned-views.js';
 import { listWindowLabels, setWindowLabel } from './window-labels.js';
 import { captureAndStoreWindows, getStoredWindows } from './session-windows.js';
 import { buildSidebarSessions } from './sessions-sidebar.js';
+import { upsertSessionState, removeSessionState, renameSessionState, computeTombstones, getSessionState } from './session-state.js';
 import { createQuickCommand, deleteQuickCommand, listQuickCommands, updateQuickCommand } from './quick-commands.js';
 import { getSystemStatus, getTopProcesses, killProcess } from './system-monitor.js';
 import {
@@ -41,6 +42,7 @@ import {
 	newTmuxSession,
 	renameSession,
 	killSession,
+	sessionExists,
 	TmuxWindowsError,
 } from './tmux-windows.js';
 import type { AgentRegistry } from './agent-registry.js';
@@ -166,15 +168,22 @@ export function buildApp(deps: BuildAppDeps): Hono {
 	// ── Merged sessions (hub only; agent mode returns local only) ─────────
 
 	function sidebarSessionsPayload(currentSession?: string) {
-		const base = buildSidebarSessions(listSessions(), getSessionAccessMap(), listPinnedViews());
+		const sessions = listSessions();
+		const localNames = new Set(sessions.map((s) => s.name));
+		const base = buildSidebarSessions(sessions, getSessionAccessMap(), listPinnedViews());
 		const remote: { agentId: string; agentName: string; online: boolean; sessions: { name: string; windows: number; attached: boolean }[] }[] = [];
+		const actualAgent = new Map<string, Set<string>>();
+		const onlineAgents = new Map<string, boolean>();
 		if (hub) {
 			for (const a of hub.agents.list()) {
 				const rec = hub.agents.get(a.agentId);
+				actualAgent.set(a.agentId, new Set((rec ? rec.sessions : []).map((s) => s.name)));
+				onlineAgents.set(a.agentId, a.online);
 				remote.push({ agentId: a.agentId, agentName: a.name, online: a.online, sessions: rec ? rec.sessions : [] });
 			}
 		}
-		return { ...base, currentSession: currentSession ?? null, agents: remote };
+		const tombstones = computeTombstones(localNames, actualAgent, onlineAgents);
+		return { ...base, currentSession: currentSession ?? null, agents: remote, tombstones };
 	}
 
 	function parsePinnedViewBody(body: { sessionName?: unknown; windowIndex?: unknown }) {
@@ -696,6 +705,7 @@ self.addEventListener("fetch", (e) => {
 		if (existing.some((s) => s.name === name)) return c.json({ error: 'session already exists' }, 409);
 		try {
 			newTmuxSession(name, dir);
+			void upsertSessionState(name, { path: dir });
 			return c.json({ ok: true });
 		} catch (err) {
 			const msg = err instanceof TmuxWindowsError ? err.message : 'failed to create session';
@@ -709,6 +719,7 @@ self.addEventListener("fetch", (e) => {
 			if (!oldName || !newName) return c.json({ error: 'oldName and newName required' }, 400);
 			if (!/^[a-zA-Z0-9_\-. ]+$/.test(newName)) return c.json({ error: 'invalid characters in name' }, 400);
 			renameSession(oldName, newName);
+			void renameSessionState(oldName, newName);
 			return c.json({ ok: true });
 		} catch { return c.json({ error: 'rename failed' }, 500); }
 	});
@@ -718,8 +729,65 @@ self.addEventListener("fetch", (e) => {
 			const { name } = await c.req.json();
 			if (!name) return c.json({ error: 'name required' }, 400);
 			killSession(name);
+			void removeSessionState(name);
 			return c.json({ ok: true });
 		} catch { return c.json({ error: 'kill failed' }, 500); }
+	});
+
+	// Tombstone actions: rebuild a vanished session, dismiss its tombstone, or
+	// rename the tombstone (optionally rebuilding under the new name).
+	app.post('/api/sessions/rebuild', requireAuth(), async (c) => {
+		try {
+			const body = await c.req.json();
+			const name = typeof body.name === 'string' ? body.name.trim() : '';
+			if (!name) return c.json({ error: 'name required' }, 400);
+			const agentId = typeof body.agentId === 'string' ? body.agentId : undefined;
+			const rec = getSessionState().find((r) => r.name === name && (r.agentId ?? null) === (agentId ?? null));
+			const dir = rec?.path;
+
+			if (agentId) {
+				if (!hub) return c.json({ error: 'not a hub' }, 400);
+				const channel = hub.getChannel(agentId);
+				if (!channel) return c.json({ error: 'agent offline' }, 409);
+				const sent = channel.rebuildSession(name, dir);
+				if (!sent) return c.json({ error: 'agent offline' }, 409);
+				return c.json({ ok: true, async: true });
+			}
+
+			if (sessionExists(name)) return c.json({ error: 'session already exists' }, 409);
+			try {
+				newTmuxSession(name, dir);
+			} catch (err) {
+				const msg = err instanceof TmuxWindowsError ? err.message : 'rebuild failed';
+				return c.json({ error: msg }, 500);
+			}
+			void upsertSessionState(name, { path: dir });
+			return c.json({ ok: true });
+		} catch { return c.json({ error: 'rebuild failed' }, 500); }
+	});
+
+	app.post('/api/sessions/dismiss', requireAuth(), async (c) => {
+		try {
+			const body = await c.req.json();
+			const name = typeof body.name === 'string' ? body.name.trim() : '';
+			if (!name) return c.json({ error: 'name required' }, 400);
+			const agentId = typeof body.agentId === 'string' ? body.agentId : undefined;
+			void removeSessionState(name, agentId);
+			return c.json({ ok: true });
+		} catch { return c.json({ error: 'dismiss failed' }, 500); }
+	});
+
+	app.post('/api/sessions/rename-tombstone', requireAuth(), async (c) => {
+		try {
+			const body = await c.req.json();
+			const oldName = typeof body.oldName === 'string' ? body.oldName.trim() : '';
+			const newName = typeof body.newName === 'string' ? body.newName.trim() : '';
+			if (!oldName || !newName) return c.json({ error: 'oldName and newName required' }, 400);
+			if (!/^[a-zA-Z0-9_\-. ]+$/.test(newName)) return c.json({ error: 'invalid characters in name' }, 400);
+			const agentId = typeof body.agentId === 'string' ? body.agentId : undefined;
+			void renameSessionState(oldName, newName, agentId);
+			return c.json({ ok: true });
+		} catch { return c.json({ error: 'rename failed' }, 500); }
 	});
 
 	app.get('/api/fs/session-path', requireAuth(), (c) => {

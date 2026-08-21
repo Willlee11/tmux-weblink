@@ -88,7 +88,7 @@ export function isGitWorktree(dir: string): boolean {
 	}
 }
 
-function sessionExists(session: string): boolean {
+export function sessionExists(session: string): boolean {
 	try {
 		execFileSync("tmux", ["has-session", "-t", session], { timeout: 3000, env: tmuxEnv() });
 		return true;

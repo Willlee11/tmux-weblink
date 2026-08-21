@@ -166,6 +166,10 @@ export function renderShell(cfg: ShellConfig): string {
   .session-group-body.collapsed { display: none; }
   .session-group-body .session-item { padding-left: 30px; }
   .session-item.session-offline { opacity: 0.5; cursor: default; }
+  .session-item.session-tombstone { opacity: 0.55; cursor: default; }
+  .session-item.session-tombstone span { text-decoration: line-through; text-decoration-color: color-mix(in srgb, var(--panel-muted) 70%, transparent); text-underline-offset: 3px; }
+  .session-item.session-tombstone:hover { background: transparent; }
+  .tombstone-label { opacity: 0.8; }
   .session-item.working svg { color: #f5a623; }
   .session-item.just-done svg { color: #3fb950; }
   .session-item .meta { margin-left: auto; }

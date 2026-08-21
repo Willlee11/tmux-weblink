@@ -66,6 +66,20 @@ export interface QuickCommandRecord {
 	updatedAt: number;
 }
 
+/**
+ * A session the user has opened or created at least once. Kept across
+ * restarts so the sidebar can show a tombstone when the underlying tmux
+ * session disappears externally (crash, manual `tmux kill-session`),
+ * offering rebuild / rename / dismiss.
+ */
+export interface SessionStateRecord {
+	name: string;
+	agentId?: string;   // undefined = local session
+	path?: string;      // working directory (used to rebuild the session)
+	firstSeenAt: number; // ms timestamp
+	lastSeenAt: number;  // ms timestamp; refreshed whenever the session is confirmed present
+}
+
 export interface DbSchema {
 	notes: NoteRecord[];
 	sessionAccess: SessionAccessRecord[];
@@ -75,6 +89,7 @@ export interface DbSchema {
 	sessionWindows: SessionWindowsRecord[];
 	windowHistory: WindowHistoryRecord[];
 	quickCommands: QuickCommandRecord[];
+	sessionState: SessionStateRecord[];
 }
 
 const dbDir = getDataRoot();
@@ -82,5 +97,5 @@ mkdirSync(dbDir, { recursive: true });
 
 export const db = new Low<DbSchema>(
 	new JSONFile<DbSchema>(join(dbDir, 'db.json')),
-	{ notes: [], sessionAccess: [], pinnedViews: [], watchedPanes: [], windowLabels: [], sessionWindows: [], windowHistory: [], quickCommands: [] },
+	{ notes: [], sessionAccess: [], pinnedViews: [], watchedPanes: [], windowLabels: [], sessionWindows: [], windowHistory: [], quickCommands: [], sessionState: [] },
 );

@@ -47,14 +47,16 @@ export class AgentChannel {
 	private relays = new Map<number, RelayConn>();
 	private onSessions?: (sessions: unknown[]) => void;
 	private onActivity?: (activities: { session: string; state: 'working' | 'idle' }[]) => void;
+	private onRebuildResult?: (result: { session: string; ok: boolean; message?: string }) => void;
 	private onClose?: (channel: AgentChannel) => void;
 	disposed = false;
 
-	constructor(ws: WebSocket, agentId: string, hooks: { onSessions?: (s: unknown[]) => void; onActivity?: (a: { session: string; state: 'working' | 'idle' }[]) => void; onClose?: (c: AgentChannel) => void }) {
+	constructor(ws: WebSocket, agentId: string, hooks: { onSessions?: (s: unknown[]) => void; onActivity?: (a: { session: string; state: 'working' | 'idle' }[]) => void; onRebuildResult?: (r: { session: string; ok: boolean; message?: string }) => void; onClose?: (c: AgentChannel) => void }) {
 		this.ws = ws;
 		this.agentId = agentId;
 		this.onSessions = hooks.onSessions;
 		this.onActivity = hooks.onActivity;
+		this.onRebuildResult = hooks.onRebuildResult;
 		this.onClose = hooks.onClose;
 	}
 
@@ -80,6 +82,11 @@ export class AgentChannel {
 
 	sendSessionsReq(): void {
 		this.send({ type: 'sessions_req' });
+	}
+
+	/** Ask the agent machine to create a fresh tmux session (tombstone rebuild). */
+	rebuildSession(session: string, dir?: string): boolean {
+		return this.send({ type: 'rebuild_session', session, dir });
 	}
 
 	/** Tunnel an HTTP request to the agent. `path` must already be prefix-stripped. */
@@ -177,6 +184,10 @@ export class AgentChannel {
 
 			case 'activity':
 				this.onActivity?.(msg.activities);
+				break;
+
+			case 'rebuild_session_result':
+				this.onRebuildResult?.({ session: msg.session, ok: msg.ok, message: msg.message });
 				break;
 
 			case 'http_resp': {

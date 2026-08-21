@@ -26,6 +26,7 @@ export type AgentToHub =
 	| { type: 'ws_to_hub'; connId: number; msg: Record<string, unknown> }
 	| { type: 'ws_close'; connId: number; code: number; reason: string }
 	| { type: 'activity'; activities: { session: string; state: 'working' | 'idle' }[] }
+	| { type: 'rebuild_session_result'; session: string; ok: boolean; message?: string }
 	| { type: 'ping'; ts: number };
 
 // ── Hub → Agent ──────────────────────────────────────────────────────────
@@ -38,6 +39,7 @@ export type HubToAgent =
 	| { type: 'http_body_end'; id: number }
 	| { type: 'attach'; connId: number; session: string; cols?: number; rows?: number }
 	| { type: 'ws_to_agent'; connId: number; msg: Record<string, unknown> }
+	| { type: 'rebuild_session'; session: string; dir?: string }
 	| { type: 'detach'; connId: number }
 	| { type: 'pong'; ts: number };
 
@@ -81,10 +83,10 @@ export function isHubToAgentMessage(obj: unknown): obj is HubToAgent {
 
 const AGENT_TO_HUB_TYPES = new Set([
 	'hello', 'sessions', 'http_resp', 'http_body_end', 'attach_ok', 'attach_err',
-	'ws_to_hub', 'ws_close', 'ping',
+	'ws_to_hub', 'ws_close', 'activity', 'rebuild_session_result', 'ping',
 ]);
 
 const HUB_TO_AGENT_TYPES = new Set([
 	'hello_ok', 'hello_err', 'sessions_req', 'http_req', 'http_body_end',
-	'attach', 'ws_to_agent', 'detach', 'pong',
+	'attach', 'ws_to_agent', 'rebuild_session', 'detach', 'pong',
 ]);

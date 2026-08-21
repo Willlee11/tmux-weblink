@@ -99,7 +99,7 @@ async function renderSessionList() {
 		const data = await res.json();
 		// The sidebar is polled every 10s; rebuilding the whole list on every
 		// poll causes a visible flicker, so skip re-rendering when nothing changed.
-		const payload = JSON.stringify({ recent: data.recent, agents: data.agents });
+		const payload = JSON.stringify({ recent: data.recent, agents: data.agents, tombstones: data.tombstones });
 		if (payload === lastSidebarPayload) return;
 		lastSidebarPayload = payload;
 		renderSidebarPayload(data);
@@ -216,7 +216,7 @@ function makeLocalSessionItem(s: { name: string; attached?: boolean }) {
 	return el;
 }
 
-function renderSidebarPayload(data: { recent?: { name: string; attached?: boolean }[]; agents?: { agentId: string; agentName: string; online: boolean; sessions: { name: string; attached?: boolean }[] }[]; home?: string }) {
+function renderSidebarPayload(data: { recent?: { name: string; attached?: boolean }[]; agents?: { agentId: string; agentName: string; online: boolean; sessions: { name: string; attached?: boolean }[] }[]; home?: string; tombstones?: { name: string; path?: string; agentId?: string; agentOnline?: boolean }[] }) {
 	sidebarContent.innerHTML = '<button class="new-session-sidebar-btn" id="ns-btn">+ New Session</button>';
 
 	const sessions = data.recent || [];
@@ -265,6 +265,33 @@ function renderSidebarPayload(data: { recent?: { name: string; attached?: boolea
 						openSession(s.name, a.agentId);
 					});
 				}
+				sidebarContent.appendChild(el);
+			}
+		}
+
+		// Tombstones: sessions the user once opened/created that have vanished
+		// externally (crash, manual kill). Grey strikethrough rows with rebuild /
+		// rename / dismiss actions via the session popover.
+		const tombstones = data.tombstones || [];
+		if (tombstones.length > 0) {
+			const label = document.createElement('div');
+			label.className = 'sidebar-section-label tombstone-label';
+			label.textContent = '失效会话';
+			sidebarContent.appendChild(label);
+			for (const t of tombstones) {
+				const el = document.createElement('div');
+				el.className = 'session-item session-tombstone';
+				el.setAttribute('data-session', t.name);
+				if (t.agentId) el.setAttribute('data-agent', t.agentId);
+				const where = t.agentId ? (t.agentOnline ? ' (agent)' : ' (agent 离线)') : '';
+				el.innerHTML = `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M4 6h16v2H4V6zm0 5h16v2H4v-2zm0 5h16v2H4v-2z"></svg>
+				<span>${escHtml(t.name)}</span><span class="meta">失效${where}</span>
+				<button class="session-edit-btn" data-session="${escHtml(t.name)}" title="恢复会话"><svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 000-1.41l-2.34-2.34a1 1 0 00-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg></button>`;
+				const editBtn = el.querySelector('.session-edit-btn');
+				if (editBtn) editBtn.addEventListener('click', (e) => {
+					e.stopPropagation();
+					showSessionPopover(t.name, editBtn as HTMLElement, { tombstone: true, agentId: t.agentId });
+				});
 				sidebarContent.appendChild(el);
 			}
 		}
@@ -944,6 +971,8 @@ settingsBackdrop.addEventListener('click', () => {
 // ── Session edit popover ──
 
 let spSessionName = '';
+let spTombstone = false;
+let spAgentId: string | undefined;
 
 const spBackdrop = document.createElement('div');
 spBackdrop.className = 'session-popover-backdrop';
@@ -962,6 +991,7 @@ spPopover.innerHTML = `<div class="sp-field">
   <button class="btn" id="sp-cancel">Cancel</button>
 </div>
 <hr class="sp-divider" />
+<button class="btn primary" id="sp-rebuild" style="display:none">重建同名同路径 session</button>
 <button class="btn danger" id="sp-delete">Delete session</button>`;
 document.body.appendChild(spPopover);
 
@@ -971,10 +1001,20 @@ function positionPopover(anchorEl: HTMLElement) {
 	spPopover.style.left = Math.max(8, Math.min(rect.left, window.innerWidth - 240)) + 'px';
 }
 
-function showSessionPopover(name: string, anchorEl: HTMLElement) {
+function showSessionPopover(name: string, anchorEl: HTMLElement, opts?: { tombstone?: boolean; agentId?: string }) {
 	spSessionName = name;
+	spTombstone = !!opts?.tombstone;
+	spAgentId = opts?.agentId;
 	const input = document.getElementById('sp-name') as HTMLInputElement;
 	input.value = name;
+	const label = spPopover.querySelector('.sp-field label')!;
+	label.textContent = spTombstone ? '重命名 (仅记录，不重建)' : 'Rename session';
+	const rebuildBtn = document.getElementById('sp-rebuild')!;
+	rebuildBtn.style.display = spTombstone ? '' : 'none';
+	const deleteBtn = document.getElementById('sp-delete')!;
+	deleteBtn.textContent = spTombstone ? '删除失效记录 (墓碑消失)' : 'Delete session';
+	const saveBtn = document.getElementById('sp-save') as HTMLButtonElement;
+	saveBtn.textContent = spTombstone ? '重命名' : 'Save';
 	spBackdrop.classList.add('open');
 	spPopover.style.display = 'block';
 	positionPopover(anchorEl);
@@ -992,19 +1032,54 @@ document.getElementById('sp-save')!.addEventListener('click', async () => {
 	const newName = (document.getElementById('sp-name') as HTMLInputElement).value.trim();
 	if (!newName || newName === spSessionName) { closeSessionPopover(); return; }
 	try {
-		const res = await fetch(apiPath('/api/sessions/rename'), {
+		const body = spTombstone
+			? { oldName: spSessionName, newName, agentId: spAgentId }
+			: { oldName: spSessionName, newName };
+		const res = await fetch(apiPath(spTombstone ? '/api/sessions/rename-tombstone' : '/api/sessions/rename'), {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({ oldName: spSessionName, newName }),
+			body: JSON.stringify(body),
 		});
 		if (!res.ok) return;
 		closeSessionPopover();
 		renderSessionList();
-		if (currentSession === spSessionName) openSession(newName);
+		if (!spTombstone && currentSession === spSessionName) openSession(newName);
+	} catch {}
+});
+
+document.getElementById('sp-rebuild')!.addEventListener('click', async () => {
+	if (!confirm('重建会话 "' + spSessionName + '" (同名同路径，内容为空)？')) return;
+	try {
+		const res = await fetch(apiPath('/api/sessions/rebuild'), {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ name: spSessionName, agentId: spAgentId }),
+		});
+		if (!res.ok) {
+			const err = await res.json();
+			alert(err.error || '重建失败');
+			return;
+		}
+		closeSessionPopover();
+		renderSessionList();
 	} catch {}
 });
 
 document.getElementById('sp-delete')!.addEventListener('click', async () => {
+	if (spTombstone) {
+		if (!confirm('删除失效记录 "' + spSessionName + '"？')) return;
+		try {
+			const res = await fetch(apiPath('/api/sessions/dismiss'), {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ name: spSessionName, agentId: spAgentId }),
+			});
+			if (!res.ok) return;
+			closeSessionPopover();
+			renderSessionList();
+		} catch {}
+		return;
+	}
 	if (!confirm('Delete session "' + spSessionName + '"?')) return;
 	try {
 		const res = await fetch(apiPath('/api/sessions/kill'), {

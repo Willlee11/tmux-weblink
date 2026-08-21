@@ -13,6 +13,7 @@ import type { Hono } from 'hono';
 import { attachTerminal, type AttachedTerminal } from './attach-terminal.js';
 import { encodeBinaryFrame, decodeBinaryFrame, BIN_KIND_HTTP_BODY, type HubToAgent } from './agent-channel.js';
 import { ActivityProbe } from './activity-probe.js';
+import { newTmuxSession } from './tmux-windows.js';
 import type { TerminalBufferConfig } from './terminal-config.js';
 
 export type SessionInfo = { name: string; windows: number; attached: boolean };
@@ -204,6 +205,22 @@ export function startAgentClient(opts: AgentClientOptions): AgentClientHandle {
 		}
 	}
 
+	function handleRebuildSession(session: string, dir?: string): void {
+		let ok = false;
+		let message = '';
+		try {
+			newTmuxSession(session, dir);
+			ok = true;
+		} catch (err: unknown) {
+			message = err instanceof Error ? err.message : 'rebuild failed';
+		}
+		if (ws && ws.readyState === WebSocket.OPEN) {
+			ws.send(JSON.stringify({ type: 'rebuild_session_result', session, ok, message }));
+		}
+		// Refresh the session list right away so the hub sees the rebuilt session.
+		sendSessions();
+	}
+
 	function handleAttach(msg: Extract<HubToAgent, { type: 'attach' }>): void {
 		const session = msg.session;
 		let hasSession = false;
@@ -298,6 +315,10 @@ export function startAgentClient(opts: AgentClientOptions): AgentClientHandle {
 
 			case 'attach':
 				handleAttach(msg);
+				break;
+
+			case 'rebuild_session':
+				handleRebuildSession(msg.session, msg.dir);
 				break;
 
 			case 'ws_to_agent': {

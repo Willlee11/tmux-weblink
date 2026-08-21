@@ -49,6 +49,8 @@ import { saveSecurityConfig } from "./lib/security-config.js";
 import { readFederationConfig, writeFederationConfig, type FederationConfig } from "./lib/federation-config.js";
 import { startAgentClient, type AgentClientHandle, type AgentClientStatus } from "./lib/agent-client.js";
 import { ActivityProbe } from "./lib/activity-probe.js";
+import { upsertSessionState, computeTombstones } from "./lib/session-state.js";
+import { sessionWorkingPath } from "./lib/sessions-sidebar.js";
 loadDotEnv();
 
 const terminalBufferConfig = readTerminalBufferConfig();
@@ -439,6 +441,8 @@ wss.on("connection", (ws: WebSocket, req: import("http").IncomingMessage, sessio
 
 	function startAttach(): void {
 		if (attached) return;
+		// Remember the session in state so an external loss later renders a tombstone.
+		void upsertSessionState(sessionName, { path: sessionWorkingPath(sessionName) });
 		attached = attachTerminal(sessionName, {
 			send: (msg) => sendServerMessage(ws, msg as ServerMessage),
 			onMessage: (cb) => { onMessageCb = cb; },
@@ -679,6 +683,9 @@ function handleRemoteRelayUpgrade(
 		channel.registerRelay(connId, sessionName, ws);
 		agents.bumpRelayConns(agentId, 1);
 
+		// Remember the agent session in state so an external loss later renders a tombstone.
+		void upsertSessionState(sessionName, { agentId });
+
 		if (!channel.attach(connId, sessionName, initialSize)) {
 			ws.send(JSON.stringify({ type: "data", data: "\r\n\x1b[31magent offline\x1b[0m\r\n" }));
 			ws.close(1011, "agent offline");
@@ -791,10 +798,13 @@ function handleAgentUpgrade(req: import("http").IncomingMessage, socket: import(
 			rateLimiter.recordSuccess(ip);
 			audit("agent_connected", { ip, agentId, name });
 
-			channel = new AgentChannel(ws, agentId, {
+		channel = new AgentChannel(ws, agentId, {
 				onSessions: (sessions) => agents.setSessions(agentId, sessions as never),
 				onActivity: (activities) => {
 					for (const a of activities) broadcastActivity({ type: "session.activity", agentId, session: a.session, state: a.state });
+				},
+				onRebuildResult: (result) => {
+					console.log(`[agent ${agentId}] rebuild ${result.session}: ${result.ok ? 'ok' : result.message}`);
 				},
 				onClose: (ch) => {
 					if (agentChannels.get(agentId) === ch) agentChannels.delete(agentId);
