@@ -87,6 +87,11 @@ User=you
 ExecStart=/usr/bin/env tmux-web agent --hub wss://hub.example.com --token oQhF2mT8R3... --name laptop
 Restart=always
 RestartSec=5
+# Keep this: the agent spawns `tmux attach` clients and the tmux server is
+# forked from them into this service's cgroup. KillMode=process lets
+# restarts kill the main process only, so the tmux server (and its sessions)
+# survive; the default control-group would take the tmux server down with it.
+KillMode=process
 
 [Install]
 WantedBy=multi-user.target
