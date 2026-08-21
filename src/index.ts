@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { chmodSync, existsSync, mkdirSync, readdirSync, statSync } from "node:fs";
 import { createRequire } from "node:module";
-import { hostname } from "node:os";
+import { hostname, networkInterfaces } from "node:os";
 
 const require = createRequire(import.meta.url);
 const { version } = require("../package.json") as { version: string };
@@ -307,8 +307,23 @@ setInterval(() => {
 
 const port = parseInt(process.env.PORT || "21000", 10);
 
+function lanIPv4Addresses(): string[] {
+	const out: string[] = [];
+	try {
+		for (const addrs of Object.values(networkInterfaces())) {
+			for (const a of addrs ?? []) {
+				if (a.family === "IPv4" && !a.internal) out.push(a.address);
+			}
+		}
+	} catch {}
+	return out;
+}
+
 const server = serve({ fetch: app.fetch, port, hostname: '0.0.0.0' }, (info) => {
-	console.log(`tmux-web running at http://${info.port}`);
+	console.log(`tmux-web running at http://localhost:${info.port}`);
+	for (const ip of lanIPv4Addresses()) {
+		console.log(`  also on http://${ip}:${info.port}`);
+	}
 });
 
 const wss = new WebSocketServer({ noServer: true });
