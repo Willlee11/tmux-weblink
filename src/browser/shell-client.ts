@@ -324,6 +324,10 @@ function escHtml(s: string): string {
 		// directory tree can expand straight to this session's working dir.
 		(window as any).__tmuxWebCurrentSession = currentSession;
 
+		// Opening a session clears its persistent green unread marker
+		// (unless it is still working).
+		clearUnreadActivity(name, agentId);
+
 		// Update sidebar active indicator
 		for (const el of sidebarContent.querySelectorAll('.session-item')) {
 			el.classList.toggle('active', el.getAttribute('data-session') === name && (el.getAttribute('data-agent') || null) === currentAgentId);
@@ -1268,7 +1272,7 @@ const ACTIVITY_DONE_CLEAR_MS = 2000;
 let activityWs: WebSocket | null = null;
 let activityReconnectTimer: ReturnType<typeof setTimeout> | null = null;
 const activityDoneTimers = new Map<string, ReturnType<typeof setTimeout>>();
-const activityStates = new Map<string, { session: string; agentId?: string; state: 'working' | 'idle'; doneUntil?: number }>();
+const activityStates = new Map<string, { session: string; agentId?: string; state: 'working' | 'idle'; doneUntil?: number; unread?: boolean }>();
 
 function activityKey(session: string, agentId?: string): string {
 	return (agentId ? 'a:' + agentId + ':' : 'l:') + session;
@@ -1277,11 +1281,16 @@ function activityKey(session: string, agentId?: string): string {
 function applySessionActivity(session: string, agentId: string | undefined, state: 'working' | 'idle'): void {
 	const key = activityKey(session, agentId);
 	const prev = activityStates.get(key);
+	// Selected sessions get a transient green flash; unselected ones keep a
+	// persistent green unread marker until the user opens the session.
+	const isCurrent = session === currentSession && (agentId ?? null) === currentAgentId;
+	const completed = state === 'idle' && prev?.state === 'working';
 	activityStates.set(key, {
 		session,
 		agentId,
 		state,
-		doneUntil: state === 'idle' && prev?.state === 'working' ? Date.now() + ACTIVITY_DONE_CLEAR_MS : undefined,
+		doneUntil: completed ? Date.now() + ACTIVITY_DONE_CLEAR_MS : undefined,
+		unread: completed ? !isCurrent : false,
 	});
 	const selector = agentId
 		? '.session-item[data-agent="' + CSS.escape(agentId) + '"][data-session="' + CSS.escape(session) + '"]'
@@ -1291,19 +1300,23 @@ function applySessionActivity(session: string, agentId: string | undefined, stat
 	applyActivityClass(el, key, activityStates.get(key)!);
 }
 
-function applyActivityClass(el: HTMLElement, key: string, rec: { state: 'working' | 'idle'; doneUntil?: number }): void {
+function applyActivityClass(el: HTMLElement, key: string, rec: { session: string; agentId?: string; state: 'working' | 'idle'; doneUntil?: number; unread?: boolean }): void {
 	const doneTimer = activityDoneTimers.get(key);
 	if (doneTimer) { clearTimeout(doneTimer); activityDoneTimers.delete(key); }
 	el.classList.remove('working', 'just-done');
+	const isCurrent = rec.session === currentSession && (rec.agentId ?? null) === currentAgentId;
 	if (rec.state === 'working') {
 		el.classList.add('working');
-	} else if (rec.doneUntil && Date.now() < rec.doneUntil) {
-		// working → idle: flash green briefly, then back to default.
+	} else if (isCurrent && rec.doneUntil && Date.now() < rec.doneUntil) {
+		// Selected session: working → idle flashes green briefly, then back to default.
 		el.classList.add('just-done');
 		activityDoneTimers.set(key, setTimeout(() => {
 			el.classList.remove('just-done');
 			activityDoneTimers.delete(key);
 		}, Math.max(0, rec.doneUntil! - Date.now())));
+	} else if (!isCurrent && rec.unread) {
+		// Unselected session: persistent green unread marker until it is opened.
+		el.classList.add('just-done');
 	}
 }
 
@@ -1316,6 +1329,24 @@ function restoreActivityClasses(): void {
 		const el = sidebarContent.querySelector(selector) as HTMLElement | null;
 		if (el) applyActivityClass(el, key, rec);
 	}
+}
+
+// Drop the unread green marker of a session the user just opened. The green
+// is intentionally not persisted across reloads/restarts — it is a "recently
+// changed but unread" hint, not durable state.
+function clearUnreadActivity(session: string, agentId?: string): void {
+	const key = activityKey(session, agentId);
+	const rec = activityStates.get(key);
+	if (!rec) return;
+	const timer = activityDoneTimers.get(key);
+	if (timer) { clearTimeout(timer); activityDoneTimers.delete(key); }
+	rec.doneUntil = undefined;
+	rec.unread = false;
+	const selector = agentId
+		? '.session-item[data-agent="' + CSS.escape(agentId) + '"][data-session="' + CSS.escape(session) + '"]'
+		: '.session-item[data-session="' + CSS.escape(session) + '"]:not([data-agent])';
+	const el = sidebarContent.querySelector(selector) as HTMLElement | null;
+	if (el) applyActivityClass(el, key, rec);
 }
 
 function connectActivityWs(): void {
