@@ -171,7 +171,7 @@ export function buildApp(deps: BuildAppDeps): Hono {
 		const sessions = listSessions();
 		const localNames = new Set(sessions.map((s) => s.name));
 		const base = buildSidebarSessions(sessions, getSessionAccessMap(), listPinnedViews());
-		const remote: { agentId: string; agentName: string; online: boolean; sessions: { name: string; windows: number; attached: boolean }[] }[] = [];
+		const remote: { agentId: string; agentName: string; online: boolean; sessions: { name: string; windows: number; attached: boolean; path?: string }[] }[] = [];
 		const actualAgent = new Map<string, Set<string>>();
 		const onlineAgents = new Map<string, boolean>();
 		if (hub) {

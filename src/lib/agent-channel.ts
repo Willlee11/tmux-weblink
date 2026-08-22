@@ -12,7 +12,7 @@
 export const BIN_KIND_TERM = 0x01;
 export const BIN_KIND_HTTP_BODY = 0x02;
 
-export type AgentSessionInfo = { name: string; windows: number; attached: boolean };
+export type AgentSessionInfo = { name: string; windows: number; attached: boolean; path?: string };
 
 // ── Agent → Hub ──────────────────────────────────────────────────────────
 

@@ -216,7 +216,7 @@ function makeLocalSessionItem(s: { name: string; attached?: boolean }) {
 	return el;
 }
 
-function renderSidebarPayload(data: { recent?: { name: string; attached?: boolean }[]; agents?: { agentId: string; agentName: string; online: boolean; sessions: { name: string; attached?: boolean }[] }[]; home?: string; tombstones?: { name: string; path?: string; agentId?: string; agentOnline?: boolean }[] }) {
+function renderSidebarPayload(data: { recent?: { name: string; attached?: boolean }[]; agents?: { agentId: string; agentName: string; online: boolean; sessions: { name: string; attached?: boolean; path?: string }[] }[]; home?: string; tombstones?: { name: string; path?: string; agentId?: string; agentOnline?: boolean }[] }) {
 	sidebarContent.innerHTML = '<button class="new-session-sidebar-btn" id="ns-btn">+ New Session</button>';
 
 	const sessions = data.recent || [];
@@ -257,6 +257,7 @@ function renderSidebarPayload(data: { recent?: { name: string; attached?: boolea
 				el.className = 'session-item' + (s.name === currentSession && currentAgentId === a.agentId ? ' active' : '') + (a.online ? '' : ' session-offline');
 				el.setAttribute('data-session', s.name);
 				el.setAttribute('data-agent', a.agentId);
+				if (s.path) el.title = s.path;
 				el.innerHTML = `<svg viewBox="0 0 24 24" fill="currentColor"><path d="${s.attached ? 'M19 4H5a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2zm0 14H5V6h14v12z' : 'M4 6h16v2H4V6zm0 5h16v2H4v-2zm0 5h16v2H4v-2z'}"></svg>
 			<span>${escHtml(s.name)}</span><span class="meta">${a.online ? '' : 'offline'}</span>`;
 				if (a.online) {

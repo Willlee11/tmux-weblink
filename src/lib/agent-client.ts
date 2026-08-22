@@ -13,10 +13,11 @@ import type { Hono } from 'hono';
 import { attachTerminal, type AttachedTerminal } from './attach-terminal.js';
 import { encodeBinaryFrame, decodeBinaryFrame, BIN_KIND_HTTP_BODY, type HubToAgent } from './agent-channel.js';
 import { ActivityProbe } from './activity-probe.js';
+import { sessionWorkingPath } from './sessions-sidebar.js';
 import { newTmuxSession } from './tmux-windows.js';
 import type { TerminalBufferConfig } from './terminal-config.js';
 
-export type SessionInfo = { name: string; windows: number; attached: boolean };
+export type SessionInfo = { name: string; windows: number; attached: boolean; path?: string };
 
 export interface AgentClientOptions {
 	hub: string;
@@ -117,10 +118,14 @@ export function startAgentClient(opts: AgentClientOptions): AgentClientHandle {
 		} catch {
 			return;
 		}
-		const json = JSON.stringify(sessions);
+		// Attach each session's working directory so the hub can cluster agent
+		// sessions by path (and rebuild tombstones in the right directory).
+		// sessionWorkingPath degrades to undefined on tmux hiccups.
+		const withPath = sessions.map((s) => ({ ...s, path: sessionWorkingPath(s.name) }));
+		const json = JSON.stringify(withPath);
 		if (json !== lastSessionsJson) {
 			lastSessionsJson = json;
-			send({ type: 'sessions', sessions });
+			send({ type: 'sessions', sessions: withPath });
 		}
 	}
 
