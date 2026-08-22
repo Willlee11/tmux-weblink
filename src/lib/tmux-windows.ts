@@ -50,7 +50,7 @@ export function captureSessionWindowsWithPath(session: string): TmuxWindowWithPa
 				"-F",
 				"#{window_index}\t#{window_name}\t#{window_active}\t#{pane_current_path}",
 			],
-			{ encoding: "utf-8", timeout: 3000 },
+			{ encoding: "utf-8", timeout: 3000, env: tmuxEnv() },
 		);
 		return raw
 			.trim()
