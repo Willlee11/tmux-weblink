@@ -258,8 +258,9 @@ function renderSidebarPayload(data: { recent?: { name: string; attached?: boolea
 				el.setAttribute('data-session', s.name);
 				el.setAttribute('data-agent', a.agentId);
 				if (s.path) el.title = s.path;
+				const pathTail = s.path ? s.path.split('/').filter(Boolean).slice(-2).join('/') : '';
 				el.innerHTML = `<svg viewBox="0 0 24 24" fill="currentColor"><path d="${s.attached ? 'M19 4H5a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2zm0 14H5V6h14v12z' : 'M4 6h16v2H4V6zm0 5h16v2H4v-2zm0 5h16v2H4v-2z'}"></svg>
-			<span>${escHtml(s.name)}</span><span class="meta">${a.online ? '' : 'offline'}</span>`;
+			<span>${escHtml(s.name)}</span><span class="meta">${pathTail ? escHtml(pathTail) + ' ' : ''}${a.online ? '' : 'offline'}</span>`;
 				if (a.online) {
 					el.addEventListener('click', (e) => {
 						if ((e.target as HTMLElement).closest('.session-edit-btn')) return;
