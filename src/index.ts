@@ -814,11 +814,7 @@ function handleAgentUpgrade(req: import("http").IncomingMessage, socket: import(
 			audit("agent_connected", { ip, agentId, name });
 
 		channel = new AgentChannel(ws, agentId, {
-				onSessions: (sessions) => {
-					agents.setSessions(agentId, sessions as never);
-					const sample = (sessions as { name?: string; path?: unknown }[]).slice(0, 3).map((s) => ({ name: s.name, path: s.path }));
-					console.log(`[sessions] agent ${agentId}: ${JSON.stringify(sample)}`);
-				},
+				onSessions: (sessions) => agents.setSessions(agentId, sessions as never),
 				onActivity: (activities) => {
 					for (const a of activities) broadcastActivity({ type: "session.activity", agentId, session: a.session, state: a.state });
 				},
