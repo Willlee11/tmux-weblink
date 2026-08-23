@@ -322,49 +322,7 @@ export function initTerminal(
 		let ws: WebSocket | undefined;
 		let fitRaf = 0;
 		let fitTimer: ReturnType<typeof setTimeout> | undefined;
-		let touchGesture: { startX: number; startY: number; lastX: number; lastY: number; lastT: number; velocity: number; scrolling: boolean; zone: 'tui' | 'history'; tuiAtStart: boolean; tuiAccum: number } | null = null;
-		// Program in the active pane (vim vs everything else) decides which
-		// line-scroll keys the TUI zone sends.
-		let tuiProgram: string | null = null;
-		// True while a full-screen TUI is actually active (alternate screen).
-		// Only then may the left zone send keys — at a shell prompt arrow keys
-		// would flip command history instead of scrolling content.
-		let tuiAltScreen = false;
-		const TUI_PROGRAM_RE = /(?:^|\/)(?:vim|nvim|vi|less|more|htop|btop|top|hx|helix|lazygit)$/;
-		let tuiProgramTimer: ReturnType<typeof setTimeout> | null = null;
-		async function refreshTuiProgram(): Promise<void> {
-			try {
-				// HTTP API base mirrors the ws base minus its /ws prefix: agent
-				// pages (/ws/a/<id>) must probe through the tunnel
-				// (/a/<id>/api/...), otherwise the request hits the hub's local
-				// tmux, which has no such session and reports program: null.
-				const apiBase = (cfg.wsBase || '/ws').replace(/^\/ws/, '') || '';
-				const res = await fetch(apiBase + '/api/session-program?session=' + encodeURIComponent(sessionName));
-				if (res.ok) {
-					const data = await res.json();
-					tuiProgram = typeof data.program === 'string' && data.program ? data.program : null;
-					// The probe is authoritative in both directions: a full-screen
-					// TUI running in the pane enables the zone, anything else
-					// disables it (arrow keys at a shell prompt would flip input
-					// history). 1049h/1049l just re-trigger this probe — the tmux
-					// attach client itself emits them on every attach, so they
-					// must never set the flag directly.
-					tuiAltScreen = tuiProgram !== null && TUI_PROGRAM_RE.test(tuiProgram);
-				}
-			} catch {}
-		}
-		function scheduleTuiProgramRefresh(): void {
-			if (tuiProgramTimer) clearTimeout(tuiProgramTimer);
-			tuiProgramTimer = setTimeout(() => { void refreshTuiProgram(); }, 250);
-		}
-		function tuiScrollKey(back: boolean): string {
-			// vim-family: Ctrl+Y (up a line) / Ctrl+E (down a line).
-			if (tuiProgram !== null && /(?:^|\/)(?:vim|nvim|vi)$/.test(tuiProgram)) {
-				return back ? '\x19' : '\x05';
-			}
-			// Everything else (less/htop/btop/man…): arrow keys.
-			return back ? '\x1b[A' : '\x1b[B';
-		}
+		let touchGesture: { startX: number; startY: number; lastX: number; lastY: number; lastT: number; velocity: number; scrolling: boolean; zone: 'tui' | 'history'; tuiUp: boolean; sent: boolean } | null = null;
 		// Flick inertia: keep scrolling with a decaying velocity after touchend.
 		let inertiaRaf = 0;
 		let inertiaVelocity = 0;
@@ -372,6 +330,40 @@ export function initTerminal(
 		const INERTIA_MAX = 10;      // px/ms — cap on the initial velocity (~9 rows/frame)
 		const INERTIA_FRICTION = 0.95; // per-frame velocity decay (0.94 -> slower tail)
 		const INERTIA_STOP_V = 0.04; // px/ms — stop when this slow
+		// Translucent feedback shown over the TUI zone while a swipe is
+		// recognised, telling the user which half they are in and what key it
+		// will send (PgUp for the top half, PgDn for the bottom half).
+		let tuiHintEl: HTMLElement | null = null;
+		let tuiHintTimer: ReturnType<typeof setTimeout> | null = null;
+		function showTuiHint(up: boolean): void {
+			if (!tuiHintEl) {
+				tuiHintEl = document.createElement('div');
+				tuiHintEl.style.cssText = [
+					'position:absolute', 'left:0', 'width:40%',
+					'padding:10px 0', 'text-align:center',
+					'font:600 14px/1.4 system-ui, -apple-system, sans-serif',
+					'color:rgba(255,255,255,0.95)',
+					'background:rgba(20,30,50,0.55)',
+					'border:1px solid rgba(255,255,255,0.25)',
+					'border-radius:10px',
+					'pointer-events:none',
+					'opacity:0',
+					'transition:opacity 0.15s ease',
+					'z-index:6',
+				].join(';');
+				container.appendChild(tuiHintEl);
+			}
+			tuiHintEl.textContent = up ? '↑ 上翻一页 (PgUp)' : '↓ 下翻一页 (PgDn)';
+			tuiHintEl.style.top = up ? '10%' : 'auto';
+			tuiHintEl.style.bottom = up ? 'auto' : '10%';
+			tuiHintEl.style.opacity = '1';
+			if (tuiHintTimer) clearTimeout(tuiHintTimer);
+			tuiHintTimer = setTimeout(() => { if (tuiHintEl) tuiHintEl.style.opacity = '0'; }, 900);
+		}
+		function hideTuiHint(): void {
+			if (tuiHintTimer) clearTimeout(tuiHintTimer);
+			if (tuiHintEl) tuiHintEl.style.opacity = '0';
+		}
 
 		function stopInertia(): void {
 			if (inertiaRaf) { cancelAnimationFrame(inertiaRaf); inertiaRaf = 0; }
@@ -488,7 +480,6 @@ export function initTerminal(
 				fitTerminal();
 				sendJSON({ type: 'resize', cols: term.cols, rows: term.rows });
 				scheduleFit();
-				void refreshTuiProgram();
 				return;
 			}
 
@@ -548,12 +539,6 @@ export function initTerminal(
 			}
 
 			if (msg.type === 'data' && typeof msg.data === 'string') {
-				// The tmux attach client itself always runs in the alternate
-				// screen, so raw 1049h/1049l sequences appear on every attach
-				// even with a plain shell in the pane — they must never toggle
-				// the TUI zone directly. They only re-trigger the program probe,
-				// which is authoritative for both enabling and disabling.
-				if (/\x1b\[\?1049[hl]/.test(msg.data)) scheduleTuiProgramRefresh();
 				const data = stripAltScreenSequences(stripOscColorSequences(msg.data));
 				if (phase === 'connecting') {
 					phase = 'live';
@@ -956,13 +941,16 @@ export function initTerminal(
 			const touch = event.touches[0];
 			if (!touch) return;
 			stopInertia();
-			// Left 40% of the terminal is the TUI-scroll zone: while a full-
-			// screen TUI is active it sends line-scroll keys; at a shell prompt
-			// it does nothing (arrow keys would flip input history, and it must
-			// not behave like the right side). The right 60% is always the
-			// terminal-history scrollback zone.
-			const zone = touch.clientX - container.getBoundingClientRect().left < container.clientWidth * 0.4 ? 'tui' : 'history';
-			touchGesture = { startX: touch.clientX, startY: touch.clientY, lastX: touch.clientX, lastY: touch.clientY, lastT: performance.now(), velocity: 0, scrolling: false, zone, tuiAtStart: tuiAltScreen, tuiAccum: 0 };
+			// Left 40% is the TUI zone, split into top/bottom halves: a swipe
+			// in the top half sends one PgUp (scroll up), the bottom half one
+			// PgDn (scroll down). This works unconditionally — no program
+			// probing, no alternate-screen detection — so every session (local
+			// or agent) scrolls. The right 60% stays terminal-history
+			// scrollback.
+			const rect = container.getBoundingClientRect();
+			const zone = touch.clientX - rect.left < rect.width * 0.4 ? 'tui' : 'history';
+			const tuiUp = touch.clientY - rect.top < rect.height * 0.5;
+			touchGesture = { startX: touch.clientX, startY: touch.clientY, lastX: touch.clientX, lastY: touch.clientY, lastT: performance.now(), velocity: 0, scrolling: false, zone, tuiUp, sent: false };
 			event.stopPropagation();
 		}
 		function handleTouchMove(event: TouchEvent) {
@@ -980,24 +968,13 @@ export function initTerminal(
 			const now = performance.now();
 			const dy = touch.clientY - touchGesture.lastY;
 			if (touchGesture.zone === 'tui') {
-				if (!tuiAltScreen) {
-					// TUI zone at a shell prompt: swallow the gesture without
-					// sending keys (they would flip command history) and without
-					// scrolling (that's the right side's job).
-					touchGesture.lastX = touch.clientX; touchGesture.lastY = touch.clientY; touchGesture.lastT = now;
-					return;
-				}
-				// Full-screen TUI active: convert the swipe into line-scroll keys
-				// (one key per row of finger travel, so content follows the
-				// finger).
-				touchGesture.tuiAccum += dy;
-				const rowEl = container.querySelector('.xterm-rows > div');
-				const cellH = rowEl ? rowEl.getBoundingClientRect().height : 16;
-				const threshold = Math.max(16, cellH);
-				while (Math.abs(touchGesture.tuiAccum) >= threshold) {
-					// Natural scrolling: finger down (accum > 0) = scroll back.
-					sendTerminalInput(tuiScrollKey(touchGesture.tuiAccum > 0));
-					touchGesture.tuiAccum -= Math.sign(touchGesture.tuiAccum) * threshold;
+				// TUI zone: send exactly one key per gesture, chosen by the
+				// half the finger started in (top = PgUp, bottom = PgDn), with
+				// a translucent hint showing what will happen.
+				if (!touchGesture.sent) {
+					touchGesture.sent = true;
+					sendTerminalInput(touchGesture.tuiUp ? '\x1b[5~' : '\x1b[6~');
+					showTuiHint(touchGesture.tuiUp);
 				}
 				touchGesture.lastX = touch.clientX; touchGesture.lastY = touch.clientY; touchGesture.lastT = now;
 				return;
@@ -1013,14 +990,14 @@ export function initTerminal(
 		function handleTouchEnd(event: TouchEvent) {
 			if (!touchGesture) return;
 			const wasScrolling = touchGesture.scrolling;
-			const tuiAtStart = touchGesture.tuiAtStart;
+			const zone = touchGesture.zone;
 			const flickVelocity = touchGesture.velocity;
 			touchGesture = null;
 			event.stopPropagation();
 			if (!wasScrolling) { term.focus(); return; }
 			suppressTouchClickUntil = Date.now() + 500;
 			event.preventDefault();
-			if (tuiAtStart) return; // TUI keys are discrete; no inertia.
+			if (zone === 'tui') { hideTuiHint(); return; } // TUI keys are discrete; no inertia.
 			if (flickVelocity) startInertia(flickVelocity);
 		}
 		function handleTouchCancel(event: TouchEvent) {
