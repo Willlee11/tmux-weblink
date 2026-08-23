@@ -17,6 +17,9 @@ describe('core helpers', () => {
 		delete process.env.TMUX_WEB_MODE;
 		delete process.env.NODE_ENV;
 		delete process.env.npm_lifecycle_event;
+		// TMUX_WEB_DATA_DIR (set by vitest.config for test isolation) wins
+		// over the default paths.
+		process.env.TMUX_WEB_DATA_DIR = '';
 		expect(getDataRoot()).toBe(path.join(homedir(), '.tmux-web'));
 		expect(getConfigRoot()).toBe(path.join(homedir(), '.config'));
 		expect(getSettingsPath()).toBe(path.join(homedir(), '.config', 'tmux-web', 'settings.json'));

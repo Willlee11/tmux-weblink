@@ -15,6 +15,9 @@ function isDevelopmentMode(): boolean {
 }
 
 export function getDataRoot(): string {
+  // Test isolation: tests point this at a temp dir so they never touch the
+  // real state/db (which on a hub machine holds the user's sessionState etc.).
+  if (process.env.TMUX_WEB_DATA_DIR) return process.env.TMUX_WEB_DATA_DIR;
   return isDevelopmentMode()
     ? path.join(homedir(), '.dev', '.tmux-web')
     : path.join(homedir(), '.tmux-web');
