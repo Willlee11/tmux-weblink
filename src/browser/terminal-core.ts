@@ -322,7 +322,7 @@ export function initTerminal(
 		let ws: WebSocket | undefined;
 		let fitRaf = 0;
 		let fitTimer: ReturnType<typeof setTimeout> | undefined;
-		let touchGesture: { startX: number; startY: number; lastX: number; lastY: number; lastT: number; velocity: number; scrolling: boolean; tuiAtStart: boolean; tuiAccum: number } | null = null;
+		let touchGesture: { startX: number; startY: number; lastX: number; lastY: number; lastT: number; velocity: number; scrolling: boolean; zone: 'tui' | 'history'; tuiAtStart: boolean; tuiAccum: number } | null = null;
 		// Program in the active pane (vim vs everything else) decides which
 		// line-scroll keys the TUI zone sends.
 		let tuiProgram: string | null = null;
@@ -951,11 +951,13 @@ export function initTerminal(
 			const touch = event.touches[0];
 			if (!touch) return;
 			stopInertia();
-			// When a full-screen TUI is active the whole terminal becomes a
-			// scroll zone sending line-scroll keys (alternate screen has no
-			// scrollback to pull, so both halves behave the same). At a shell
-			// prompt the whole surface is history scrollback instead.
-			touchGesture = { startX: touch.clientX, startY: touch.clientY, lastX: touch.clientX, lastY: touch.clientY, lastT: performance.now(), velocity: 0, scrolling: false, tuiAtStart: tuiAltScreen, tuiAccum: 0 };
+			// Left 40% of the terminal is the TUI-scroll zone: while a full-
+			// screen TUI is active it sends line-scroll keys; at a shell prompt
+			// it does nothing (arrow keys would flip input history, and it must
+			// not behave like the right side). The right 60% is always the
+			// terminal-history scrollback zone.
+			const zone = touch.clientX - container.getBoundingClientRect().left < container.clientWidth * 0.4 ? 'tui' : 'history';
+			touchGesture = { startX: touch.clientX, startY: touch.clientY, lastX: touch.clientX, lastY: touch.clientY, lastT: performance.now(), velocity: 0, scrolling: false, zone, tuiAtStart: tuiAltScreen, tuiAccum: 0 };
 			event.stopPropagation();
 		}
 		function handleTouchMove(event: TouchEvent) {
@@ -972,12 +974,17 @@ export function initTerminal(
 			event.preventDefault(); event.stopPropagation();
 			const now = performance.now();
 			const dy = touch.clientY - touchGesture.lastY;
-			if (tuiAltScreen) {
+			if (touchGesture.zone === 'tui') {
+				if (!tuiAltScreen) {
+					// TUI zone at a shell prompt: swallow the gesture without
+					// sending keys (they would flip command history) and without
+					// scrolling (that's the right side's job).
+					touchGesture.lastX = touch.clientX; touchGesture.lastY = touch.clientY; touchGesture.lastT = now;
+					return;
+				}
 				// Full-screen TUI active: convert the swipe into line-scroll keys
 				// (one key per row of finger travel, so content follows the
-				// finger). At a shell prompt the same keys would flip command
-				// history, so they are only sent while a TUI is confirmed by the
-				// program probe.
+				// finger).
 				touchGesture.tuiAccum += dy;
 				const rowEl = container.querySelector('.xterm-rows > div');
 				const cellH = rowEl ? rowEl.getBoundingClientRect().height : 16;
