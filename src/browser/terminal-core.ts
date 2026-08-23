@@ -334,7 +334,12 @@ export function initTerminal(
 		let tuiProgramTimer: ReturnType<typeof setTimeout> | null = null;
 		async function refreshTuiProgram(): Promise<void> {
 			try {
-				const res = await fetch('/api/session-program?session=' + encodeURIComponent(sessionName));
+				// HTTP API base mirrors the ws base minus its /ws prefix: agent
+				// pages (/ws/a/<id>) must probe through the tunnel
+				// (/a/<id>/api/...), otherwise the request hits the hub's local
+				// tmux, which has no such session and reports program: null.
+				const apiBase = (cfg.wsBase || '/ws').replace(/^\/ws/, '') || '';
+				const res = await fetch(apiBase + '/api/session-program?session=' + encodeURIComponent(sessionName));
 				if (res.ok) {
 					const data = await res.json();
 					tuiProgram = typeof data.program === 'string' && data.program ? data.program : null;
