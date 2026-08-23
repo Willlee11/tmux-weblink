@@ -40,6 +40,7 @@ export type HubToAgent =
 	| { type: 'attach'; connId: number; session: string; cols?: number; rows?: number }
 	| { type: 'ws_to_agent'; connId: number; msg: Record<string, unknown> }
 	| { type: 'rebuild_session'; session: string; dir?: string }
+	| { type: 'ping'; ts: number }
 	| { type: 'detach'; connId: number }
 	| { type: 'pong'; ts: number };
 
@@ -88,5 +89,5 @@ const AGENT_TO_HUB_TYPES = new Set([
 
 const HUB_TO_AGENT_TYPES = new Set([
 	'hello_ok', 'hello_err', 'sessions_req', 'http_req', 'http_body_end',
-	'attach', 'ws_to_agent', 'rebuild_session', 'detach', 'pong',
+	'attach', 'ws_to_agent', 'rebuild_session', 'ping', 'detach', 'pong',
 ]);

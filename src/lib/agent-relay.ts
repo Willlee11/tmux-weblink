@@ -8,6 +8,11 @@ import {
 	type HubToAgent,
 } from './agent-channel.js';
 
+// Hub-side heartbeat cadence and pong timeout. Half-open sockets (laptop
+// asleep, network gone) would otherwise linger on kernel TCP timeouts.
+const HUB_HEARTBEAT_MS = parseInt(process.env.TMUX_WEB_HUB_HEARTBEAT_MS || '15000', 10);
+const HUB_PONG_TIMEOUT_MS = parseInt(process.env.TMUX_WEB_HUB_PONG_TIMEOUT_MS || '90000', 10);
+
 // Hub-side per-agent channel. Wraps one persistent agent WebSocket and provides:
 //   - message dispatch (sessions, http responses, attach acks, ws relay, ping)
 //   - HTTP request tunneling with streaming bodies and request correlation
@@ -49,6 +54,8 @@ export class AgentChannel {
 	private onActivity?: (activities: { session: string; state: 'working' | 'idle' }[]) => void;
 	private onRebuildResult?: (result: { session: string; ok: boolean; message?: string }) => void;
 	private onClose?: (channel: AgentChannel) => void;
+	private lastPongAt = Date.now();
+	private heartbeatTimer: ReturnType<typeof setInterval> | null = null;
 	disposed = false;
 
 	constructor(ws: WebSocket, agentId: string, hooks: { onSessions?: (s: unknown[]) => void; onActivity?: (a: { session: string; state: 'working' | 'idle' }[]) => void; onRebuildResult?: (r: { session: string; ok: boolean; message?: string }) => void; onClose?: (c: AgentChannel) => void }) {
@@ -58,6 +65,19 @@ export class AgentChannel {
 		this.onActivity = hooks.onActivity;
 		this.onRebuildResult = hooks.onRebuildResult;
 		this.onClose = hooks.onClose;
+		// Hub-side heartbeat: ping the agent and drop the connection when it
+		// stops answering, so a half-open socket (laptop asleep, network
+		// vanished) is detected quickly instead of waiting on kernel TCP
+		// timeouts. Dropping unregisters the agent and lets tombstone/session
+		// state catch up promptly on both ends.
+		this.heartbeatTimer = setInterval(() => {
+			if (this.disposed || this.ws.readyState !== WebSocket.OPEN) return;
+			if (Date.now() - this.lastPongAt > HUB_PONG_TIMEOUT_MS) {
+				try { this.ws.close(1001, 'agent heartbeat timeout'); } catch {}
+				return;
+			}
+			this.send({ type: 'ping', ts: Date.now() });
+		}, HUB_HEARTBEAT_MS);
 	}
 
 	// ── Outbound (hub → agent) ────────────────────────────────────────────
@@ -244,6 +264,7 @@ export class AgentChannel {
 			}
 
 			case 'ping':
+				this.lastPongAt = Date.now();
 				this.send({ type: 'pong', ts: msg.ts });
 				break;
 
@@ -293,6 +314,7 @@ export class AgentChannel {
 	dispose(): void {
 		if (this.disposed) return;
 		this.disposed = true;
+		if (this.heartbeatTimer) { clearInterval(this.heartbeatTimer); this.heartbeatTimer = null; }
 		this.failAll('agent disconnected');
 		this.onClose?.(this);
 	}

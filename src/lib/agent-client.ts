@@ -56,6 +56,14 @@ export interface AgentClientHandle {
 
 const AGENT_HEARTBEAT_MS = parseInt(process.env.TMUX_WEB_AGENT_HEARTBEAT_MS || '15000', 10);
 const SESSIONS_POLL_MS = parseInt(process.env.TMUX_WEB_AGENT_SESSIONS_POLL_MS || '10000', 10);
+// If the hub stops answering pings for this long, assume the link is dead
+// (laptop asleep / network gone) and reconnect instead of waiting on kernel
+// TCP timeouts. 45s = 3 missed 15s heartbeats.
+const PONG_TIMEOUT_MS = parseInt(process.env.TMUX_WEB_AGENT_PONG_TIMEOUT_MS || '45000', 10);
+// Fast reconnect: first FAST_RECONNECT_ATTEMPTS retries use a ~1s delay, then
+// back off exponentially to the cap.
+const FAST_RECONNECT_ATTEMPTS = 5;
+const MAX_RECONNECT_MS = 60_000;
 const HTTP_RESPONSE_HEADERS = new Set(['content-type', 'content-disposition', 'location', 'cache-control', 'etag']);
 
 export function startAgentClient(opts: AgentClientOptions): AgentClientHandle {
@@ -63,7 +71,8 @@ export function startAgentClient(opts: AgentClientOptions): AgentClientHandle {
 	const logErr = (msg: string) => console.error(`[agent] ${msg}`);
 
 	let ws: WebSocket | null = null;
-	let reconnectDelayMs = 1000;
+	let reconnectAttempts = 0;
+	let lastPongAt = 0;
 	let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 	let stopped = false;
 	const attachments = new Map<number, AttachedTerminal>();
@@ -134,7 +143,18 @@ export function startAgentClient(opts: AgentClientOptions): AgentClientHandle {
 			sessionsPollTimer = setInterval(sendSessions, SESSIONS_POLL_MS);
 		}
 		if (!heartbeatTimer) {
-			heartbeatTimer = setInterval(() => send({ type: 'ping', ts: Date.now() }), AGENT_HEARTBEAT_MS);
+			heartbeatTimer = setInterval(() => {
+				// Proactive dead-link detection: if the hub stopped answering
+				// pongs (e.g. the connection went half-open while the laptop
+				// slept), drop the socket and reconnect instead of waiting on
+				// kernel TCP timeouts.
+				if (ws && ws.readyState === WebSocket.OPEN && lastPongAt > 0 && Date.now() - lastPongAt > PONG_TIMEOUT_MS) {
+					log(`hub heartbeat timeout (${Date.now() - lastPongAt}ms without pong), reconnecting`);
+					try { ws.close(1001, 'hub heartbeat timeout'); } catch {}
+					return;
+				}
+				send({ type: 'ping', ts: Date.now() });
+			}, AGENT_HEARTBEAT_MS);
 		}
 		if (!activityTimer) {
 			activityProbe = new ActivityProbe();
@@ -286,7 +306,8 @@ export function startAgentClient(opts: AgentClientOptions): AgentClientHandle {
 		switch (msg.type) {
 			case 'hello_ok':
 				agentId = msg.agentId;
-				reconnectDelayMs = 1000;
+				reconnectAttempts = 0;
+				lastPongAt = Date.now();
 				log(`connected to hub as "${agentId}"`);
 				setState('connected');
 				sendSessions();
@@ -343,6 +364,11 @@ export function startAgentClient(opts: AgentClientOptions): AgentClientHandle {
 			}
 
 			case 'pong':
+				lastPongAt = Date.now();
+				break;
+
+			case 'ping':
+				send({ type: 'pong', ts: msg.ts });
 				break;
 
 			default:
@@ -377,10 +403,14 @@ export function startAgentClient(opts: AgentClientOptions): AgentClientHandle {
 		teardownConn();
 		if (stopped) return;
 		setState('connecting');
-		const delay = reconnectDelayMs + Math.random() * 500;
+		reconnectAttempts += 1;
+		// Fast retries first (waking from sleep / flaky network), then back off.
+		const base = reconnectAttempts <= FAST_RECONNECT_ATTEMPTS
+			? 1000
+			: Math.min(1000 * Math.pow(2, reconnectAttempts - FAST_RECONNECT_ATTEMPTS), MAX_RECONNECT_MS);
+		const delay = base + Math.random() * 500;
 		log(`reconnecting in ${Math.round(delay)}ms…`);
 		reconnectTimer = setTimeout(connect, delay);
-		reconnectDelayMs = Math.min(reconnectDelayMs * 2, 60_000);
 	}
 
 	function connect(): void {
