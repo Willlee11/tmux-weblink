@@ -322,7 +322,7 @@ export function initTerminal(
 		let ws: WebSocket | undefined;
 		let fitRaf = 0;
 		let fitTimer: ReturnType<typeof setTimeout> | undefined;
-		let touchGesture: { startX: number; startY: number; lastX: number; lastY: number; lastT: number; velocity: number; scrolling: boolean } | null = null;
+		let touchGesture: { startX: number; startY: number; lastX: number; lastY: number; lastT: number; velocity: number; scrolling: boolean; zone: 'tui' | 'history'; tuiAccum: number } | null = null;
 		// Flick inertia: keep scrolling with a decaying velocity after touchend.
 		let inertiaRaf = 0;
 		let inertiaVelocity = 0;
@@ -907,7 +907,12 @@ export function initTerminal(
 			const touch = event.touches[0];
 			if (!touch) return;
 			stopInertia();
-			touchGesture = { startX: touch.clientX, startY: touch.clientY, lastX: touch.clientX, lastY: touch.clientY, lastT: performance.now(), velocity: 0, scrolling: false };
+			// Left 40% of the terminal becomes a TUI-scroll zone on narrow touch
+			// screens: vertical swipes there send PgUp/PgDn to the app (works in
+			// vim/less/htop/btop…), while the right side keeps the terminal
+			// history scrollback behaviour.
+			const zone = touch.clientX - container.getBoundingClientRect().left < container.clientWidth * 0.4 ? 'tui' : 'history';
+			touchGesture = { startX: touch.clientX, startY: touch.clientY, lastX: touch.clientX, lastY: touch.clientY, lastT: performance.now(), velocity: 0, scrolling: false, zone, tuiAccum: 0 };
 			event.stopPropagation();
 		}
 		function handleTouchMove(event: TouchEvent) {
@@ -924,6 +929,22 @@ export function initTerminal(
 			event.preventDefault(); event.stopPropagation();
 			const now = performance.now();
 			const dy = touch.clientY - touchGesture.lastY;
+			if (touchGesture.zone === 'tui') {
+				// Left zone: convert the swipe into PgUp/PgDn key presses so full-
+				// screen TUIs (vim/less/htop…) can be scrolled by gesture. Throttle
+				// to roughly one key per row of finger travel.
+				touchGesture.tuiAccum += dy;
+				const rowEl = container.querySelector('.xterm-rows > div');
+				const cellH = rowEl ? rowEl.getBoundingClientRect().height : 16;
+				const threshold = Math.max(24, cellH * 1.2);
+				while (Math.abs(touchGesture.tuiAccum) >= threshold) {
+					// Swipe up (finger moves up, dy < 0) = scroll back = PgUp.
+					sendTerminalInput(touchGesture.tuiAccum > 0 ? '\x1b[6~' : '\x1b[5~');
+					touchGesture.tuiAccum -= Math.sign(touchGesture.tuiAccum) * threshold;
+				}
+				touchGesture.lastX = touch.clientX; touchGesture.lastY = touch.clientY; touchGesture.lastT = now;
+				return;
+			}
 			const dt = now - touchGesture.lastT;
 			if (dt > 0) touchGesture.velocity = dy / dt;
 			// Direct-manipulation semantics: finger down = scroll back (history),
@@ -935,12 +956,14 @@ export function initTerminal(
 		function handleTouchEnd(event: TouchEvent) {
 			if (!touchGesture) return;
 			const wasScrolling = touchGesture.scrolling;
+			const zone = touchGesture.zone;
 			const flickVelocity = touchGesture.velocity;
 			touchGesture = null;
 			event.stopPropagation();
 			if (!wasScrolling) { term.focus(); return; }
 			suppressTouchClickUntil = Date.now() + 500;
 			event.preventDefault();
+			if (zone === 'tui') return; // TUI zone keys are discrete; no inertia.
 			if (flickVelocity) startInertia(flickVelocity);
 		}
 		function handleTouchCancel(event: TouchEvent) {
