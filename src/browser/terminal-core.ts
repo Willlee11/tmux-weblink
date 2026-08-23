@@ -938,8 +938,9 @@ export function initTerminal(
 				const cellH = rowEl ? rowEl.getBoundingClientRect().height : 16;
 				const threshold = Math.max(24, cellH * 1.2);
 				while (Math.abs(touchGesture.tuiAccum) >= threshold) {
-					// Swipe up (finger moves up, dy < 0) = scroll back = PgUp.
-					sendTerminalInput(touchGesture.tuiAccum > 0 ? '\x1b[6~' : '\x1b[5~');
+					// Natural scrolling, consistent with the history zone on the
+					// right: finger down (dy > 0) = scroll back = PgUp.
+					sendTerminalInput(touchGesture.tuiAccum > 0 ? '\x1b[5~' : '\x1b[6~');
 					touchGesture.tuiAccum -= Math.sign(touchGesture.tuiAccum) * threshold;
 				}
 				touchGesture.lastX = touch.clientX; touchGesture.lastY = touch.clientY; touchGesture.lastT = now;
