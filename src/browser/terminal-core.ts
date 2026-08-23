@@ -322,7 +322,7 @@ export function initTerminal(
 		let ws: WebSocket | undefined;
 		let fitRaf = 0;
 		let fitTimer: ReturnType<typeof setTimeout> | undefined;
-		let touchGesture: { startX: number; startY: number; lastX: number; lastY: number; lastT: number; velocity: number; scrolling: boolean; zone: 'tui' | 'history'; tuiAccum: number } | null = null;
+		let touchGesture: { startX: number; startY: number; lastX: number; lastY: number; lastT: number; velocity: number; scrolling: boolean; tuiAtStart: boolean; tuiAccum: number } | null = null;
 		// Program in the active pane (vim vs everything else) decides which
 		// line-scroll keys the TUI zone sends.
 		let tuiProgram: string | null = null;
@@ -338,16 +338,19 @@ export function initTerminal(
 				if (res.ok) {
 					const data = await res.json();
 					tuiProgram = typeof data.program === 'string' && data.program ? data.program : null;
-					// Probe only ever *enables* alt-screen (for the attach-time
-					// blind spot where 1049h already happened); disabling is
-					// driven by the 1049l sequence so late probes can't race.
-					if (tuiProgram !== null && TUI_PROGRAM_RE.test(tuiProgram)) tuiAltScreen = true;
+					// The probe is authoritative in both directions: a full-screen
+					// TUI running in the pane enables the zone, anything else
+					// disables it (arrow keys at a shell prompt would flip input
+					// history). 1049h/1049l just re-trigger this probe — the tmux
+					// attach client itself emits them on every attach, so they
+					// must never set the flag directly.
+					tuiAltScreen = tuiProgram !== null && TUI_PROGRAM_RE.test(tuiProgram);
 				}
 			} catch {}
 		}
 		function scheduleTuiProgramRefresh(): void {
 			if (tuiProgramTimer) clearTimeout(tuiProgramTimer);
-			tuiProgramTimer = setTimeout(() => { void refreshTuiProgram(); }, 600);
+			tuiProgramTimer = setTimeout(() => { void refreshTuiProgram(); }, 250);
 		}
 		function tuiScrollKey(back: boolean): string {
 			// vim-family: Ctrl+Y (up a line) / Ctrl+E (down a line).
@@ -541,13 +544,11 @@ export function initTerminal(
 
 			if (msg.type === 'data' && typeof msg.data === 'string') {
 				// The tmux attach client itself always runs in the alternate
-				// screen, so a raw 1049h also appears on every attach (even with
-				// a shell in the pane) — it must NOT enable the TUI zone by
-				// itself. Entering a full-screen app is instead decided by the
-				// program probe; 1049h just re-triggers it. Leaving an app
-				// (1049l) always disables immediately.
-				if (/\x1b\[\?1049h/.test(msg.data)) scheduleTuiProgramRefresh();
-				if (/\x1b\[\?1049l/.test(msg.data)) tuiAltScreen = false;
+				// screen, so raw 1049h/1049l sequences appear on every attach
+				// even with a plain shell in the pane — they must never toggle
+				// the TUI zone directly. They only re-trigger the program probe,
+				// which is authoritative for both enabling and disabling.
+				if (/\x1b\[\?1049[hl]/.test(msg.data)) scheduleTuiProgramRefresh();
 				const data = stripAltScreenSequences(stripOscColorSequences(msg.data));
 				if (phase === 'connecting') {
 					phase = 'live';
@@ -950,12 +951,11 @@ export function initTerminal(
 			const touch = event.touches[0];
 			if (!touch) return;
 			stopInertia();
-			// Left 40% of the terminal becomes a TUI-scroll zone on narrow touch
-			// screens: vertical swipes there send PgUp/PgDn to the app (works in
-			// vim/less/htop/btop…), while the right side keeps the terminal
-			// history scrollback behaviour.
-			const zone = touch.clientX - container.getBoundingClientRect().left < container.clientWidth * 0.4 ? 'tui' : 'history';
-			touchGesture = { startX: touch.clientX, startY: touch.clientY, lastX: touch.clientX, lastY: touch.clientY, lastT: performance.now(), velocity: 0, scrolling: false, zone, tuiAccum: 0 };
+			// When a full-screen TUI is active the whole terminal becomes a
+			// scroll zone sending line-scroll keys (alternate screen has no
+			// scrollback to pull, so both halves behave the same). At a shell
+			// prompt the whole surface is history scrollback instead.
+			touchGesture = { startX: touch.clientX, startY: touch.clientY, lastX: touch.clientX, lastY: touch.clientY, lastT: performance.now(), velocity: 0, scrolling: false, tuiAtStart: tuiAltScreen, tuiAccum: 0 };
 			event.stopPropagation();
 		}
 		function handleTouchMove(event: TouchEvent) {
@@ -972,12 +972,12 @@ export function initTerminal(
 			event.preventDefault(); event.stopPropagation();
 			const now = performance.now();
 			const dy = touch.clientY - touchGesture.lastY;
-			if (touchGesture.zone === 'tui' && tuiAltScreen) {
-				// Left zone, only while a full-screen TUI is actually active
-				// (alternate screen): convert the swipe into line-scroll keys
-				// (one key per row of finger travel, so the content follows the
+			if (tuiAltScreen) {
+				// Full-screen TUI active: convert the swipe into line-scroll keys
+				// (one key per row of finger travel, so content follows the
 				// finger). At a shell prompt the same keys would flip command
-				// history, so the zone falls through to history scrollback.
+				// history, so they are only sent while a TUI is confirmed by the
+				// program probe.
 				touchGesture.tuiAccum += dy;
 				const rowEl = container.querySelector('.xterm-rows > div');
 				const cellH = rowEl ? rowEl.getBoundingClientRect().height : 16;
@@ -1001,14 +1001,14 @@ export function initTerminal(
 		function handleTouchEnd(event: TouchEvent) {
 			if (!touchGesture) return;
 			const wasScrolling = touchGesture.scrolling;
-			const zone = touchGesture.zone;
+			const tuiAtStart = touchGesture.tuiAtStart;
 			const flickVelocity = touchGesture.velocity;
 			touchGesture = null;
 			event.stopPropagation();
 			if (!wasScrolling) { term.focus(); return; }
 			suppressTouchClickUntil = Date.now() + 500;
 			event.preventDefault();
-			if (zone === 'tui') return; // TUI zone keys are discrete; no inertia.
+			if (tuiAtStart) return; // TUI keys are discrete; no inertia.
 			if (flickVelocity) startInertia(flickVelocity);
 		}
 		function handleTouchCancel(event: TouchEvent) {
