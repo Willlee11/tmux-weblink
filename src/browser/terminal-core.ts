@@ -326,6 +326,11 @@ export function initTerminal(
 		// Program in the active pane (vim vs everything else) decides which
 		// line-scroll keys the TUI zone sends.
 		let tuiProgram: string | null = null;
+		// True while a full-screen TUI is actually active (alternate screen).
+		// Only then may the left zone send keys — at a shell prompt arrow keys
+		// would flip command history instead of scrolling content.
+		let tuiAltScreen = false;
+		const TUI_PROGRAM_RE = /(?:^|\/)(?:vim|nvim|vi|less|more|htop|btop|top|hx|helix|lazygit)$/;
 		let tuiProgramTimer: ReturnType<typeof setTimeout> | null = null;
 		async function refreshTuiProgram(): Promise<void> {
 			try {
@@ -333,6 +338,10 @@ export function initTerminal(
 				if (res.ok) {
 					const data = await res.json();
 					tuiProgram = typeof data.program === 'string' && data.program ? data.program : null;
+					// Probe only ever *enables* alt-screen (for the attach-time
+					// blind spot where 1049h already happened); disabling is
+					// driven by the 1049l sequence so late probes can't race.
+					if (tuiProgram !== null && TUI_PROGRAM_RE.test(tuiProgram)) tuiAltScreen = true;
 				}
 			} catch {}
 		}
@@ -531,9 +540,14 @@ export function initTerminal(
 			}
 
 			if (msg.type === 'data' && typeof msg.data === 'string') {
-				// A full-screen TUI may have started in this pane (vim/btop…);
-				// re-probe so the TUI-scroll zone uses the right keys.
+				// The tmux attach client itself always runs in the alternate
+				// screen, so a raw 1049h also appears on every attach (even with
+				// a shell in the pane) — it must NOT enable the TUI zone by
+				// itself. Entering a full-screen app is instead decided by the
+				// program probe; 1049h just re-triggers it. Leaving an app
+				// (1049l) always disables immediately.
 				if (/\x1b\[\?1049h/.test(msg.data)) scheduleTuiProgramRefresh();
+				if (/\x1b\[\?1049l/.test(msg.data)) tuiAltScreen = false;
 				const data = stripAltScreenSequences(stripOscColorSequences(msg.data));
 				if (phase === 'connecting') {
 					phase = 'live';
@@ -958,10 +972,12 @@ export function initTerminal(
 			event.preventDefault(); event.stopPropagation();
 			const now = performance.now();
 			const dy = touch.clientY - touchGesture.lastY;
-			if (touchGesture.zone === 'tui') {
-				// Left zone: convert the swipe into line-scroll keys so full-
-				// screen TUIs scroll smoothly and stay readable (one key per row
-				// of finger travel, so the content follows the finger).
+			if (touchGesture.zone === 'tui' && tuiAltScreen) {
+				// Left zone, only while a full-screen TUI is actually active
+				// (alternate screen): convert the swipe into line-scroll keys
+				// (one key per row of finger travel, so the content follows the
+				// finger). At a shell prompt the same keys would flip command
+				// history, so the zone falls through to history scrollback.
 				touchGesture.tuiAccum += dy;
 				const rowEl = container.querySelector('.xterm-rows > div');
 				const cellH = rowEl ? rowEl.getBoundingClientRect().height : 16;
