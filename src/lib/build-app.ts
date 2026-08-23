@@ -1,6 +1,7 @@
 import { existsSync, readdirSync, statSync, unlinkSync, writeFileSync, mkdirSync, readFileSync as readFileSyncLocal } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { execSync, execFileSync } from 'node:child_process';
+import { tmuxEnv } from './tmux-env.js';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Hono } from 'hono';
@@ -788,6 +789,25 @@ self.addEventListener("fetch", (e) => {
 			void renameSessionState(oldName, newName, agentId);
 			return c.json({ ok: true });
 		} catch { return c.json({ error: 'rename failed' }, 500); }
+	});
+
+	// Program currently running in the session's active pane, so the touch
+	// TUI-scroll zone can pick line-scroll keys the app understands
+	// (vim-family uses Ctrl+Y/Ctrl+E, everything else the arrow keys).
+	app.get('/api/session-program', requireAuth(), (c) => {
+		const session = c.req.query('session');
+		if (!session) return c.json({ program: null });
+		try {
+			const raw = execFileSync(
+				'tmux',
+				['display-message', '-p', '-t', session, '#{pane_current_command}'],
+				{ encoding: 'utf-8', timeout: 3000, env: tmuxEnv() },
+			);
+			const program = raw.trim() || null;
+			return c.json({ program });
+		} catch {
+			return c.json({ program: null });
+		}
 	});
 
 	app.get('/api/fs/session-path', requireAuth(), (c) => {

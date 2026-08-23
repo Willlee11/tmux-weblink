@@ -323,6 +323,31 @@ export function initTerminal(
 		let fitRaf = 0;
 		let fitTimer: ReturnType<typeof setTimeout> | undefined;
 		let touchGesture: { startX: number; startY: number; lastX: number; lastY: number; lastT: number; velocity: number; scrolling: boolean; zone: 'tui' | 'history'; tuiAccum: number } | null = null;
+		// Program in the active pane (vim vs everything else) decides which
+		// line-scroll keys the TUI zone sends.
+		let tuiProgram: string | null = null;
+		let tuiProgramTimer: ReturnType<typeof setTimeout> | null = null;
+		async function refreshTuiProgram(): Promise<void> {
+			try {
+				const res = await fetch('/api/session-program?session=' + encodeURIComponent(sessionName));
+				if (res.ok) {
+					const data = await res.json();
+					tuiProgram = typeof data.program === 'string' && data.program ? data.program : null;
+				}
+			} catch {}
+		}
+		function scheduleTuiProgramRefresh(): void {
+			if (tuiProgramTimer) clearTimeout(tuiProgramTimer);
+			tuiProgramTimer = setTimeout(() => { void refreshTuiProgram(); }, 600);
+		}
+		function tuiScrollKey(back: boolean): string {
+			// vim-family: Ctrl+Y (up a line) / Ctrl+E (down a line).
+			if (tuiProgram !== null && /(?:^|\/)(?:vim|nvim|vi)$/.test(tuiProgram)) {
+				return back ? '\x19' : '\x05';
+			}
+			// Everything else (less/htop/btop/man…): arrow keys.
+			return back ? '\x1b[A' : '\x1b[B';
+		}
 		// Flick inertia: keep scrolling with a decaying velocity after touchend.
 		let inertiaRaf = 0;
 		let inertiaVelocity = 0;
@@ -446,6 +471,7 @@ export function initTerminal(
 				fitTerminal();
 				sendJSON({ type: 'resize', cols: term.cols, rows: term.rows });
 				scheduleFit();
+				void refreshTuiProgram();
 				return;
 			}
 
@@ -505,6 +531,9 @@ export function initTerminal(
 			}
 
 			if (msg.type === 'data' && typeof msg.data === 'string') {
+				// A full-screen TUI may have started in this pane (vim/btop…);
+				// re-probe so the TUI-scroll zone uses the right keys.
+				if (/\x1b\[\?1049h/.test(msg.data)) scheduleTuiProgramRefresh();
 				const data = stripAltScreenSequences(stripOscColorSequences(msg.data));
 				if (phase === 'connecting') {
 					phase = 'live';
@@ -930,17 +959,16 @@ export function initTerminal(
 			const now = performance.now();
 			const dy = touch.clientY - touchGesture.lastY;
 			if (touchGesture.zone === 'tui') {
-				// Left zone: convert the swipe into PgUp/PgDn key presses so full-
-				// screen TUIs (vim/less/htop…) can be scrolled by gesture. Throttle
-				// to roughly one key per row of finger travel.
+				// Left zone: convert the swipe into line-scroll keys so full-
+				// screen TUIs scroll smoothly and stay readable (one key per row
+				// of finger travel, so the content follows the finger).
 				touchGesture.tuiAccum += dy;
 				const rowEl = container.querySelector('.xterm-rows > div');
 				const cellH = rowEl ? rowEl.getBoundingClientRect().height : 16;
-				const threshold = Math.max(24, cellH * 1.2);
+				const threshold = Math.max(16, cellH);
 				while (Math.abs(touchGesture.tuiAccum) >= threshold) {
-					// Natural scrolling, consistent with the history zone on the
-					// right: finger down (dy > 0) = scroll back = PgUp.
-					sendTerminalInput(touchGesture.tuiAccum > 0 ? '\x1b[5~' : '\x1b[6~');
+					// Natural scrolling: finger down (accum > 0) = scroll back.
+					sendTerminalInput(tuiScrollKey(touchGesture.tuiAccum > 0));
 					touchGesture.tuiAccum -= Math.sign(touchGesture.tuiAccum) * threshold;
 				}
 				touchGesture.lastX = touch.clientX; touchGesture.lastY = touch.clientY; touchGesture.lastT = now;
