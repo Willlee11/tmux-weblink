@@ -240,9 +240,12 @@ function renderSidebarPayload(data: { recent?: { name: string; attached?: boolea
 		// Local machine group header. On a hub page it is the current machine;
 		// inside an agent page space it links back to the hub root.
 		const localGroup = document.createElement('div');
-		localGroup.className = 'sidebar-section-label' + (currentAgentId ? ' clickable' : '');
-		localGroup.textContent = currentAgentId ? '← 返回本机' : '本机';
-		if (currentAgentId) {
+		// Only show 'back to hub' when actually inside an agent page space
+		// (/a/:agentId/…). currentAgentId also flips when an agent session is
+		// opened from the hub page — that is an attach state, not a space.
+		localGroup.className = 'sidebar-section-label' + (scopeAgentId ? ' clickable' : '');
+		localGroup.textContent = scopeAgentId ? '← 返回本机' : '本机';
+		if (scopeAgentId) {
 			localGroup.title = 'Back to hub';
 			localGroup.addEventListener('click', () => {
 				window.location.href = '/';
