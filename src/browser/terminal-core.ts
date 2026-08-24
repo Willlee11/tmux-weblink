@@ -991,13 +991,27 @@ export function initTerminal(
 			if (!touchGesture) return;
 			const wasScrolling = touchGesture.scrolling;
 			const zone = touchGesture.zone;
+			const tuiUp = touchGesture.tuiUp;
 			const flickVelocity = touchGesture.velocity;
 			touchGesture = null;
 			event.stopPropagation();
+			if (zone === 'tui') {
+				// TUI zone: both a swipe and a simple tap flip exactly one page
+				// (top half = PgUp, bottom half = PgDn). A swipe already sent the
+				// key in touchmove; a tap (no movement) sends it here. The tap's
+				// click is suppressed so it never also lands on the terminal.
+				if (!wasScrolling) {
+					sendTerminalInput(tuiUp ? '\x1b[5~' : '\x1b[6~');
+					showTuiHint(tuiUp);
+					suppressTouchClickUntil = Date.now() + 500;
+					event.preventDefault();
+				}
+				term.focus();
+				return;
+			}
 			if (!wasScrolling) { term.focus(); return; }
 			suppressTouchClickUntil = Date.now() + 500;
 			event.preventDefault();
-			if (zone === 'tui') { hideTuiHint(); return; } // TUI keys are discrete; no inertia.
 			if (flickVelocity) startInertia(flickVelocity);
 		}
 		function handleTouchCancel(event: TouchEvent) {
