@@ -1000,13 +1000,16 @@ export function initTerminal(
 				// (top half = PgUp, bottom half = PgDn). A swipe already sent the
 				// key in touchmove; a tap (no movement) sends it here. The tap's
 				// click is suppressed so it never also lands on the terminal.
+				// Deliberately no term.focus(): focusing the xterm textarea on a
+				// touch device pops the software keyboard, which nobody wants
+				// while paging. Focus happens when the user taps the terminal
+				// body / right half to type.
 				if (!wasScrolling) {
 					sendTerminalInput(tuiUp ? '\x1b[5~' : '\x1b[6~');
 					showTuiHint(tuiUp);
 					suppressTouchClickUntil = Date.now() + 500;
 					event.preventDefault();
 				}
-				term.focus();
 				return;
 			}
 			if (!wasScrolling) { term.focus(); return; }
