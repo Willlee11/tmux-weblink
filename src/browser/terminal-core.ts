@@ -204,7 +204,12 @@ class XtermAdapter implements TerminalAdapter {
 		const cellH = dims.height;
 		const viewport = this.terminal.element?.querySelector('.xterm-viewport') as HTMLElement | null | undefined;
 		const sbWidth = viewport ? Math.max(0, viewport.offsetWidth - viewport.clientWidth) : 0;
-		const cols = Math.max(2, Math.floor((rect.width - sbWidth) / cellW));
+		// Keep half a cell of slack: the browser rounds cell placement to
+		// device pixels (especially at DPR 2/3), so a cols that exactly fits
+		// in CSS pixels can still push the last column past the container edge
+		// and clip half a glyph. Losing a column in the rare borderline case
+		// beats clipping the rightmost column.
+		const cols = Math.max(2, Math.floor((rect.width - sbWidth - cellW / 2) / cellW));
 		const rows = Math.max(2, Math.floor(rect.height / cellH));
 		if (cols !== this.terminal.cols || rows !== this.terminal.rows) {
 			this.terminal.resize(cols, rows);
