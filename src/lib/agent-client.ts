@@ -260,6 +260,9 @@ export function startAgentClient(opts: AgentClientOptions): AgentClientHandle {
 		}
 
 		let onMsg: ((raw: string) => void) | null = null;
+		// The attach triggers a resize redraw on the agent's pane; silence
+		// activity for it so the hub never sees a fake "working" flash.
+		activityProbe?.suppress(session);
 		const attached = attachTerminal(session, {
 			send: (m) => send({ type: 'ws_to_hub', connId: msg.connId, msg: m }),
 			onMessage: (cb) => { onMsg = cb; },

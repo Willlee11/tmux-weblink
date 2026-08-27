@@ -334,6 +334,22 @@ function escHtml(s: string): string {
 		// (unless it is still working).
 		clearUnreadActivity(name, agentId);
 
+		// Opening also resets activity to idle and starts the attach grace
+		// window: the resize redraw the attach triggers must not show up as a
+		// fake "working" state on this or other sessions.
+		const akey = activityKey(name, agentId);
+		attachGraceUntil.set(akey, Date.now() + ACTIVITY_ATTACH_GRACE_MS);
+		const arec = activityStates.get(akey);
+		if (arec && arec.state === 'working') {
+			arec.state = 'idle';
+			arec.doneUntil = undefined;
+			arec.unread = false;
+			const ael = sidebarContent.querySelector(agentId
+				? '.session-item[data-agent="' + CSS.escape(agentId) + '"][data-session="' + CSS.escape(name) + '"]'
+				: '.session-item[data-session="' + CSS.escape(name) + '"]:not([data-agent])') as HTMLElement | null;
+			if (ael) applyActivityClass(ael, akey, arec);
+		}
+
 		// Update sidebar active indicator
 		for (const el of sidebarContent.querySelectorAll('.session-item')) {
 			el.classList.toggle('active', el.getAttribute('data-session') === name && (el.getAttribute('data-agent') || null) === currentAgentId);
@@ -1279,6 +1295,11 @@ let activityWs: WebSocket | null = null;
 let activityReconnectTimer: ReturnType<typeof setTimeout> | null = null;
 const activityDoneTimers = new Map<string, ReturnType<typeof setTimeout>>();
 const activityStates = new Map<string, { session: string; agentId?: string; state: 'working' | 'idle'; doneUntil?: number; unread?: boolean }>();
+// Attach grace: opening a session triggers a resize redraw on the server;
+// working flashes reported during this window are fake activity and ignored
+// (the server also silences them; this is a belt-and-braces client gate).
+const ACTIVITY_ATTACH_GRACE_MS = 5000;
+const attachGraceUntil = new Map<string, number>();
 
 function activityKey(session: string, agentId?: string): string {
 	return (agentId ? 'a:' + agentId + ':' : 'l:') + session;
@@ -1286,6 +1307,11 @@ function activityKey(session: string, agentId?: string): string {
 
 function applySessionActivity(session: string, agentId: string | undefined, state: 'working' | 'idle'): void {
 	const key = activityKey(session, agentId);
+	// Ignore fake "working" flashes within a session's attach grace window.
+	if (state === 'working') {
+		const graceUntil = attachGraceUntil.get(key);
+		if (graceUntil && Date.now() < graceUntil) return;
+	}
 	const prev = activityStates.get(key);
 	// Selected sessions get a transient green flash; unselected ones keep a
 	// persistent green unread marker until the user opens the session.

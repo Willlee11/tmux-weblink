@@ -456,6 +456,9 @@ wss.on("connection", (ws: WebSocket, req: import("http").IncomingMessage, sessio
 
 	function startAttach(): void {
 		if (attached) return;
+		// Attach triggers a resize redraw; keep those flashes from registering
+		// as activity (they would show a fake "working" state).
+		localProbe.suppress(sessionName);
 		// Remember the session in state so an external loss later renders a tombstone.
 		void upsertSessionState(sessionName, { path: sessionWorkingPath(sessionName) });
 		attached = attachTerminal(sessionName, {

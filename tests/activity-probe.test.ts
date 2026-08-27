@@ -116,3 +116,52 @@ describe('ActivityProbe.scan', () => {
 		expect(states.get('cell')).toBe('idle');
 	});
 });
+
+describe('ActivityProbe.suppress (attach grace)', () => {
+	it('absorbs changes during the grace window so attach redraws are not working', async () => {
+		let captured = 'prompt>\n';
+		const probe = new ActivityProbe({
+			idleMs: 10_000,
+			execTmux: async (args: string[]) => {
+				const key = args.join(' ');
+				if (key === 'list-panes -a -F #{session_name}\t#{window_index}.#{pane_index}') {
+					return 'cell\t0.0\n';
+				}
+				if (key === 'capture-pane -p -e -t cell:0.0') return captured;
+				throw new Error('unexpected: ' + key);
+			},
+		});
+		await probe.scan(1_000); // baseline
+		probe.suppress('cell', 10_000, 2_000); // attach triggers a grace window
+		captured = 'prompt>\nredrawn by resize\n'; // the resize redraw flash
+		const during = await probe.scan(3_000);
+		expect(during.get('cell')).toBe('idle'); // absorbed, not working
+		captured = 'prompt>\nredrawn by resize\nreal agent output\n'; // real change after grace
+		const after = await probe.scan(20_000);
+		expect(after.get('cell')).toBe('working');
+	});
+
+	it('suppress extends (never shortens) an existing window and expires', async () => {
+		let captured = 'a\n';
+		const probe = new ActivityProbe({
+			idleMs: 10_000,
+			execTmux: async (args: string[]) => {
+				const key = args.join(' ');
+				if (key === 'list-panes -a -F #{session_name}\t#{window_index}.#{pane_index}') {
+					return 'cell\t0.0\n';
+				}
+				if (key === 'capture-pane -p -e -t cell:0.0') return captured;
+				throw new Error('unexpected: ' + key);
+			},
+		});
+		await probe.scan(1_000);
+		probe.suppress('cell', 5_000, 2_000);
+		probe.suppress('cell', 3_000, 4_000); // would end at 7k; must stay until 7k
+		captured = 'b\n';
+		const during = await probe.scan(6_000);
+		expect(during.get('cell')).toBe('idle'); // still inside extended window
+		captured = 'c\n'; // real change after the window expired
+		const after = await probe.scan(8_000);
+		expect(after.get('cell')).toBe('working'); // window expired, change counts
+	});
+});

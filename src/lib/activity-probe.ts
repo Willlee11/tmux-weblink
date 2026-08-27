@@ -20,6 +20,7 @@ import { tmuxEnv } from './tmux-env.js';
 
 export const DEFAULT_ACTIVITY_IDLE_MS = 10_000;
 export const DEFAULT_ACTIVITY_SCAN_MS = 2_000;
+export const DEFAULT_ACTIVITY_ATTACH_GRACE_MS = 5_000;
 
 export type ActivityState = 'working' | 'idle';
 
@@ -54,16 +55,32 @@ interface PaneRef {
 export class ActivityProbe {
 	readonly idleMs: number;
 	readonly scanMs: number;
+	readonly attachGraceMs: number;
 	private readonly execTmux: (args: string[]) => Promise<string>;
 	private hashes = new Map<string, string>(); // pane target -> screen content
 	private lastActivity = new Map<string, number>(); // session -> last change ts
+	private suppressedUntil = new Map<string, number>(); // session -> silence end ts
 
 	constructor(opts: ActivityProbeOptions = {}) {
 		const idleMsEnv = parseInt(process.env.TMUX_WEB_ACTIVITY_IDLE_MS || String(DEFAULT_ACTIVITY_IDLE_MS), 10);
 		this.idleMs = opts.idleMs ?? (idleMsEnv || DEFAULT_ACTIVITY_IDLE_MS);
 		const scanMsEnv = parseInt(process.env.TMUX_WEB_ACTIVITY_SCAN_MS || String(DEFAULT_ACTIVITY_SCAN_MS), 10);
 		this.scanMs = opts.scanMs ?? (scanMsEnv || DEFAULT_ACTIVITY_SCAN_MS);
+		const graceEnv = parseInt(process.env.TMUX_WEB_ACTIVITY_ATTACH_GRACE_MS || String(DEFAULT_ACTIVITY_ATTACH_GRACE_MS), 10);
+		this.attachGraceMs = Number.isFinite(graceEnv) && graceEnv >= 0 ? graceEnv : DEFAULT_ACTIVITY_ATTACH_GRACE_MS;
 		this.execTmux = opts.execTmux ?? defaultExecTmux;
+	}
+
+	/**
+	 * Silence activity for a session for the next `ms` (default: attach grace).
+	 * Used right before attaching a terminal: the resize redraws that follow
+	 * must not count as "working" — they are absorbed into the scan baseline,
+	 * so once the grace expires the session stays idle unless something really
+	 * changed afterwards. Repeated calls extend (never shorten) the window.
+	 */
+	suppress(session: string, ms = this.attachGraceMs, now = Date.now()): void {
+		const prev = this.suppressedUntil.get(session) ?? 0;
+		this.suppressedUntil.set(session, Math.max(prev, now + ms));
 	}
 
 	/** One full scan round. Returns the current state for every known session. */
@@ -80,9 +97,19 @@ export class ActivityProbe {
 			}
 			const prev = this.hashes.get(p.target);
 			if (prev !== undefined && content !== prev) {
-				this.lastActivity.set(p.session, now);
+				// Changes inside the attach grace period (resize redraw flashes)
+				// are absorbed into the baseline instead of marking activity.
+				const until = this.suppressedUntil.get(p.session) ?? 0;
+				if (now >= until) {
+					this.lastActivity.set(p.session, now);
+				}
 			}
 			this.hashes.set(p.target, content);
+		}
+		// Drop expired suppression windows (cheap cleanup; the per-scan check
+		// above is the authority).
+		for (const [s, until] of this.suppressedUntil) {
+			if (now >= until) this.suppressedUntil.delete(s);
 		}
 		// Forget panes that disappeared (session killed).
 		for (const target of this.hashes.keys()) {
