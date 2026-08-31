@@ -414,7 +414,12 @@ export function initTerminal(
 		const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
 		const wsBase = cfg.wsBase || '/ws';
 		const wsUrl = proto + '//' + location.host + wsBase + '/' + encodeURIComponent(sessionName);
-		const uploadUrl = '/api/session/' + encodeURIComponent(sessionName) + '/upload';
+		// HTTP API base mirrors the ws base minus its /ws prefix, so agent pages
+		// (/ws/a/<id>) upload through the tunnel (/a/<id>/api/...) and the image
+		// lands on the agent's own machine, where the path entered into the
+		// terminal is actually valid.
+		const apiBase = wsBase.replace(/^\/ws/, '') || '';
+		const uploadUrl = apiBase + '/api/session/' + encodeURIComponent(sessionName) + '/upload';
 		const isSafari = /^((?!chrome|android|crios|fxios|edgios).)*safari/i.test(navigator.userAgent);
 
 		function fullLoadedText(): string {

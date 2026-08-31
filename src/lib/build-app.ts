@@ -810,6 +810,27 @@ self.addEventListener("fetch", (e) => {
 		}
 	});
 
+	// Paste-an-image support: the browser uploads the clipboard image and the
+	// terminal receives the saved path as typed input (tmux has no inline-image
+	// protocol, so pasting an image = pasting its path, ready for cat/vim).
+	app.post('/api/session/:name/upload', requireAuth(), async (c) => {
+		try {
+			const body = await c.req.parseBody();
+			const file = body.file;
+			if (!(file instanceof File)) {
+				return c.json({ error: 'expected a file field named "file"' }, 400);
+			}
+			const buf = Buffer.from(await file.arrayBuffer());
+			const { path } = await saveUploadedImage(buf, file.type, file.name);
+			return c.json({ path });
+		} catch (err) {
+			if (err instanceof ImageUploadError) {
+				return c.json({ error: err.message }, err.status);
+			}
+			return c.json({ error: 'upload failed' }, 500);
+		}
+	});
+
 	app.get('/api/fs/session-path', requireAuth(), (c) => {
 		const session = c.req.query('session');
 		if (!session) return c.json({ path: process.env.HOME ?? '/' });
