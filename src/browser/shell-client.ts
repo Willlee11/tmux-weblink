@@ -54,7 +54,22 @@ const settingsPopover = document.getElementById('settings-popover')!;
 
 const sidebar = document.querySelector('.sidebar')!;
 
+// ── Force-narrow layout toggle (settings popover) ──
+const FORCE_NARROW_KEY = 'tmux-web-force-narrow';
+
+function forceNarrowEnabled(): boolean {
+	try { return localStorage.getItem(FORCE_NARROW_KEY) === '1'; } catch { return false; }
+}
+
+function applyForceNarrow(): void {
+	document.documentElement.classList.toggle('force-narrow', forceNarrowEnabled());
+	// If forced narrow, collapse the sidebar so the terminal gets full width,
+	// like attach does on real narrow screens.
+	if (forceNarrowEnabled() && isNarrow()) collapseSidebar();
+}
+
 function isNarrow(): boolean {
+	if (forceNarrowEnabled()) return true;
 	return window.matchMedia('(max-width: 640px)').matches;
 }
 
@@ -997,6 +1012,21 @@ feNewBtn.addEventListener('click', async () => {
 });
 
 // ── Settings popover ──
+
+const forceNarrowToggle = document.getElementById('force-narrow-toggle') as HTMLInputElement | null;
+if (forceNarrowToggle) {
+	forceNarrowToggle.checked = forceNarrowEnabled();
+	forceNarrowToggle.addEventListener('change', () => {
+		try {
+			localStorage.setItem(FORCE_NARROW_KEY, forceNarrowToggle.checked ? '1' : '0');
+		} catch {}
+		applyForceNarrow();
+		// Re-render so grouped headers / session rows follow the new layout.
+		renderSessionList();
+	});
+}
+
+applyForceNarrow();
 
 document.getElementById('mode-settings')!.addEventListener('click', () => {
 	const open = settingsPopover.classList.toggle('open');

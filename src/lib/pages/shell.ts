@@ -477,6 +477,12 @@ export function renderShell(cfg: ShellConfig): string {
     padding: 8px;
   }
   .settings-popover.open { display: block; }
+  .force-narrow-row {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    padding: 10px 12px; cursor: pointer; font-size: var(--text-sm); color: var(--page-fg);
+  }
+  .force-narrow-row:hover { background: color-mix(in srgb, var(--panel-accent) 8%, transparent); }
+  .force-narrow-row input { width: 16px; height: 16px; accent-color: var(--panel-accent); cursor: pointer; }
   .settings-item {
     display: flex; align-items: center; justify-content: space-between;
     padding: 10px 12px; border-radius: 8px;
@@ -654,6 +660,17 @@ export function renderShell(cfg: ShellConfig): string {
     .mobile-keys .mk-buttons { display: none; }
     .mobile-keys.mk-focused .mk-buttons { display: flex; flex-wrap: wrap; gap: 4px; }
   }
+
+  /* Forced narrow layout (settings toggle): same rules as the 640px
+     breakpoint, applied unconditionally when the html has .force-narrow. */
+  html.force-narrow .app-layout { flex-direction: column; }
+  html.force-narrow .sidebar { flex: 0 0 auto; border-right: none; border-bottom: 1px solid var(--panel-border); transition: max-height 0.2s; }
+  html.force-narrow .sidebar.collapsed .sidebar-content { display: none; }
+  html.force-narrow .sidebar.collapsed .sidebar-footer { display: none; }
+  html.force-narrow .sidebar.collapsed { max-height: 48px; overflow: hidden; }
+  html.force-narrow .mobile-keys { display: flex; }
+  html.force-narrow .mobile-keys .mk-buttons { display: none; }
+  html.force-narrow .mobile-keys.mk-focused .mk-buttons { display: flex; flex-wrap: wrap; gap: 4px; }
   `;
 
 	const terminalThemeJson = JSON.stringify(theme.terminal).replace(/</g, '\\u003c');
@@ -781,6 +798,10 @@ export function renderShell(cfg: ShellConfig): string {
     <button class="theme-option" data-theme="warm-clay" title="Warm Clay"><span class="theme-dot" style="background:#b86b52"></span>Warm Clay${theme.template === 'warm-clay' ? '<span class="theme-check">✓</span>' : ''}</button>
     <button class="theme-option" data-theme="dark-cove" title="Dark Cove"><span class="theme-dot" style="background:#7aa2f7"></span>Dark Cove${theme.template === 'dark-cove' ? '<span class="theme-check">✓</span>' : ''}</button>
   </div>
+  <label class="force-narrow-row" title="窄屏时侧边栏折叠为顶栏、终端占满、底部显示虚拟键盘工具栏（仅影响本浏览器）">
+    <span>强制窄屏（移动布局）</span>
+    <input type="checkbox" id="force-narrow-toggle" />
+  </label>
   <hr class="settings-divider" />
   <a href="/settings" class="settings-item" id="set-settings-link" style="cursor:pointer;color:inherit;text-decoration:none">
     <span>Settings</span>
