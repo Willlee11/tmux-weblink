@@ -14,7 +14,7 @@ import { attachTerminal, type AttachedTerminal } from './attach-terminal.js';
 import { encodeBinaryFrame, decodeBinaryFrame, BIN_KIND_HTTP_BODY, type HubToAgent } from './agent-channel.js';
 import { ActivityProbe } from './activity-probe.js';
 import { sessionWorkingPath } from './sessions-sidebar.js';
-import { newTmuxSession } from './tmux-windows.js';
+import { newTmuxSession, renameSession, killSession } from './tmux-windows.js';
 import type { TerminalBufferConfig } from './terminal-config.js';
 
 export type SessionInfo = { name: string; windows: number; attached: boolean; path?: string };
@@ -246,6 +246,36 @@ export function startAgentClient(opts: AgentClientOptions): AgentClientHandle {
 		sendSessions();
 	}
 
+	function handleKillSession(session: string): void {
+		let ok = false;
+		let message = '';
+		try {
+			killSession(session);
+			ok = true;
+		} catch (err: unknown) {
+			message = err instanceof Error ? err.message : 'kill failed';
+		}
+		if (ws && ws.readyState === WebSocket.OPEN) {
+			ws.send(JSON.stringify({ type: 'kill_session_result', session, ok, message }));
+		}
+		sendSessions();
+	}
+
+	function handleRenameSession(oldName: string, newName: string): void {
+		let ok = false;
+		let message = '';
+		try {
+			renameSession(oldName, newName);
+			ok = true;
+		} catch (err: unknown) {
+			message = err instanceof Error ? err.message : 'rename failed';
+		}
+		if (ws && ws.readyState === WebSocket.OPEN) {
+			ws.send(JSON.stringify({ type: 'rename_session_result', session: newName, ok, message }));
+		}
+		sendSessions();
+	}
+
 	function handleAttach(msg: Extract<HubToAgent, { type: 'attach' }>): void {
 		const session = msg.session;
 		let hasSession = false;
@@ -348,6 +378,14 @@ export function startAgentClient(opts: AgentClientOptions): AgentClientHandle {
 
 			case 'rebuild_session':
 				handleRebuildSession(msg.session, msg.dir);
+				break;
+
+			case 'rename_session':
+				handleRenameSession(msg.oldName, msg.newName);
+				break;
+
+			case 'kill_session':
+				handleKillSession(msg.session);
 				break;
 
 			case 'ws_to_agent': {

@@ -109,6 +109,16 @@ export class AgentChannel {
 		return this.send({ type: 'rebuild_session', session, dir });
 	}
 
+	/** Ask the agent machine to rename a live tmux session. */
+	renameSession(oldName: string, newName: string): boolean {
+		return this.send({ type: 'rename_session', oldName, newName });
+	}
+
+	/** Ask the agent machine to kill a live tmux session. */
+	killSession(session: string): boolean {
+		return this.send({ type: 'kill_session', session });
+	}
+
 	/** Tunnel an HTTP request to the agent. `path` must already be prefix-stripped. */
 	async httpRequest(
 		method: string,

@@ -202,13 +202,19 @@ function makeAgentSessionItem(s: { name: string; attached?: boolean }, agentId: 
 	el.setAttribute('data-session', s.name);
 	el.setAttribute('data-agent', agentId);
 	el.innerHTML = `<svg viewBox="0 0 24 24" fill="currentColor"><path d="${s.attached ? 'M19 4H5a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2zm0 14H5V6h14v12z' : 'M4 6h16v2H4V6zm0 5h16v2H4v-2zm0 5h16v2H4v-2z'}"></svg>
-			<span>${escHtml(s.name)}</span>${online ? '' : '<span class="meta">offline</span>'}`;
+			<span>${escHtml(s.name)}</span>${online ? '' : '<span class="meta">offline</span>'}
+			<button class="session-edit-btn" data-session="${escHtml(s.name)}" title="Edit session"><svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 000-1.41l-2.34-2.34a1 1 0 00-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg></button>`;
 	if (online) {
 		el.addEventListener('click', (e) => {
 			if ((e.target as HTMLElement).closest('.session-edit-btn')) return;
 			openSession(s.name, agentId);
 		});
 	}
+	const editBtn = el.querySelector('.session-edit-btn');
+	if (editBtn) editBtn.addEventListener('click', (e) => {
+		e.stopPropagation();
+		showSessionPopover(s.name, editBtn as HTMLElement, { agentId });
+	});
 	return el;
 }
 
@@ -1030,7 +1036,13 @@ document.body.appendChild(spPopover);
 
 function positionPopover(anchorEl: HTMLElement) {
 	const rect = anchorEl.getBoundingClientRect();
-	spPopover.style.top = (rect.bottom + 4) + 'px';
+	const vh = window.innerHeight;
+	const ph = spPopover.offsetHeight || 240;
+	// Prefer below the anchor; flip above when it would overflow the viewport
+	// bottom (rows near the bottom of a long session list).
+	let top = rect.bottom + 4;
+	if (top + ph > vh - 8) top = Math.max(8, rect.top - ph - 4);
+	spPopover.style.top = top + 'px';
 	spPopover.style.left = Math.max(8, Math.min(rect.left, window.innerWidth - 240)) + 'px';
 }
 
@@ -1067,7 +1079,7 @@ document.getElementById('sp-save')!.addEventListener('click', async () => {
 	try {
 		const body = spTombstone
 			? { oldName: spSessionName, newName, agentId: spAgentId }
-			: { oldName: spSessionName, newName };
+			: { oldName: spSessionName, newName, ...(spAgentId ? { agentId: spAgentId } : {}) };
 		const res = await fetch(apiPath(spTombstone ? '/api/sessions/rename-tombstone' : '/api/sessions/rename'), {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
@@ -1076,7 +1088,7 @@ document.getElementById('sp-save')!.addEventListener('click', async () => {
 		if (!res.ok) return;
 		closeSessionPopover();
 		renderSessionList();
-		if (!spTombstone && currentSession === spSessionName) openSession(newName);
+		if (!spTombstone && currentSession === spSessionName && (spAgentId ?? null) === currentAgentId) openSession(newName, spAgentId);
 	} catch {}
 });
 
@@ -1118,11 +1130,11 @@ document.getElementById('sp-delete')!.addEventListener('click', async () => {
 		const res = await fetch(apiPath('/api/sessions/kill'), {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({ name: spSessionName }),
+			body: JSON.stringify({ name: spSessionName, ...(spAgentId ? { agentId: spAgentId } : {}) }),
 		});
 		if (!res.ok) return;
 		closeSessionPopover();
-		if (currentSession === spSessionName) {
+		if (currentSession === spSessionName && (spAgentId ?? null) === currentAgentId) {
 			if (currentTerminal) { currentTerminal.destroy(); currentTerminal = null; }
 			currentSession = null;
 			terminalContainer.style.display = 'none';

@@ -716,9 +716,20 @@ self.addEventListener("fetch", (e) => {
 
 	app.post('/api/sessions/rename', requireAuth(), async (c) => {
 		try {
-			const { oldName, newName } = await c.req.json();
+			const body = await c.req.json();
+			const { oldName, newName } = body;
+			const agentId = typeof body.agentId === 'string' ? body.agentId : undefined;
 			if (!oldName || !newName) return c.json({ error: 'oldName and newName required' }, 400);
 			if (!/^[a-zA-Z0-9_\-. ]+$/.test(newName)) return c.json({ error: 'invalid characters in name' }, 400);
+			if (agentId) {
+				if (!hub) return c.json({ error: 'not a hub' }, 400);
+				const channel = hub.getChannel(agentId);
+				if (!channel || !channel.renameSession(oldName, newName)) {
+					return c.json({ error: 'agent offline' }, 409);
+				}
+				void renameSessionState(oldName, newName, agentId);
+				return c.json({ ok: true, async: true });
+			}
 			renameSession(oldName, newName);
 			void renameSessionState(oldName, newName);
 			return c.json({ ok: true });
@@ -727,8 +738,19 @@ self.addEventListener("fetch", (e) => {
 
 	app.post('/api/sessions/kill', requireAuth(), async (c) => {
 		try {
-			const { name } = await c.req.json();
+			const body = await c.req.json();
+			const { name } = body;
+			const agentId = typeof body.agentId === 'string' ? body.agentId : undefined;
 			if (!name) return c.json({ error: 'name required' }, 400);
+			if (agentId) {
+				if (!hub) return c.json({ error: 'not a hub' }, 400);
+				const channel = hub.getChannel(agentId);
+				if (!channel || !channel.killSession(name)) {
+					return c.json({ error: 'agent offline' }, 409);
+				}
+				void removeSessionState(name, agentId);
+				return c.json({ ok: true, async: true });
+			}
 			killSession(name);
 			void removeSessionState(name);
 			return c.json({ ok: true });
