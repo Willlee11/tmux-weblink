@@ -3,6 +3,18 @@ import { existsSync, readdirSync, statSync } from "node:fs";
 
 export const MAX_FILE_BYTES = 1_048_576;
 
+/**
+ * Compare two full paths for directory listings: hidden entries (whose
+ * basename starts with '.') sort after regular entries, each group in
+ * locale order. Keeps .claude / .config / .git reachable yet out of the way.
+ */
+export function fsEntryCmp(a: string, b: string): number {
+	const aHidden = path.basename(a).startsWith('.');
+	const bHidden = path.basename(b).startsWith('.');
+	if (aHidden !== bHidden) return aHidden ? 1 : -1;
+	return a.localeCompare(b);
+}
+
 export function resolveFsRoots(): string[] {
 	const raw = process.env.TMUX_WEB_FS_ROOTS;
 	if (!raw) return [];

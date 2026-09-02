@@ -15,7 +15,7 @@ import type { TmuxWebSecurityConfig } from './security-config.js';
 import { hashPassword, verifyPassword, validatePassword, type TokenStore, type StoredToken } from './auth.js';
 import type { RateLimiter } from './rateLimiter.js';
 import { atomicWriteFileSync } from './atomicWrite.js';
-import { resolveFsPath, resolveFsRoots, MAX_FILE_BYTES, walkRecursive } from './fs-access.js';
+import { resolveFsPath, resolveFsRoots, MAX_FILE_BYTES, walkRecursive, fsEntryCmp } from './fs-access.js';
 import { captureSessionWindowsWithPath } from './tmux-windows.js';
 import { audit } from './auditLog.js';
 import { db } from './db.js';
@@ -870,7 +870,6 @@ self.addEventListener("fetch", (e) => {
 			const dirs: string[] = [];
 			const files: string[] = [];
 			for (const entry of entries) {
-				if (entry.startsWith('.')) continue;
 				if (prefix && !entry.toLowerCase().startsWith(prefix)) continue;
 				try {
 					const full = path.join(dirPath, entry);
@@ -885,6 +884,10 @@ self.addEventListener("fetch", (e) => {
 				} catch {}
 				if (dirs.length + files.length >= 5000) break;
 			}
+			// Hidden entries (.claude, .config, ...) are included but sorted
+			// after regular entries so browsing stays readable.
+			dirs.sort(fsEntryCmp);
+			files.sort(fsEntryCmp);
 			return c.json({ dirs, files });
 		} catch {
 			return c.json({ dirs: [], files: [] });

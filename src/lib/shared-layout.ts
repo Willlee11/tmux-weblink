@@ -583,7 +583,12 @@ export function newSessionModalScript(onCreatedExpr?: string): string {
     try {
       const res = await fetch(selectedBase() + '/api/fs/list?path=' + encodeURIComponent(path));
       const data = await res.json();
-      const dirs = (data.dirs || []).filter(d => d !== path).sort((a, b) => a.localeCompare(b));
+      const dirs = (data.dirs || []).filter(d => d !== path).sort((a, b) => {
+        const ah = a.split('/').filter(Boolean).pop().startsWith('.');
+        const bh = b.split('/').filter(Boolean).pop().startsWith('.');
+        if (ah !== bh) return ah ? 1 : -1;
+        return a.localeCompare(b);
+      });
       treeCache[path] = dirs;
       return dirs;
     } catch { treeCache[path] = []; return []; }
