@@ -293,6 +293,13 @@ function renderSidebarPayload(data: { recent?: { name: string; attached?: boolea
 				el.innerHTML = `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M4 6h16v2H4V6zm0 5h16v2H4v-2zm0 5h16v2H4v-2z"></svg>
 				<span>${escHtml(t.name)}</span><span class="meta">失效${where}</span>
 				<button class="session-edit-btn" data-session="${escHtml(t.name)}" title="恢复会话"><svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 000-1.41l-2.34-2.34a1 1 0 00-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg></button>`;
+				// Clicking the row itself opens the action panel too (rebuild /
+				// rename / delete) — a dead session row does nothing else, so an
+				// invisible pencil-only affordance made tombstones seem undeletable.
+				el.title = '失效会话：点击管理（重建/重命名/删除）';
+				el.addEventListener('click', () => {
+					showSessionPopover(t.name, el, { tombstone: true, agentId: t.agentId });
+				});
 				const editBtn = el.querySelector('.session-edit-btn');
 				if (editBtn) editBtn.addEventListener('click', (e) => {
 					e.stopPropagation();
