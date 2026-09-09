@@ -49,7 +49,7 @@ The first visit shows a **"Set your password"** page (min 8 characters). The pas
 - **Sidebar (Sessions mode, default)**:
   - **`+ New Session`** button on top — create a new tmux session
   - Session list **grouped by working directory** (folder-name headers, click to collapse). Sessions from the same project stack together.
-  - Each session has a colored dot: **green = idle, amber = working** (automatic activity probing, no config — a Herder-style terminal-management experience, now in the cloud!)
+  - Each session has a colored dot: **green = idle, amber = working** (automatic activity probing, no config — a herdr-style terminal-management experience, now in the cloud!)
   - Sessions killed inside tmux move to a greyed-out **"失效会话 / dead sessions"** group (see §8)
 - **Three mode buttons at the bottom**: `Sessions` / `Files` / `Settings`
 - **Main area**: placeholder until you open a session, then the full terminal
