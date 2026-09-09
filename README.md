@@ -2,6 +2,11 @@
 
 **English** | [中文](README.zh-CN.md)
 
+**The best remote vibe-coding setup out there!**
+Pick it and you can code remotely from any environment with a browser: unified management across devices and sessions, with Claude Code / Pi and other CLIs — **as long as your coding agent can run in tmux, it all goes to the cloud!**
+With a public IP, enjoy buttery-smooth cloud coding!
+**Mobile-optimized — small screens are no longer a problem!**
+
 Access your tmux sessions from the browser. A lightweight web server that lists running tmux sessions and lets you attach through a full terminal in your browser — with built-in notes, a file browser, and a touch-friendly UI for both mobile and desktop.
 
 ## Features
@@ -39,13 +44,17 @@ The first visit shows a **"Set your password"** page (min 8 characters). The pas
 
 ## 3. Layout tour
 
+<img width="1905" height="947" alt="image" src="https://github.com/user-attachments/assets/0a284f16-0e3c-4a44-8130-3accb582bfcb" />
+
 - **Sidebar (Sessions mode, default)**:
   - **`+ New Session`** button on top — create a new tmux session
   - Session list **grouped by working directory** (folder-name headers, click to collapse). Sessions from the same project stack together.
-  - Each session has a colored dot: **green = idle, amber = working** (automatic activity probing, no config)
+  - Each session has a colored dot: **green = idle, amber = working** (automatic activity probing, no config — a Herder-style terminal-management experience, now in the cloud!)
   - Sessions killed inside tmux move to a greyed-out **"失效会话 / dead sessions"** group (see §8)
 - **Three mode buttons at the bottom**: `Sessions` / `Files` / `Settings`
 - **Main area**: placeholder until you open a session, then the full terminal
+<img width="901" height="947" alt="image" src="https://github.com/user-attachments/assets/474621c6-8c87-4436-807b-6f5b4faf3c60" />
+
 
 ## 4. Opening a session & day-to-day operations
 
@@ -75,6 +84,8 @@ The terminal is split in two zones — the **left 40% is a paging zone** (split 
   - tap/swipe **bottom half** = page down (PgDn)
   - A translucent ↑/↓ hint appears; no soft keyboard pops up — tap the terminal body when you want to type
 - **Right 60%**: drag up/down to **scroll terminal history** with inertia, like a normal mobile page
+<img width="620" height="648" alt="image" src="https://github.com/user-attachments/assets/2b1245f0-4e81-4234-8d88-822fc689651d" />
+
 
 ### Virtual-key toolbar (mobile)
 
@@ -100,11 +111,7 @@ Click **`+ New Session`** in the sidebar:
 
 > Leave the directory empty to start in `$HOME` and `cd` later — the tree is a convenience, not a requirement.
 
-## 6. Notes & Files
-
-### Notes (per-session scratchpad)
-
-Click the **notepad icon** in the session header to open that session's Markdown pad; it **auto-saves as you type** into `~/.tmux-web/db.json`. Re-open the session later and the note is still there. For a bigger surface / export use `/notes/<session>` or the global note at `/notes/__global__`.
+## 6. Files
 
 ### Files (browse/edit + git)
 
