@@ -141,6 +141,15 @@ class XtermAdapter implements TerminalAdapter {
 	private readonly terminal: XTerminalType;
 	private readonly fitAddon: FitAddonType;
 	private readonly container: HTMLElement;
+	/** Pending post-paint verification frame + how many rounds it has run. */
+	private verifyRaf = 0;
+	private verifyRounds = 0;
+	/** Columns currently given up so that the painted content fits (0 = none). */
+	private shrinkCols = 0;
+	/** Container right limit used by the background verification. */
+	private lastLimit = 0;
+	/** Throttle so content-driven checks cannot force a layout every frame. */
+	private lastCheckAt = 0;
 
 	private constructor(container: HTMLElement, terminal: XTerminalType, fitAddon: FitAddonType) {
 		this.container = container;
@@ -172,8 +181,13 @@ class XtermAdapter implements TerminalAdapter {
 	get cols(): number { return this.terminal.cols; }
 	get rows(): number { return this.terminal.rows; }
 	write(data: string): Promise<void> {
-			return new Promise((resolve) => this.terminal.write(data, resolve));
-		}
+		return new Promise((resolve) => this.terminal.write(data, () => {
+			// Newly painted lines can be wider than everything on screen before
+			// (a long CJK line, for instance), so re-verify after content lands.
+			if (this.lastLimit > 0) this.scheduleColumnCheck(this.lastLimit);
+			resolve();
+		}));
+	}
 	reset(): void { this.terminal.reset(); }
 	scrollToBottom(): void { this.terminal.scrollToBottom(); }
 	scrollToLine(line: number, now = false): void { (this.terminal as any).scrollToLine(Math.max(0, line), now); }
@@ -187,21 +201,12 @@ class XtermAdapter implements TerminalAdapter {
 	fit(): boolean {
 		const rect = getTerminalViewportRect(this.container);
 		if (rect.width <= 0 || rect.height <= 0) return false;
-		// Measure the real scrollbar width instead of trusting the fit addon's
-		// hardcoded 15px guess: overlay scrollbars take 0px, while Windows
-		// standard scrollbars can be 17px+ (more under DPI scaling). Guessing
-		// too low leaves the rightmost column clipped; guessing too high wastes
-		// a column of space.
-		const t = this.terminal as any;
-		const dims = t._core?._renderService?.dimensions?.css?.cell as
-			| { width: number; height: number }
-			| undefined;
-		if (!dims?.width || !dims?.height) {
-			this.fitAddon.fit();
-			return true;
-		}
-		const cellW = dims.width;
-		const cellH = dims.height;
+		// Let xterm's own fit addon pick the baseline size, then correct it against
+		// what is actually painted (see scheduleColumnCheck). Measuring the
+		// rendered result is the only approach that holds up against CJK fallback
+		// fonts, fractional DPR and xterm's overlay scrollbar - none of which any
+		// static metric can predict.
+		this.fitAddon.fit();
 		const viewport = this.terminal.element?.querySelector('.xterm-viewport') as HTMLElement | null | undefined;
 		const nativeSbWidth = viewport ? Math.max(0, viewport.offsetWidth - viewport.clientWidth) : 0;
 		// xterm 6 draws its scrollbar as an absolute overlay (vertical slider,
@@ -210,18 +215,97 @@ class XtermAdapter implements TerminalAdapter {
 		// column whenever it fades in. Reserve its real width too.
 		const overlayBar = this.terminal.element?.querySelector('.vertical.scrollbar') as HTMLElement | null | undefined;
 		const overlaySbWidth = overlayBar ? Math.max(0, Math.round(overlayBar.getBoundingClientRect().width)) : 0;
-		const sbWidth = nativeSbWidth + overlaySbWidth;
-		// Keep half a cell of slack: the browser rounds cell placement to
-		// device pixels (especially at DPR 2/3), so a cols that exactly fits
-		// in CSS pixels can still push the last column past the container edge
-		// and clip half a glyph. Losing a column in the rare borderline case
-		// beats clipping the rightmost column.
-		const cols = Math.max(2, Math.floor((rect.width - sbWidth - cellW / 2) / cellW));
-		const rows = Math.max(2, Math.floor(rect.height / cellH));
-		if (cols !== this.terminal.cols || rows !== this.terminal.rows) {
-			this.terminal.resize(cols, rows);
+		const limit = this.container.getBoundingClientRect().left + rect.width - nativeSbWidth - overlaySbWidth - 1;
+		this.lastLimit = limit;
+		// Re-apply the correction found by earlier passes, otherwise every fit
+		// would inflate back to the measured cell width and fight the correction.
+		if (this.shrinkCols > 0) {
+			const cols = Math.max(10, this.terminal.cols - this.shrinkCols);
+			if (cols !== this.terminal.cols) this.terminal.resize(cols, this.terminal.rows);
 		}
+		this.verifyRounds = 0;
+		this.scheduleColumnCheck(limit, true);
 		return true;
+	}
+	/**
+	 * Column count needs a second opinion from what is actually painted.
+	 *
+	 * xterm's DOM renderer lays glyphs out at the font's real advance width,
+	 * which on some systems (CJK fallback fonts, fractional device scaling,
+	 * mixed families) is wider than the cell width it measured. Long lines then
+	 * grow past the canvas and the rightmost cells end up clipped behind the
+	 * scrollbar, which no option can predict. So verify against the render.
+	 *
+	 * xterm repaints its DOM on the next frame, so each round waits for one
+	 * before measuring; a round that shrinks schedules the next one until the
+	 * content really fits.
+	 */
+	private scheduleColumnCheck(limit: number, force = false): void {
+		this.lastLimit = limit;
+		// Never restart a pending frame: fit() is called several times per resize
+		// (sync + rAF + timer), and restarting would starve the correction.
+		if (this.verifyRaf) return;
+		// Measuring forces a layout, so content-driven checks stay throttled;
+		// an explicit fit (resize, font load) always goes through.
+		const now = Date.now();
+		if (!force && now - this.lastCheckAt < 250) return;
+		this.lastCheckAt = now;
+		this.verifyRaf = requestAnimationFrame(() => {
+			this.verifyRaf = 0;
+			try {
+				if (this.recheckColumns(this.lastLimit) && this.verifyRounds < 8) {
+					this.verifyRounds++;
+					this.scheduleColumnCheck(this.lastLimit, true);
+				} else {
+					this.verifyRounds = 0;
+				}
+			} catch {
+				// Detached/destroyed terminal: nothing left to correct.
+			}
+		});
+	}
+	/** One correction pass; true when it resized and needs a re-check. */
+	private recheckColumns(limit: number): boolean {
+		const rowsEl = this.terminal.element?.querySelector('.xterm-rows') as HTMLElement | null | undefined;
+		if (!rowsEl) return false;
+		let contentRight = 0;
+		for (const row of Array.from(rowsEl.children) as HTMLElement[]) {
+			const kids = row.children;
+			for (let i = kids.length - 1; i >= 0; i--) {
+				const cell = kids[i] as HTMLElement;
+				if (!cell.textContent) continue;
+				const right = cell.getBoundingClientRect().right;
+				if (right > contentRight) contentRight = right;
+				break;
+			}
+		}
+		// Nothing painted to judge by: leave the computed size alone.
+		if (contentRight === 0) return false;
+		const cols = this.terminal.cols;
+		const screenEl = this.terminal.element?.querySelector('.xterm-screen') as HTMLElement | null | undefined;
+		const screenW = screenEl?.getBoundingClientRect().width ?? 0;
+		const colW = cols > 0 && screenW > 0 ? screenW / cols : 0;
+		if (contentRight > limit) {
+			// Spilling over: give up columns, bounded per pass so a bad measurement
+			// can never collapse the terminal in one step.
+			const over = contentRight - limit;
+			const need = colW > 0 ? Math.min(8, Math.ceil(over / colW)) : 1;
+			const next = Math.max(10, cols - Math.max(1, need));
+			if (next >= cols) return false;
+			this.shrinkCols += cols - next;
+			this.terminal.resize(next, this.terminal.rows);
+			return true;
+		}
+		// Spare room: hand columns back in one batch so a correction made for a
+		// wide line does not stick once narrower content occupies the screen.
+		if (this.shrinkCols > 0 && colW > 0 && contentRight <= limit - colW) {
+			const slack = Math.floor((limit - contentRight) / colW) - 1;
+			const give = Math.min(this.shrinkCols, Math.min(8, Math.max(1, slack)));
+			this.shrinkCols -= give;
+			this.terminal.resize(cols + give, this.terminal.rows);
+			return true;
+		}
+		return false;
 	}
 	focus(): void { this.terminal.focus(); }
 	pasteText(text: string): void { this.terminal.paste(text); }
