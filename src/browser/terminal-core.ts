@@ -203,7 +203,14 @@ class XtermAdapter implements TerminalAdapter {
 		const cellW = dims.width;
 		const cellH = dims.height;
 		const viewport = this.terminal.element?.querySelector('.xterm-viewport') as HTMLElement | null | undefined;
-		const sbWidth = viewport ? Math.max(0, viewport.offsetWidth - viewport.clientWidth) : 0;
+		const nativeSbWidth = viewport ? Math.max(0, viewport.offsetWidth - viewport.clientWidth) : 0;
+		// xterm 6 draws its scrollbar as an absolute overlay (vertical slider,
+		// ~14px) that does NOT reduce the layout width, so the native scrollbar
+		// measurement above is 0 while the bar still covers the rightmost
+		// column whenever it fades in. Reserve its real width too.
+		const overlayBar = this.terminal.element?.querySelector('.vertical.scrollbar') as HTMLElement | null | undefined;
+		const overlaySbWidth = overlayBar ? Math.max(0, Math.round(overlayBar.getBoundingClientRect().width)) : 0;
+		const sbWidth = nativeSbWidth + overlaySbWidth;
 		// Keep half a cell of slack: the browser rounds cell placement to
 		// device pixels (especially at DPR 2/3), so a cols that exactly fits
 		// in CSS pixels can still push the last column past the container edge
