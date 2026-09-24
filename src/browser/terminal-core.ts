@@ -152,6 +152,11 @@ class XtermAdapter implements TerminalAdapter {
 	private lastLimit = 0;
 	/** Throttle so content-driven checks cannot force a layout every frame. */
 	private lastCheckAt = 0;
+	/** Container width at the last fit. Corrections are re-evaluated only when the
+	 *  width really changes: on mobile the URL bar and keyboard resize the viewport
+	 *  constantly, and resetting the correction on every such event is what made
+	 *  the screen keep adjusting. */
+	private lastFitWidth = 0;
 	/** True while the WebGL renderer is active (glyphs are painted per cell). */
 	private webglActive = false;
 	private webglAddon: { dispose(): void; onContextLoss(cb: () => void): void } | null = null;
@@ -219,12 +224,7 @@ class XtermAdapter implements TerminalAdapter {
 	get cols(): number { return this.terminal.cols; }
 	get rows(): number { return this.terminal.rows; }
 	write(data: string): Promise<void> {
-		return new Promise((resolve) => this.terminal.write(data, () => {
-			// Newly painted lines can be wider than everything on screen before
-			// (a long CJK line, for instance), so re-verify after content lands.
-			if (this.lastLimit > 0) this.scheduleColumnCheck(this.lastLimit);
-			resolve();
-		}));
+		return new Promise((resolve) => this.terminal.write(data, resolve));
 	}
 	reset(): void { this.terminal.reset(); }
 	scrollToBottom(): void { this.terminal.scrollToBottom(); }
@@ -272,13 +272,18 @@ class XtermAdapter implements TerminalAdapter {
 			}
 			return true;
 		}
-		// DOM renderer: start each explicit fit from a clean slate (the window size
-		// or font changed, so the previous correction is meaningless) and verify
-		// what is painted. Corrections are never handed back automatically: doing
-		// so made the screen oscillate.
-		this.shrinkCols = 0;
-		this.verifyRounds = 0;
-		this.scheduleColumnCheck(limit, true);
+		// DOM renderer: verify the painted width once per container width, then keep
+		// that correction. Height-only changes (mobile URL bar, software keyboard)
+		// must not restart the evaluation, and nothing here reacts to content.
+		if (Math.abs(rect.width - this.lastFitWidth) > 0.5) {
+			this.lastFitWidth = rect.width;
+			this.shrinkCols = 0;
+			this.verifyRounds = 0;
+			this.scheduleColumnCheck(limit, true);
+		} else if (this.shrinkCols > 0) {
+			const cols = Math.max(10, this.terminal.cols - this.shrinkCols);
+			if (cols !== this.terminal.cols) this.terminal.resize(cols, this.terminal.rows);
+		}
 		return true;
 	}
 	/**
