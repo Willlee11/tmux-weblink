@@ -111,6 +111,8 @@ interface TerminalAdapter {
 	isNearScrollbackTop(): boolean;
 	viewportY(): number;
 	baseY(): number;
+	/** Height of one terminal row in CSS pixels (renderer independent). */
+	cellHeight(): number;
 	fit(): boolean;
 	focus(): void;
 	pasteText(text: string): void;
@@ -150,6 +152,9 @@ class XtermAdapter implements TerminalAdapter {
 	private lastLimit = 0;
 	/** Throttle so content-driven checks cannot force a layout every frame. */
 	private lastCheckAt = 0;
+	/** True while the WebGL renderer is active (glyphs are painted per cell). */
+	private webglActive = false;
+	private webglAddon: { dispose(): void; onContextLoss(cb: () => void): void } | null = null;
 
 	private constructor(container: HTMLElement, terminal: XTerminalType, fitAddon: FitAddonType) {
 		this.container = container;
@@ -157,6 +162,39 @@ class XtermAdapter implements TerminalAdapter {
 		this.fitAddon = fitAddon;
 		this.terminal.loadAddon(this.fitAddon);
 		this.terminal.open(container);
+		this.enableWebglRenderer();
+	}
+	/**
+	 * Prefer the WebGL renderer: it paints every glyph inside its cell, so a font
+	 * whose glyphs are wider than the measured cell can never push later columns
+	 * off the canvas - the failure mode the DOM renderer has and the column
+	 * verification below exists to patch. If WebGL is unavailable (no GPU, block
+	 * listed driver, context loss) the DOM renderer stays and the verification
+	 * takes over, so glyphs are never clipped either way.
+	 */
+	private enableWebglRenderer(): void {
+		void import('@xterm/addon-webgl')
+			.then(({ WebglAddon }) => {
+				const addon = new WebglAddon();
+				addon.onContextLoss(() => {
+					// Driver reset: fall back to the DOM renderer and let the column
+					// verification handle painted widths from here on.
+					this.webglActive = false;
+					this.webglAddon = null;
+					try { addon.dispose(); } catch { /* already gone */ }
+					if (this.lastLimit > 0) this.scheduleColumnCheck(this.lastLimit, true);
+				});
+				try {
+					this.terminal.loadAddon(addon);
+				} catch {
+					return; // WebGL refused to start; DOM renderer stays.
+				}
+				this.webglAddon = addon;
+				this.webglActive = true;
+				// The renderer swap changes how widths are painted, so re-fit.
+				this.fit();
+			})
+			.catch(() => { /* chunk missing / blocked: keep the DOM renderer */ });
 	}
 
 	static async create(container: HTMLElement, scrollback: number, theme: TerminalTheme): Promise<XtermAdapter> {
@@ -198,6 +236,14 @@ class XtermAdapter implements TerminalAdapter {
 	isNearScrollbackTop(): boolean { return this.terminal.buffer.active.viewportY <= 1; }
 	viewportY(): number { return this.terminal.buffer.active.viewportY; }
 	baseY(): number { return this.terminal.buffer.active.baseY; }
+	cellHeight(): number {
+		// Derived from the painted screen instead of the DOM row elements, which
+		// the WebGL renderer does not create.
+		const screenEl = this.terminal.element?.querySelector('.xterm-screen') as HTMLElement | null | undefined;
+		const h = screenEl?.getBoundingClientRect().height ?? 0;
+		const rows = this.terminal.rows;
+		return h > 0 && rows > 0 ? h / rows : 16;
+	}
 	fit(): boolean {
 		const rect = getTerminalViewportRect(this.container);
 		if (rect.width <= 0 || rect.height <= 0) return false;
@@ -217,12 +263,20 @@ class XtermAdapter implements TerminalAdapter {
 		const overlaySbWidth = overlayBar ? Math.max(0, Math.round(overlayBar.getBoundingClientRect().width)) : 0;
 		const limit = this.container.getBoundingClientRect().left + rect.width - nativeSbWidth - overlaySbWidth - 1;
 		this.lastLimit = limit;
-		// Re-apply the correction found by earlier passes, otherwise every fit
-		// would inflate back to the measured cell width and fight the correction.
-		if (this.shrinkCols > 0) {
-			const cols = Math.max(10, this.terminal.cols - this.shrinkCols);
-			if (cols !== this.terminal.cols) this.terminal.resize(cols, this.terminal.rows);
+		// The WebGL renderer paints on the grid, so the column count from the fit
+		// addon is already exact and nothing needs verifying.
+		if (this.webglActive) {
+			if (this.shrinkCols > 0) {
+				const cols = Math.max(10, this.terminal.cols - this.shrinkCols);
+				if (cols !== this.terminal.cols) this.terminal.resize(cols, this.terminal.rows);
+			}
+			return true;
 		}
+		// DOM renderer: start each explicit fit from a clean slate (the window size
+		// or font changed, so the previous correction is meaningless) and verify
+		// what is painted. Corrections are never handed back automatically: doing
+		// so made the screen oscillate.
+		this.shrinkCols = 0;
 		this.verifyRounds = 0;
 		this.scheduleColumnCheck(limit, true);
 		return true;
@@ -294,15 +348,6 @@ class XtermAdapter implements TerminalAdapter {
 			if (next >= cols) return false;
 			this.shrinkCols += cols - next;
 			this.terminal.resize(next, this.terminal.rows);
-			return true;
-		}
-		// Spare room: hand columns back in one batch so a correction made for a
-		// wide line does not stick once narrower content occupies the screen.
-		if (this.shrinkCols > 0 && colW > 0 && contentRight <= limit - colW) {
-			const slack = Math.floor((limit - contentRight) / colW) - 1;
-			const give = Math.min(this.shrinkCols, Math.min(8, Math.max(1, slack)));
-			this.shrinkCols -= give;
-			this.terminal.resize(cols + give, this.terminal.rows);
 			return true;
 		}
 		return false;
@@ -477,8 +522,7 @@ export function initTerminal(
 			// viewportY() right after would always see the old value. Use an
 			// absolute scrollToLine(…, now=true) instead, which applies
 			// synchronously, and detect top/bottom by clamping the target.
-			const rowEl = container.querySelector('.xterm-rows > div');
-			const cellH = rowEl ? rowEl.getBoundingClientRect().height : 16;
+			const cellH = term.cellHeight();
 			let rows = cellH > 0 ? Math.round((inertiaVelocity * 16) / cellH) : (inertiaVelocity > 0 ? 1 : -1);
 			if (rows === 0) rows = inertiaVelocity > 0 ? 1 : -1;
 			const before = term.viewportY();
@@ -1133,8 +1177,7 @@ export function initTerminal(
 			// Scroll via the public scrollLines() API: synthesised WheelEvents are
 			// not reliably picked up by xterm's viewport listener, whereas
 			// scrollLines always works (and clamps at the scrollback bounds).
-			const rowEl = container.querySelector('.xterm-rows > div');
-			const cellH = rowEl ? rowEl.getBoundingClientRect().height : 16;
+			const cellH = term.cellHeight();
 			let lines = cellH > 0 ? Math.round(deltaY / cellH) : (deltaY > 0 ? 1 : -1);
 			if (lines === 0) lines = deltaY > 0 ? 1 : -1;
 			term.scrollLines(lines);
