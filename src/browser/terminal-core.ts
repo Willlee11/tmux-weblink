@@ -143,20 +143,6 @@ class XtermAdapter implements TerminalAdapter {
 	private readonly terminal: XTerminalType;
 	private readonly fitAddon: FitAddonType;
 	private readonly container: HTMLElement;
-	/** Pending post-paint verification frame + how many rounds it has run. */
-	private verifyRaf = 0;
-	private verifyRounds = 0;
-	/** Columns currently given up so that the painted content fits (0 = none). */
-	private shrinkCols = 0;
-	/** Container right limit used by the background verification. */
-	private lastLimit = 0;
-	/** Throttle so content-driven checks cannot force a layout every frame. */
-	private lastCheckAt = 0;
-	/** Container width at the last fit. Corrections are re-evaluated only when the
-	 *  width really changes: on mobile the URL bar and keyboard resize the viewport
-	 *  constantly, and resetting the correction on every such event is what made
-	 *  the screen keep adjusting. */
-	private lastFitWidth = 0;
 	/** True while the WebGL renderer is active (glyphs are painted per cell). */
 	private webglActive = false;
 	private webglAddon: { dispose(): void; onContextLoss(cb: () => void): void } | null = null;
@@ -170,33 +156,35 @@ class XtermAdapter implements TerminalAdapter {
 		this.enableWebglRenderer();
 	}
 	/**
-	 * Prefer the WebGL renderer: it paints every glyph inside its cell, so a font
-	 * whose glyphs are wider than the measured cell can never push later columns
-	 * off the canvas - the failure mode the DOM renderer has and the column
-	 * verification below exists to patch. If WebGL is unavailable (no GPU, block
-	 * listed driver, context loss) the DOM renderer stays and the verification
-	 * takes over, so glyphs are never clipped either way.
+	 * Use the WebGL renderer, which paints every glyph inside its grid cell. With
+	 * it, a font whose glyphs are wider than the measured cell (CJK fallback
+	 * fonts, fractional scaling) cannot push later columns off the canvas, so the
+	 * column count from the fit addon is exact and never needs re-checking.
+	 *
+	 * If WebGL is unavailable or its context is lost, xterm falls back to the DOM
+	 * renderer on its own. Nothing else changes - there is no dynamic correction
+	 * layer to keep the screen adjusting.
 	 */
 	private enableWebglRenderer(): void {
 		void import('@xterm/addon-webgl')
 			.then(({ WebglAddon }) => {
 				const addon = new WebglAddon();
 				addon.onContextLoss(() => {
-					// Driver reset: fall back to the DOM renderer and let the column
-					// verification handle painted widths from here on.
+					// Driver reset: drop the addon so xterm repaints with its default
+					// (DOM) renderer, and re-fit for the new metrics.
 					this.webglActive = false;
 					this.webglAddon = null;
 					try { addon.dispose(); } catch { /* already gone */ }
-					if (this.lastLimit > 0) this.scheduleColumnCheck(this.lastLimit, true);
+					this.fit();
 				});
 				try {
 					this.terminal.loadAddon(addon);
 				} catch {
-					return; // WebGL refused to start; DOM renderer stays.
+					return; // WebGL refused to start; the DOM renderer stays.
 				}
 				this.webglAddon = addon;
 				this.webglActive = true;
-				// The renderer swap changes how widths are painted, so re-fit.
+				// The renderer swap changes how glyphs are painted, so re-fit.
 				this.fit();
 			})
 			.catch(() => { /* chunk missing / blocked: keep the DOM renderer */ });
@@ -247,115 +235,12 @@ class XtermAdapter implements TerminalAdapter {
 	fit(): boolean {
 		const rect = getTerminalViewportRect(this.container);
 		if (rect.width <= 0 || rect.height <= 0) return false;
-		// Let xterm's own fit addon pick the baseline size, then correct it against
-		// what is actually painted (see scheduleColumnCheck). Measuring the
-		// rendered result is the only approach that holds up against CJK fallback
-		// fonts, fractional DPR and xterm's overlay scrollbar - none of which any
-		// static metric can predict.
+		// xterm's fit addon derives the grid from the measured cell size and
+		// reserves the scrollbar. With the WebGL renderer (the default here)
+		// glyphs are painted per cell, so that grid is exact and nothing has to be
+		// re-measured or corrected afterwards.
 		this.fitAddon.fit();
-		const viewport = this.terminal.element?.querySelector('.xterm-viewport') as HTMLElement | null | undefined;
-		const nativeSbWidth = viewport ? Math.max(0, viewport.offsetWidth - viewport.clientWidth) : 0;
-		// xterm 6 draws its scrollbar as an absolute overlay (vertical slider,
-		// ~14px) that does NOT reduce the layout width, so the native scrollbar
-		// measurement above is 0 while the bar still covers the rightmost
-		// column whenever it fades in. Reserve its real width too.
-		const overlayBar = this.terminal.element?.querySelector('.vertical.scrollbar') as HTMLElement | null | undefined;
-		const overlaySbWidth = overlayBar ? Math.max(0, Math.round(overlayBar.getBoundingClientRect().width)) : 0;
-		const limit = this.container.getBoundingClientRect().left + rect.width - nativeSbWidth - overlaySbWidth - 1;
-		this.lastLimit = limit;
-		// The WebGL renderer paints on the grid, so the column count from the fit
-		// addon is already exact and nothing needs verifying.
-		if (this.webglActive) {
-			if (this.shrinkCols > 0) {
-				const cols = Math.max(10, this.terminal.cols - this.shrinkCols);
-				if (cols !== this.terminal.cols) this.terminal.resize(cols, this.terminal.rows);
-			}
-			return true;
-		}
-		// DOM renderer: verify the painted width once per container width, then keep
-		// that correction. Height-only changes (mobile URL bar, software keyboard)
-		// must not restart the evaluation, and nothing here reacts to content.
-		if (Math.abs(rect.width - this.lastFitWidth) > 0.5) {
-			this.lastFitWidth = rect.width;
-			this.shrinkCols = 0;
-			this.verifyRounds = 0;
-			this.scheduleColumnCheck(limit, true);
-		} else if (this.shrinkCols > 0) {
-			const cols = Math.max(10, this.terminal.cols - this.shrinkCols);
-			if (cols !== this.terminal.cols) this.terminal.resize(cols, this.terminal.rows);
-		}
 		return true;
-	}
-	/**
-	 * Column count needs a second opinion from what is actually painted.
-	 *
-	 * xterm's DOM renderer lays glyphs out at the font's real advance width,
-	 * which on some systems (CJK fallback fonts, fractional device scaling,
-	 * mixed families) is wider than the cell width it measured. Long lines then
-	 * grow past the canvas and the rightmost cells end up clipped behind the
-	 * scrollbar, which no option can predict. So verify against the render.
-	 *
-	 * xterm repaints its DOM on the next frame, so each round waits for one
-	 * before measuring; a round that shrinks schedules the next one until the
-	 * content really fits.
-	 */
-	private scheduleColumnCheck(limit: number, force = false): void {
-		this.lastLimit = limit;
-		// Never restart a pending frame: fit() is called several times per resize
-		// (sync + rAF + timer), and restarting would starve the correction.
-		if (this.verifyRaf) return;
-		// Measuring forces a layout, so content-driven checks stay throttled;
-		// an explicit fit (resize, font load) always goes through.
-		const now = Date.now();
-		if (!force && now - this.lastCheckAt < 250) return;
-		this.lastCheckAt = now;
-		this.verifyRaf = requestAnimationFrame(() => {
-			this.verifyRaf = 0;
-			try {
-				if (this.recheckColumns(this.lastLimit) && this.verifyRounds < 8) {
-					this.verifyRounds++;
-					this.scheduleColumnCheck(this.lastLimit, true);
-				} else {
-					this.verifyRounds = 0;
-				}
-			} catch {
-				// Detached/destroyed terminal: nothing left to correct.
-			}
-		});
-	}
-	/** One correction pass; true when it resized and needs a re-check. */
-	private recheckColumns(limit: number): boolean {
-		const rowsEl = this.terminal.element?.querySelector('.xterm-rows') as HTMLElement | null | undefined;
-		if (!rowsEl) return false;
-		let contentRight = 0;
-		for (const row of Array.from(rowsEl.children) as HTMLElement[]) {
-			const kids = row.children;
-			for (let i = kids.length - 1; i >= 0; i--) {
-				const cell = kids[i] as HTMLElement;
-				if (!cell.textContent) continue;
-				const right = cell.getBoundingClientRect().right;
-				if (right > contentRight) contentRight = right;
-				break;
-			}
-		}
-		// Nothing painted to judge by: leave the computed size alone.
-		if (contentRight === 0) return false;
-		const cols = this.terminal.cols;
-		const screenEl = this.terminal.element?.querySelector('.xterm-screen') as HTMLElement | null | undefined;
-		const screenW = screenEl?.getBoundingClientRect().width ?? 0;
-		const colW = cols > 0 && screenW > 0 ? screenW / cols : 0;
-		if (contentRight > limit) {
-			// Spilling over: give up columns, bounded per pass so a bad measurement
-			// can never collapse the terminal in one step.
-			const over = contentRight - limit;
-			const need = colW > 0 ? Math.min(8, Math.ceil(over / colW)) : 1;
-			const next = Math.max(10, cols - Math.max(1, need));
-			if (next >= cols) return false;
-			this.shrinkCols += cols - next;
-			this.terminal.resize(next, this.terminal.rows);
-			return true;
-		}
-		return false;
 	}
 	focus(): void { this.terminal.focus(); }
 	pasteText(text: string): void { this.terminal.paste(text); }

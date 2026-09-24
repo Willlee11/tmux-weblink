@@ -252,17 +252,7 @@ export function attachTerminal(sessionName: string, io: AttachIO, deps: AttachDe
 	const onMessage = (raw: string) => {
 		if (disposed || !ptyProcess) return;
 		try {
-			if (deps.handleClientMessage(raw, ptyProcess)) {
-				// TEMP DIAGNOSTIC: log client-driven resizes so we can tell whether a
-				// phone is thrashing the column count.
-				try {
-					const m = JSON.parse(raw) as { type?: string; cols?: number; rows?: number };
-					if (m.type === 'resize') {
-						console.log('[resize]', JSON.stringify({ session: sessionName, cols: m.cols, rows: m.rows, t: Date.now() }));
-					}
-				} catch { /* not json */ }
-				return;
-			}
+			if (deps.handleClientMessage(raw, ptyProcess)) return;
 		} catch {
 			return;
 		}
