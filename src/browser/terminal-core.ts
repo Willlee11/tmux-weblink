@@ -166,6 +166,8 @@ class XtermAdapter implements TerminalAdapter {
 	 * layer to keep the screen adjusting.
 	 */
 	private enableWebglRenderer(): void {
+		// Escape hatch for comparing renderers without a release.
+		if (rendererOverride() === 'dom') return;
 		void import('@xterm/addon-webgl')
 			.then(({ WebglAddon }) => {
 				const addon = new WebglAddon();
@@ -196,9 +198,10 @@ class XtermAdapter implements TerminalAdapter {
 			import('@xterm/addon-fit'),
 			ensureXtermCss(),
 		]);
+		const fontFamily = "'JetBrains Mono', 'SF Mono', 'Menlo', monospace";
 		const terminal = new Terminal({
-			fontSize: 14,
-			fontFamily: "'JetBrains Mono', 'SF Mono', 'Menlo', monospace",
+			fontSize: sharpFontSize(14, fontFamily),
+			fontFamily,
 			cursorBlink: true,
 			cursorStyle: 'bar',
 			scrollback,
@@ -328,6 +331,50 @@ class XtermAdapter implements TerminalAdapter {
 	}
 }
 
+
+/**
+ * Pick a font size whose glyph advance lands on a whole device pixel.
+ *
+ * xterm rounds its measured cell width to an integer CSS pixel, but a font keeps
+ * its own advance - DejaVu Sans Mono is 0.602em, i.e. 8.43px at 14px. The 5%
+ * mismatch accumulates one pixel every dozen characters: the DOM renderer drifts
+ * and pushes the tail of a long line out of the canvas, while the WebGL renderer
+ * has to squeeze every 8.43px glyph into an 8px cell, which resamples the glyph
+ * and makes text look washed out. Rounding the advance to the device grid fixes
+ * both, because the glyphs and the cells then agree exactly.
+ */
+function sharpFontSize(preferred: number, fontFamily: string): number {
+	try {
+		const ctx = document.createElement('canvas').getContext('2d');
+		if (!ctx) return preferred;
+		const REF = 100;
+		ctx.font = `${REF}px ${fontFamily}`;
+		const ratio = ctx.measureText('M').width / REF;
+		if (!Number.isFinite(ratio) || ratio <= 0) return preferred;
+		const dpr = window.devicePixelRatio || 1;
+		let best = preferred;
+		let bestErr = Number.POSITIVE_INFINITY;
+		for (let deviceCells = 4; deviceCells <= 40; deviceCells++) {
+			const size = deviceCells / (ratio * dpr);
+			if (size < preferred - 1.5 || size > preferred + 1.5) continue;
+			const err = Math.abs(size - preferred);
+			if (err < bestErr) { bestErr = err; best = size; }
+		}
+		return Math.round(best * 100) / 100;
+	} catch {
+		return preferred;
+	}
+}
+
+/** Renderer override for comparing DOM and WebGL output: ?renderer=dom|webgl */
+function rendererOverride(): 'webgl' | 'dom' | null {
+	try {
+		const value = new URLSearchParams(window.location.search).get('renderer');
+		return value === 'dom' || value === 'webgl' ? value : null;
+	} catch {
+		return null;
+	}
+}
 
 function getTerminalViewportRect(el: HTMLElement): { width: number; height: number } {
 	const rect = el.getBoundingClientRect();
