@@ -145,7 +145,8 @@ class XtermAdapter implements TerminalAdapter {
 	private readonly container: HTMLElement;
 	/** True while the WebGL renderer is active (glyphs are painted per cell). */
 	private webglActive = false;
-	private webglAddon: { dispose(): void; onContextLoss(cb: () => void): void } | null = null;
+	private repaintTimer: ReturnType<typeof setTimeout> | 0 = 0;
+	private webglAddon: { dispose(): void; onContextLoss(cb: () => void): void; clearTextureAtlas?(): void } | null = null;
 
 	private constructor(container: HTMLElement, terminal: XTerminalType, fitAddon: FitAddonType) {
 		this.container = container;
@@ -154,6 +155,11 @@ class XtermAdapter implements TerminalAdapter {
 		this.terminal.loadAddon(this.fitAddon);
 		this.terminal.open(container);
 		this.enableWebglRenderer();
+		// Coming back from a hidden tab or a sleeping display can leave the atlas
+		// stale even though no context loss was reported.
+		document.addEventListener('visibilitychange', () => {
+			if (!document.hidden) this.refreshPaintedRows();
+		});
 	}
 	/**
 	 * Use the WebGL renderer, which paints every glyph inside its grid cell. With
@@ -165,9 +171,24 @@ class XtermAdapter implements TerminalAdapter {
 	 * renderer on its own. Nothing else changes - there is no dynamic correction
 	 * layer to keep the screen adjusting.
 	 */
+	/**
+	 * WebGL is opt-in (?renderer=webgl).
+	 *
+	 * The DOM renderer is the default: it keeps no glyph texture atlas, so it cannot
+	 * show the ghosted/torn text the WebGL renderer produces once its atlas pages
+	 * merge (an upstream bug fixed only in @xterm/addon-webgl 0.20.0-beta.x). With
+	 * the font advance aligned to the cell width there is no drift left either, so
+	 * the DOM renderer no longer clips the rightmost column.
+	 */
 	private enableWebglRenderer(): void {
-		// Escape hatch for comparing renderers without a release.
-		if (rendererOverride() === 'dom') return;
+		if (rendererOverride() !== 'webgl') return;
+		// Software (SwiftShader) WebGL2 drops characters, so require a real GPU.
+		try {
+			const probe = document.createElement('canvas').getContext('webgl2', { failIfMajorPerformanceCaveat: true });
+			if (!probe) return;
+		} catch {
+			return;
+		}
 		void import('@xterm/addon-webgl')
 			.then(({ WebglAddon }) => {
 				const addon = new WebglAddon();
@@ -190,6 +211,19 @@ class XtermAdapter implements TerminalAdapter {
 				this.fit();
 			})
 			.catch(() => { /* chunk missing / blocked: keep the DOM renderer */ });
+	}
+	/**
+	 * Recover from a stale glyph atlas (ghosted / torn text).
+	 *
+	 * An atlas page merge invalidates the glyph -> texture coordinates, and until
+	 * upstream's per-renderer pageLayoutVersion the renderer kept drawing from the
+	 * old ones, so everything painted after the merge came out garbled while rows
+	 * painted before it looked fine. Dropping the atlas and repainting fixes it.
+	 */
+	private refreshPaintedRows(): void {
+		if (!this.webglActive) return;
+		try { this.webglAddon?.clearTextureAtlas?.(); } catch { /* older addon */ }
+		try { this.terminal.refresh(0, Math.max(0, this.terminal.rows - 1)); } catch { /* detached */ }
 	}
 
 	static async create(container: HTMLElement, scrollback: number, theme: TerminalTheme): Promise<XtermAdapter> {
@@ -219,11 +253,23 @@ class XtermAdapter implements TerminalAdapter {
 	}
 	reset(): void { this.terminal.reset(); }
 	scrollToBottom(): void { this.terminal.scrollToBottom(); }
-	scrollToLine(line: number, now = false): void { (this.terminal as any).scrollToLine(Math.max(0, line), now); }
+	scrollToLine(line: number, now = false): void {
+		(this.terminal as any).scrollToLine(Math.max(0, line), now);
+		this.scheduleRepaintCheck();
+	}
 	scrollLines(lines: number): void {
-			const b = (this.terminal.buffer?.active as any);
-			this.terminal.scrollLines(lines);
-		}
+		this.terminal.scrollLines(lines);
+		this.scheduleRepaintCheck();
+	}
+	/** Repaint once scrolling settles, so a stale atlas cannot leave ghosts behind. */
+	private scheduleRepaintCheck(): void {
+		if (!this.webglActive) return;
+		if (this.repaintTimer) clearTimeout(this.repaintTimer);
+		this.repaintTimer = setTimeout(() => {
+			this.repaintTimer = 0;
+			this.refreshPaintedRows();
+		}, 150);
+	}
 	isNearScrollbackTop(): boolean { return this.terminal.buffer.active.viewportY <= 1; }
 	viewportY(): number { return this.terminal.buffer.active.viewportY; }
 	baseY(): number { return this.terminal.buffer.active.baseY; }
@@ -238,11 +284,18 @@ class XtermAdapter implements TerminalAdapter {
 	fit(): boolean {
 		const rect = getTerminalViewportRect(this.container);
 		if (rect.width <= 0 || rect.height <= 0) return false;
+		const prevCols = this.terminal.cols;
+		const prevRows = this.terminal.rows;
 		// xterm's fit addon derives the grid from the measured cell size and
 		// reserves the scrollbar. With the WebGL renderer (the default here)
 		// glyphs are painted per cell, so that grid is exact and nothing has to be
 		// re-measured or corrected afterwards.
 		this.fitAddon.fit();
+		// A resize invalidates the glyph atlas; repaint so stale mappings cannot
+		// survive into the new geometry.
+		if (this.webglActive && (prevCols !== this.terminal.cols || prevRows !== this.terminal.rows)) {
+			this.refreshPaintedRows();
+		}
 		return true;
 	}
 	focus(): void { this.terminal.focus(); }
