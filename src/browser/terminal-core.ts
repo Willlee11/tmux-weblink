@@ -286,17 +286,54 @@ class XtermAdapter implements TerminalAdapter {
 		if (rect.width <= 0 || rect.height <= 0) return false;
 		const prevCols = this.terminal.cols;
 		const prevRows = this.terminal.rows;
-		// xterm's fit addon derives the grid from the measured cell size and
-		// reserves the scrollbar. With the WebGL renderer (the default here)
-		// glyphs are painted per cell, so that grid is exact and nothing has to be
-		// re-measured or corrected afterwards.
-		this.fitAddon.fit();
+		// Bootstrap the grid once; afterwards its cell width is known and the size
+		// can be derived arithmetically (see below) instead of being re-proposed.
+		let cellW = this.paintedCellWidth();
+		if (cellW <= 0) {
+			this.fitAddon.fit();
+			cellW = this.paintedCellWidth();
+		}
+		const proposed = this.fitAddon.proposeDimensions?.();
+		if (!proposed) {
+			this.fitAddon.fit();
+			return true;
+		}
+		// xterm 6 paints its scrollbar as an absolute overlay that occupies no
+		// layout width, so the fitted grid can end exactly at - or a fraction
+		// underneath - the bar, swallowing the rightmost column. Reserve the bar's
+		// measured width plus two pixels of slack. This is plain arithmetic on the
+		// container size and the already-known cell width: the same inputs always
+		// give the same grid, so it settles immediately and never re-adjusts.
+		const barWidth = this.overlayScrollbarWidth();
+		const reserve = barWidth > 0 ? barWidth + 2 : 0;
+		const cols = cellW > 0
+			? Math.max(10, Math.min(proposed.cols, Math.floor((rect.width - reserve) / cellW)))
+			: proposed.cols;
+		const rows = proposed.rows;
+		if (cols !== this.terminal.cols || rows !== this.terminal.rows) {
+			this.terminal.resize(cols, rows);
+		}
 		// A resize invalidates the glyph atlas; repaint so stale mappings cannot
 		// survive into the new geometry.
 		if (this.webglActive && (prevCols !== this.terminal.cols || prevRows !== this.terminal.rows)) {
 			this.refreshPaintedRows();
 		}
 		return true;
+	}
+	/** Measured CSS width of one painted cell, or 0 before the grid is painted. */
+	private paintedCellWidth(): number {
+		const screen = this.terminal.element?.querySelector('.xterm-screen') as HTMLElement | null | undefined;
+		const width = screen?.getBoundingClientRect().width ?? 0;
+		const cols = this.terminal.cols;
+		return width > 0 && cols > 0 ? width / cols : 0;
+	}
+	/** Width of xterm's overlay scrollbar, 0 when it is absent or hidden. */
+	private overlayScrollbarWidth(): number {
+		const bar = this.terminal.element?.querySelector('.vertical.scrollbar') as HTMLElement | null | undefined;
+		if (!bar) return 0;
+		const rect = bar.getBoundingClientRect();
+		if (!(rect.width > 0) || !(rect.height > 0)) return 0;
+		return Math.round(rect.width);
 	}
 	focus(): void { this.terminal.focus(); }
 	pasteText(text: string): void { this.terminal.paste(text); }
