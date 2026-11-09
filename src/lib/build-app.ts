@@ -6,6 +6,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Hono } from 'hono';
 import { listSessions } from '../sessions.js';
+import { createRequire } from 'node:module';
 import { renderLoginPage, renderNotesIndex, renderNotesPage, renderSettings, renderThemeSettings, renderHistoryIndex, renderQuickCommandsPage, renderFilesIndex, renderShell } from '../frontend.js';
 import { renderFederationPage } from './pages/federation.js';
 import { createAgentToken, removeAgentToken, listAgentTokens } from './agent-tokens.js';
@@ -89,6 +90,9 @@ export interface BuildAppDeps {
 function isLocalhostIp(ip: string): boolean {
 	return ip === '127.0.0.1' || ip === '::1' || ip === '::ffff:127.0.0.1';
 }
+
+const requireFromHere = createRequire(import.meta.url);
+const { version } = requireFromHere('../../package.json') as { version: string };
 
 export function buildApp(deps: BuildAppDeps): Hono {
 	const {
@@ -212,6 +216,11 @@ export function buildApp(deps: BuildAppDeps): Hono {
 	// ── Security headers ───────────────────────────────────────────────────
 	app.use('*', async (c, next) => {
 		await next();
+		// Pages carry the inline shell (styles, scripts, markup), so they must never
+		// be served from a heuristic cache: a stale copy shows old UI while the
+		// server has moved on - and on mobile a "hard refresh" often is not one.
+		const contentType = c.res.headers.get('content-type') || '';
+		if (contentType.includes('text/html')) c.header('Cache-Control', 'no-store');
 		c.header('X-Content-Type-Options', 'nosniff');
 		c.header('X-Frame-Options', 'DENY');
 		c.header('Content-Security-Policy', [
@@ -319,13 +328,18 @@ export function buildApp(deps: BuildAppDeps): Hono {
 	);
 
 	const SERVICE_WORKER_JS = `// tmux-weblink Service Worker
-const CACHE = "tmux-weblink-v1";
+const CACHE = "tmux-weblink-v2";
 const ASSETS = ["/", "/favicon.svg"];
 self.addEventListener("install", (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(ASSETS)));
   self.skipWaiting();
 });
-self.addEventListener("activate", (e) => { e.waitUntil(clients.claim()); });
+self.addEventListener("activate", (e) => {
+  e.waitUntil((async () => {
+    for (const key of await caches.keys()) if (key !== CACHE) await caches.delete(key);
+    await clients.claim();
+  })());
+});
 self.addEventListener("fetch", (e) => {
   e.respondWith(fetch(e.request).catch(() => caches.match(e.request)));
 });
@@ -352,6 +366,7 @@ self.addEventListener("fetch", (e) => {
 		const roots = resolveFsRoots();
 		return c.html(renderShell({
 			theme: state.activeTheme,
+			version,
 			fsRoots: roots,
 			terminalCfg: terminalBufferConfig,
 			scrollback: terminalBufferConfig.initialLines + 2 * terminalBufferConfig.historyChunk,

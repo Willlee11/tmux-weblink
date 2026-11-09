@@ -6,6 +6,8 @@ import { icon } from '../icons.js';
 
 export type ShellConfig = {
 	theme: TmuxWebTheme;
+	/** Running package version, shown in Settings so a stale page is obvious. */
+	version?: string;
 	fsRoots: string[];
 	terminalCfg: TerminalBufferConfig;
 	scrollback: number;
@@ -23,6 +25,7 @@ function focusRing(accent = 'var(--panel-accent)'): string {
 
 export function renderShell(cfg: ShellConfig): string {
 	const { theme, fsRoots, terminalCfg, scrollback, wsBase } = cfg;
+	const version = cfg.version ? escapeHtml(cfg.version) : '';
 
 	// ram fetched client-side
 
@@ -720,6 +723,7 @@ export function renderShell(cfg: ShellConfig): string {
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<meta name="tw-build" content="${version}" />
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 <meta name="apple-mobile-web-app-title" content="tmux-web" />
@@ -826,6 +830,7 @@ export function renderShell(cfg: ShellConfig): string {
 <!-- Settings popover -->
 <div class="popover-backdrop" id="settings-backdrop"></div>
 <div class="settings-popover" id="settings-popover">
+<div style="padding:1px 2px 6px;font-size:10px;color:var(--panel-muted);opacity:.8;font-family:var(--font-mono)">tmux-weblink v${version}</div>
   <div style="padding:4px 0">
     <button class="theme-option" data-theme="vscode" title="VS Code"><span class="theme-dot" style="background:#007acc"></span>VS Code${theme.template === 'vscode' ? '<span class="theme-check">✓</span>' : ''}</button>
     <button class="theme-option" data-theme="ghostty" title="Ghostty"><span class="theme-dot" style="background:#ff5f00"></span>Ghostty${theme.template === 'ghostty' ? '<span class="theme-check">✓</span>' : ''}</button>
