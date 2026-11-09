@@ -603,16 +603,29 @@ export function renderShell(cfg: ShellConfig): string {
     touch-action: manipulation; user-select: none;
   }
   .mobile-keys button:active { opacity: 0.55; }
-  /* Slim tappable strip under the input: the "empty space" that expands the keys. */
+  /* Full-width tappable bar in the space under the input: tap anywhere on it to
+     expand or collapse the extra keys. flex-basis 100% keeps it on its own row
+     (the toolbar itself is a wrapping flex row). */
   .mobile-keys .mk-handle {
-    display: flex; align-items: center; justify-content: center;
-    height: 16px; margin-top: 2px; border-radius: 6px;
-    color: var(--panel-muted); opacity: 0.65;
+    flex: 1 1 100%;
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+    height: 26px; margin: 2px 0 0; border-radius: 7px;
+    background: color-mix(in srgb, var(--page-bg), var(--panel-bg) 55%);
+    border: 1px solid var(--panel-border);
+    color: var(--panel-muted);
+    font-size: 11px; font-family: var(--font-mono); letter-spacing: 0.04em;
     cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent;
+    user-select: none;
   }
-  .mobile-keys .mk-handle:active { opacity: 1; }
+  .mobile-keys .mk-handle:active {
+    color: var(--page-fg);
+    border-color: var(--panel-accent);
+  }
   .mobile-keys .mk-handle svg { transition: transform 0.15s; }
   .mobile-keys.mk-open .mk-handle svg { transform: rotate(180deg); }
+  .mobile-keys .mk-handle .mk-when-open { display: none; }
+  .mobile-keys.mk-open .mk-handle .mk-when-closed { display: none; }
+  .mobile-keys.mk-open .mk-handle .mk-when-open { display: inline; }
   .mobile-keys .mk-input {
     display: flex; gap: 4px; flex: 1 1 100%;
   }
@@ -790,7 +803,7 @@ export function renderShell(cfg: ShellConfig): string {
         <textarea id="mk-input" placeholder="Type or voice input…" autocapitalize="off" autocomplete="off" autocorrect="off" spellcheck="false" rows="1"></textarea>
         <button id="mk-send" type="button" title="Send (Enter)"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg></button>
       </div>
-      <div class="mk-handle" id="mk-handle" role="button" tabindex="0" aria-pressed="false" title="Show/hide extra keys" aria-label="Show or hide extra keys"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 15l6-6 6 6"/></svg></div>
+      <div class="mk-handle" id="mk-handle" role="button" tabindex="0" aria-pressed="false" title="Show/hide extra keys" aria-label="Show or hide extra keys"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 15l6-6 6 6"/></svg><span class="mk-when-closed">展开按键</span><span class="mk-when-open">收起按键</span></div>
       <div class="mk-buttons" id="mk-buttons">
         <button data-key="esc">ESC</button>
         <button data-key="tab">Tab</button>
