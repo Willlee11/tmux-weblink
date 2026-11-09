@@ -599,12 +599,24 @@ export function renderShell(cfg: ShellConfig): string {
     background: var(--panel-bg); flex-shrink: 0;
   }
   .mobile-keys button {
-    min-width: 38px; min-height: 38px; padding: 4px 10px;
+    /* Fixed size, never squeezed: with nowrap wrapping the row used to shrink
+       buttons below their label and the text spilled out of the cell. */
+    flex: 0 0 auto;
+    min-width: 40px; height: 40px; padding: 0 8px;
     border: 1px solid var(--panel-border); border-radius: 8px;
     background: var(--page-bg); color: var(--page-fg);
-    font-size: 11px; font-family: var(--font-mono); cursor: pointer;
+    font-size: 12px; font-family: var(--font-mono); cursor: pointer;
+    line-height: 1; white-space: nowrap; overflow: hidden;
     touch-action: manipulation; user-select: none;
+    display: inline-flex; align-items: center; justify-content: center;
   }
+  /* Arrows and other single-glyph keys are square; label keys size to content. */
+  .mobile-keys button[data-key="up"],
+  .mobile-keys button[data-key="down"],
+  .mobile-keys button[data-key="left"],
+  .mobile-keys button[data-key="right"],
+  .mobile-keys button[data-key="space"],
+  .mobile-keys button[data-key="enter"] { width: 40px; padding: 0; font-size: 15px; }
   .mobile-keys button:active { opacity: 0.55; }
   /* Full-width tappable bar in the space under the input: tap anywhere on it to
      expand or collapse the extra keys. flex-basis 100% keeps it on its own row
@@ -809,19 +821,19 @@ export function renderShell(cfg: ShellConfig): string {
       </div>
       <div class="mk-handle" id="mk-handle" role="button" tabindex="0" aria-pressed="false" title="Show/hide extra keys" aria-label="Show or hide extra keys"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 15l6-6 6 6"/></svg><span class="mk-when-closed">展开按键</span><span class="mk-when-open">收起按键</span></div>
       <div class="mk-buttons" id="mk-buttons">
-        <button data-key="esc">ESC</button>
-        <button data-key="tab">Tab</button>
-        <button data-key="s-tab">S-Tab</button>
-        <button data-key="up">↑</button>
-        <button data-key="down">↓</button>
-        <button data-key="left">←</button>
-        <button data-key="right">→</button>
-        <button data-key="space">␣</button>
-        <button data-key="enter">↵ Enter</button>
-        <button data-key="ctrl-r">Ctrl+R</button>
-        <button data-key="ctrl-c">Ctrl+C</button>
-        <button data-key="btw">/btw</button>
-        <button data-key="yes">Yes</button>
+        <button data-key="esc" title="Esc" aria-label="Esc">Esc</button>
+        <button data-key="tab" title="Tab" aria-label="Tab">Tab</button>
+        <button data-key="s-tab" title="Shift+Tab" aria-label="Shift Tab">⇧Tab</button>
+        <button data-key="up" title="Up" aria-label="Up">↑</button>
+        <button data-key="down" title="Down" aria-label="Down">↓</button>
+        <button data-key="left" title="Left" aria-label="Left">←</button>
+        <button data-key="right" title="Right" aria-label="Right">→</button>
+        <button data-key="space" title="Space" aria-label="Space">␣</button>
+        <button data-key="enter" title="Enter" aria-label="Enter">↵</button>
+        <button data-key="ctrl-r" title="Ctrl+R" aria-label="Control R">^R</button>
+        <button data-key="ctrl-c" title="Ctrl+C" aria-label="Control C">^C</button>
+        <button data-key="btw" title="/btw — pass a side note to the agent" aria-label="slash btw">/btw</button>
+        <button data-key="yes" title="yes" aria-label="yes">Yes</button>
       </div>
     </div>
   </main>
