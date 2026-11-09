@@ -1194,9 +1194,52 @@ const keyMap: Record<string, string> = {
 	yes: 'yes\r',
 };
 
-document.getElementById('mobile-keys')!.addEventListener('click', (e) => {
+const mkRoot = document.getElementById('mobile-keys')!;
+// Keys that make sense to repeat while held (arrows, tab, space). Commands like
+// Ctrl+C or /btw must never fire twice, so they stay single-shot.
+const repeatKeys = new Set(['up', 'down', 'left', 'right', 'tab', 's-tab', 'space']);
+const REPEAT_DELAY_MS = 400;
+const REPEAT_INTERVAL_MS = 80;
+let repeatDelayTimer: ReturnType<typeof setTimeout> | 0 = 0;
+let repeatTimer: ReturnType<typeof setInterval> | 0 = 0;
+let repeatedDuringPress = false;
+
+function stopRepeating(): void {
+	if (repeatDelayTimer) { clearTimeout(repeatDelayTimer); repeatDelayTimer = 0; }
+	if (repeatTimer) { clearInterval(repeatTimer); repeatTimer = 0; }
+}
+
+// Keep focus (and the soft keyboard) where it is. Preventing the default of
+// mousedown suppresses the focus change but still lets click fire - doing the
+// same on pointerdown also swallowed the click, so single taps sent nothing.
+mkRoot.addEventListener('mousedown', (e) => {
+	if ((e.target as HTMLElement).closest('button[data-key]')) e.preventDefault();
+});
+
+mkRoot.addEventListener('pointerdown', (e) => {
+	const btn = (e.target as HTMLElement).closest('button[data-key]') as HTMLElement | null;
+	if (!btn) return;
+	const key = btn.dataset.key!;
+	if (!repeatKeys.has(key)) return;
+	repeatedDuringPress = false;
+	repeatDelayTimer = setTimeout(() => {
+		repeatDelayTimer = 0;
+		repeatedDuringPress = true;
+		repeatTimer = setInterval(() => {
+			const seq = keyMap[key];
+			if (seq && currentTerminal) currentTerminal.sendInput(seq);
+		}, REPEAT_INTERVAL_MS);
+	}, REPEAT_DELAY_MS);
+});
+for (const evt of ['pointerup', 'pointercancel', 'pointerleave'] as const) {
+	mkRoot.addEventListener(evt, stopRepeating);
+}
+
+mkRoot.addEventListener('click', (e) => {
 	const btn = (e.target as HTMLElement).closest('button[data-key]');
 	if (!btn || !currentTerminal) return;
+	// A long press already sent the key repeatedly; do not add one more.
+	if (repeatedDuringPress) { repeatedDuringPress = false; return; }
 	const seq = keyMap[(btn as HTMLElement).dataset.key!];
 	if (seq) {
 		currentTerminal.sendInput(seq);
